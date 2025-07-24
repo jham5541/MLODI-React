@@ -1,29 +1,61 @@
 {
   "expo": {
-    "name": "m3lodi-mobile",
+    "name": "M3lodi",
     "slug": "m3lodi-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "auto",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.heftydon.m3lodi",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSCameraUsageDescription": "This app uses the camera to take photos for profile pictures and content sharing.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for profile pictures and content sharing."
+      }
     },
     "android": {
+      "package": "com.heftydon.m3lodi",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-av",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you select images for your profile and content sharing."
+        }
+      ]
+    ],
+    "scheme": "m3lodi",
+    "extra": {
+      "eas": {
+        "projectId": "60578151-9cf1-46bb-8469-35659e9abb9c"
+      }
+    },
+    "owner": "heftydon"
   }
 }
