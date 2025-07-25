@@ -1,0 +1,15 @@
+{
+  "name": "m3lodi-database-analyzer",
+  "version": "1.0.0",
+  "description": "Database analysis scripts for M3lodi Supabase instance",
+  "scripts": {
+    "analyze": "node analyze-database.js",
+    "analyze:verbose": "node analyze-database.js --verbose"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0"
+  },
+  "devDependencies": {},
+  "author": "M3lodi Team",
+  "license": "MIT"
+}

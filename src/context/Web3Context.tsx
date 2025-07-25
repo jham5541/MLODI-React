@@ -3,6 +3,7 @@ import { createConfig, configureChains, mainnet } from 'wagmi';
 import { publicProvider } from 'wagmi/providers/public';
 import { WagmiConfig, useAccount, useConnect, useDisconnect } from 'wagmi';
 import { walletConnectConnector } from '@web3modal/wagmi-react-native';
+import { AppState } from 'react-native';
 
 interface Web3ContextType {
   address: string | null;
@@ -10,6 +11,7 @@ interface Web3ContextType {
   disconnect: () => Promise<void>;
   isConnecting: boolean;
   isConnected: boolean;
+  isInitialized: boolean;
 }
 
 const Web3Context = createContext<Web3ContextType | null>(null);
@@ -46,6 +48,7 @@ function Web3ContextProvider({ children }: { children: React.ReactNode }) {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const [address, setAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { connect, isLoading: isConnecting, connectors } = useConnect();
   const { disconnect } = useDisconnect();
 
@@ -54,7 +57,41 @@ function Web3ContextProvider({ children }: { children: React.ReactNode }) {
     setIsConnected(wagmiConnected);
   }, [wagmiAddress, wagmiConnected]);
 
+  useEffect(() => {
+    const initializeWeb3 = () => {
+      try {
+        // Delay Web3 initialization to after app is fully loaded
+        setTimeout(() => {
+          setIsInitialized(true);
+        }, 1000);
+      } catch (error) {
+        console.error('Web3 initialization error:', error);
+        // Still mark as initialized to prevent blocking the app
+        setIsInitialized(true);
+      }
+    };
+
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active' && !isInitialized) {
+        initializeWeb3();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    // Initialize on mount if app is already active
+    if (AppState.currentState === 'active') {
+      initializeWeb3();
+    }
+
+    return () => subscription?.remove();
+  }, [isInitialized]);
+
   const connectWallet = async () => {
+    if (!isInitialized) {
+      throw new Error('Web3 not initialized yet. Please try again.');
+    }
+    
     try {
       const walletConnectConnector = connectors.find(
         (connector) => connector.id === 'walletConnect'
@@ -89,6 +126,7 @@ function Web3ContextProvider({ children }: { children: React.ReactNode }) {
     disconnect: handleDisconnect,
     isConnecting,
     isConnected,
+    isInitialized,
   };
 
   return (

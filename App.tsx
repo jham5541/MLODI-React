@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SearchProvider } from './src/context/SearchContext';
 import { Web3Provider } from './src/context/Web3Context';
+import { Web3ErrorBoundary } from './src/components/common/Web3ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
 import Player from './src/components/audio/Player';
@@ -36,11 +37,13 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <Web3Provider>
-        <SearchProvider>
-          <AppContent />
-        </SearchProvider>
-      </Web3Provider>
+      <Web3ErrorBoundary>
+        <Web3Provider>
+          <SearchProvider>
+            <AppContent />
+          </SearchProvider>
+        </Web3Provider>
+      </Web3ErrorBoundary>
     </ThemeProvider>
   );
 }
