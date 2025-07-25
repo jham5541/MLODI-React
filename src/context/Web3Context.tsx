@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createConfig, configureChains, mainnet } from 'wagmi';
 import { publicProvider } from 'wagmi/providers/public';
 import { WagmiConfig, useAccount, useConnect, useDisconnect } from 'wagmi';
-import { walletConnectConnector } from '@web3modal/wagmi-react-native';
+import { WalletConnectConnector } from 'wagmi/connectors/walletConnect';
 import { AppState } from 'react-native';
 
 interface Web3ContextType {
@@ -31,7 +31,7 @@ const config = createConfig({
   autoConnect: true,
   publicClient,
   connectors: [
-    walletConnectConnector({
+    new WalletConnectConnector({
       chains,
       options: {
         projectId,
