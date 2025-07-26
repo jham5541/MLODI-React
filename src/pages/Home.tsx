@@ -39,6 +39,8 @@ export default function HomeScreen() {
       borderRadius: 12,
     },
     loadingText: {
+    }
+  }
   );
 
   return (
