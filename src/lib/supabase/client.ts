@@ -1,17 +1,18 @@
-// Mock Supabase client for Expo Go
-export const supabase = {
+import 'react-native-url-polyfill/auto';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase environment variables are not set');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Expo Go limitation') }),
-    signUp: () => Promise.resolve({ data: null, error: new Error('Expo Go limitation') }),
-    signOut: () => Promise.resolve({ error: null }),
-    getSession: () => Promise.resolve({ data: { session: null } }),
-    getUser: () => Promise.resolve({ data: { user: null } }),
-    onAuthStateChange: () => ({ data: { subscription: null } }),
+    // Expo Go compatible auth settings
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
   },
-  from: () => ({
-    select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null }),
-  }),
-};
+});
