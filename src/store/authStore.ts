@@ -34,6 +34,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+      });
+      if (error) {
+        set({ error: error.message, loading: false });
+        return false;
+      }
       if (data.user) {
         set({ 
           user: {
@@ -45,7 +50,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         return true;
       }
-      });
       return false;
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -61,11 +65,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         password,
       });
       if (error) {
-      if (error) {
         set({ error: error.message, loading: false });
         return false;
       }
-        set({ error: error.message, loading: false });
       if (data.user) {
         set({ 
           user: {
@@ -76,14 +78,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         return true;
       }
-        return false;
       return false;
     } catch (error: any) {
       set({ error: error.message, loading: false });
       return false;
     }
   },
-      }
+
   signInWithGoogle: async () => {
     Alert.alert('Expo Go Limitation', 'Google OAuth requires a development build with proper URL schemes.');
     return false;
@@ -95,18 +96,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await supabase.auth.signOut();
       set({ user: null, loading: false, error: null });
     } catch (error: any) {
+      set({ error: error.message, loading: false });
+    }
+  },
+
   updateProfile: async (data: any) => {
     set({ loading: true });
     try {
       const { error } = await supabase.auth.updateUser({
         data,
       });
-      set({ error: error.message, loading: false });
       if (error) {
         set({ error: error.message, loading: false });
         return;
       }
-    }
       set(state => ({
         user: state.user ? { ...state.user, ...data } : null,
         loading: false,
@@ -115,7 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: error.message, loading: false });
     }
   },
-  },
+
   initialize: async () => {
     set({ loading: true });
     try {
@@ -133,7 +136,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ user: null, loading: false });
       }
-  },
+
       // Listen for auth changes
       supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
