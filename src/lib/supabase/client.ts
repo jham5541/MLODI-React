@@ -1,19 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// These should be set in your environment variables
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Mock Supabase client for Expo Go
+export const supabase = {
   auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false, // Disable for React Native
+    signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Expo Go limitation') }),
+    signUp: () => Promise.resolve({ data: null, error: new Error('Expo Go limitation') }),
+    signOut: () => Promise.resolve({ error: null }),
+    getSession: () => Promise.resolve({ data: { session: null } }),
+    getUser: () => Promise.resolve({ data: { user: null } }),
+    onAuthStateChange: () => ({ data: { subscription: null } }),
   },
-});
+  from: () => ({
+    select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
+    insert: () => Promise.resolve({ data: null, error: null }),
+    update: () => Promise.resolve({ data: null, error: null }),
+    delete: () => Promise.resolve({ data: null, error: null }),
+  }),
+};
