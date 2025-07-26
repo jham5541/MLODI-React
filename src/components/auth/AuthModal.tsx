@@ -15,7 +15,6 @@ import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import { useWeb3 } from '../../context/Web3Context';
 
 interface AuthModalProps {
   isVisible: boolean;
@@ -34,7 +33,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, loading, error } = useAuthStore();
-  const { connectWallet, isConnecting, isConnected } = useWeb3();
 
   const styles = StyleSheet.create({
     modalContainer: {
@@ -240,17 +238,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
   };
 
-  const handleWeb3Connect = async () => {
-    try {
-      await connectWallet();
-      if (isConnected) {
-        onClose();
-      }
-    } catch (err) {
-      Alert.alert('Wallet Connection Error', 'Failed to connect wallet');
-    }
-  };
-
   const resetForm = () => {
     setEmail('');
     setPassword('');
@@ -304,51 +291,9 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
                 Sign Up
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, authMode === 'web3' && styles.activeTab]}
-              onPress={() => switchAuthMode('web3')}
-            >
-              <Text style={[styles.tabText, authMode === 'web3' && styles.activeTabText]}>
-                Web3
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Web3 Authentication */}
-          {authMode === 'web3' ? (
-            <View style={styles.web3Container}>
-              <Text style={styles.web3Title}>Connect Your Wallet</Text>
-              <Text style={styles.web3Subtitle}>
-                Connect your Web3 wallet to access exclusive features, own music NFTs, and participate in the decentralized music economy.
-              </Text>
-
-              {isConnected ? (
-                <View style={styles.connectedContainer}>
-                  <Ionicons name="checkmark-circle" size={48} color={themeColors.success} />
-                  <Text style={styles.connectedText}>Wallet Connected!</Text>
-                  <TouchableOpacity
-                    style={styles.button}
-                    onPress={onClose}
-                  >
-                    <Text style={styles.buttonText}>Continue</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.button, isConnecting && styles.buttonDisabled]}
-                  onPress={handleWeb3Connect}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.buttonText}>Connect Wallet</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            /* Email Authentication */
+          {/* Email Authentication */}
             <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <TextInput
@@ -425,7 +370,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
                 <Text style={styles.socialButtonText}>Continue with Google</Text>
               </TouchableOpacity>
             </View>
-          )}
 
           {error && <Text style={styles.errorText}>{error}</Text>}
         </ScrollView>

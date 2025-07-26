@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
-import { useWeb3 } from '../../context/Web3Context';
 import { Song } from '../../types/music';
 
 interface NFTCardProps {
@@ -14,19 +13,16 @@ interface NFTCardProps {
 export default function NFTCard({ song, onPress, onPurchase }: NFTCardProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected } = useWeb3();
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   const handlePurchase = async () => {
-    if (!isConnected) {
-      Alert.alert('Wallet Required', 'Please connect your wallet to purchase NFTs');
-      return;
-    }
-
     if (!song.supply?.available || song.supply.available <= 0) {
       Alert.alert('Sold Out', 'This NFT is no longer available');
       return;
     }
+
+    Alert.alert('Expo Go Limitation', 'NFT purchases require a development build with Web3 wallet support. This feature is not available in Expo Go.');
+    return;
 
     setIsPurchasing(true);
 

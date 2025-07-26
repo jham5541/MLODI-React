@@ -1,6 +1,5 @@
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
-import '@walletconnect/react-native-compat';
 
 // React DOM polyfill for @tanstack/react-query
 import { unstable_batchedUpdates } from 'react-native';
@@ -22,11 +21,6 @@ if (typeof global !== 'undefined') {
 
 // Module exports for ES modules
 (global as any).__reactDomModule = ReactDOM;
-
-// Polyfill for crypto if needed
-if (typeof global.crypto === 'undefined') {
-  global.crypto = require('expo-crypto');
-}
 
 // TextEncoder/TextDecoder polyfill for React Native
 if (typeof global.TextEncoder === 'undefined') {

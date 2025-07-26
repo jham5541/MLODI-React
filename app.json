@@ -49,8 +49,6 @@
           "photosPermission": "The app accesses your photos to let you select images for your profile and content sharing."
         }
       ]
-    ],
-    "scheme": "m3lodi",
     "extra": {
       "eas": {
         "projectId": "60578151-9cf1-46bb-8469-35659e9abb9c"

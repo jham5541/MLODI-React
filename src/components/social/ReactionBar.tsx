@@ -43,7 +43,7 @@ export default function ReactionBar({
 }: ReactionBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected } = useAuthStore();
+  const { user } = useAuthStore();
   const [animatedValues] = useState(() => 
     reactions.reduce((acc, reaction) => {
       acc[reaction.type] = new Animated.Value(1);
@@ -58,7 +58,7 @@ export default function ReactionBar({
   };
 
   const handleReaction = (type: Reaction['type']) => {
-    if (!isConnected) {
+    if (!user) {
       Alert.alert('Authentication Required', 'Please connect your wallet to react');
       return;
     }

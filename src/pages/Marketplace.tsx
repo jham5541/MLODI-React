@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
-import { useWeb3 } from '../context/Web3Context';
 import NFTCard from '../components/marketplace/NFTCard';
 import MarketplaceHeader from '../components/marketplace/MarketplaceHeader';
 import MarketplaceStats from '../components/marketplace/MarketplaceStats';
@@ -15,7 +14,6 @@ type MarketplaceFilter = 'all' | 'music' | 'collectibles' | 'trending';
 export default function MarketplaceScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected, address } = useWeb3();
   
   // Marketplace store
   const {
@@ -137,13 +135,7 @@ export default function MarketplaceScreen() {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 16,
-      backgroundColor: isConnected ? themeColors.success + '20' : themeColors.error + '20',
-    },
-    walletStatusText: {
-      fontSize: 12,
-      color: isConnected ? themeColors.success : themeColors.error,
-      marginLeft: 4,
-      fontWeight: '500',
+      backgroundColor: themeColors.primary + '20',
     },
     subtitle: {
       fontSize: 16,
@@ -261,11 +253,6 @@ export default function MarketplaceScreen() {
   };
 
   const handlePurchase = async (listing: any) => {
-    if (!isConnected) {
-      Alert.alert('Wallet Required', 'Please connect your wallet to purchase NFTs');
-      return;
-    }
-
     try {
       const transaction = await purchaseNFT(listing.id);
       Alert.alert(
@@ -308,38 +295,6 @@ export default function MarketplaceScreen() {
       </Text>
     </View>
   );
-
-  if (!isConnected) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.title}>Marketplace</Text>
-            <View style={styles.walletStatus}>
-              <Ionicons name="wallet-outline" size={14} color={themeColors.error} />
-              <Text style={styles.walletStatusText}>Not Connected</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitle}>
-            Discover and collect unique music NFTs from your favorite artists
-          </Text>
-        </View>
-        
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="wallet-outline"
-            size={64}
-            color={themeColors.textSecondary}
-            style={styles.emptyIcon}
-          />
-          <Text style={styles.emptyTitle}>Connect Your Wallet</Text>
-          <Text style={styles.emptySubtitle}>
-            Connect your Web3 wallet to browse and purchase music NFTs on the marketplace
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   const currentListings = getCurrentListings();
 

@@ -44,7 +44,7 @@ export default function CommentSection({
 }: CommentSectionProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected, user } = useAuthStore();
+  const { user } = useAuthStore();
   
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function CommentSection({
   const inputRef = useRef<TextInput>(null);
 
   const handleSubmitComment = () => {
-    if (!isConnected) {
+    if (!user) {
       Alert.alert('Authentication Required', 'Please connect your wallet to comment');
       return;
     }
@@ -64,7 +64,7 @@ export default function CommentSection({
   };
 
   const handleSubmitReply = (parentId: string) => {
-    if (!isConnected) {
+    if (!user) {
       Alert.alert('Authentication Required', 'Please connect your wallet to comment');
       return;
     }
@@ -175,13 +175,13 @@ export default function CommentSection({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                !replyContent.trim() && styles.submitButtonDisabled
+                (!newComment.trim() || !user) && styles.sendButtonDisabled
               ]}
               onPress={() => handleSubmitReply(comment.id)}
-              disabled={!replyContent.trim()}
+              disabled={!newComment.trim() || !user}
             >
               <Text style={styles.submitButtonText}>Reply</Text>
-            </TouchableOpacity>
+                {user ? 'Send' : 'Sign In'}
           </View>
         </View>
       )}

@@ -3,7 +3,6 @@ import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import { useWeb3 } from '../../context/Web3Context';
 import AuthModal from './AuthModal';
 
 export default function AuthButton() {
@@ -11,7 +10,7 @@ export default function AuthButton() {
   const themeColors = colors[activeTheme];
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, signOut } = useAuthStore();
-  const { isConnected, address, disconnect } = useWeb3();
+  // Removed Web3 hooks for Expo Go compatibility
 
   const styles = StyleSheet.create({
     container: {
@@ -59,12 +58,9 @@ export default function AuthButton() {
 
   const handleSignOut = async () => {
     await signOut();
-    if (isConnected) {
-      await disconnect();
-    }
   };
 
-  if (user || isConnected) {
+  if (user) {
     return (
       <View style={styles.container}>
         <TouchableOpacity
@@ -72,15 +68,12 @@ export default function AuthButton() {
           onPress={() => setShowAuthModal(true)}
         >
           <Ionicons 
-            name={isConnected ? "wallet" : "person"} 
+            name="person" 
             size={16} 
             color="white" 
           />
           <Text style={[styles.buttonText, styles.signedInText, styles.addressText]}>
-            {isConnected && address 
-              ? formatAddress(address)
-              : user?.email?.split('@')[0] || 'User'
-            }
+            {user?.email?.split('@')[0] || 'User'}
           </Text>
         </TouchableOpacity>
         

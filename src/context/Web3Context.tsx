@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createConfig, configureChains, mainnet } from 'wagmi';
-import { publicProvider } from 'wagmi/providers/public';
-import { WagmiConfig, useAccount, useConnect, useDisconnect } from 'wagmi';
-import { WalletConnectConnector } from 'wagmi/connectors/walletConnect';
-import { AppState } from 'react-native';
+import { Alert } from 'react-native';
 
 interface Web3ContextType {
   address: string | null;
@@ -16,108 +12,25 @@ interface Web3ContextType {
 
 const Web3Context = createContext<Web3ContextType | null>(null);
 
-const projectId = process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
-
-if (!projectId) {
-  console.warn('Missing WalletConnect Project ID');
-}
-
-const { chains, publicClient } = configureChains(
-  [mainnet],
-  [publicProvider()]
-);
-
-const config = createConfig({
-  autoConnect: true,
-  publicClient,
-  connectors: [
-    new WalletConnectConnector({
-      chains,
-      options: {
-        projectId,
-        showQrModal: true,
-        qrModalOptions: {
-          themeMode: 'auto',
-        },
-      },
-    }),
-  ],
-});
-
+// Mock Web3 Provider for Expo Go compatibility
 function Web3ContextProvider({ children }: { children: React.ReactNode }) {
-  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const [address, setAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const { connect, isLoading: isConnecting, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  useEffect(() => {
-    setAddress(wagmiAddress ?? null);
-    setIsConnected(wagmiConnected);
-  }, [wagmiAddress, wagmiConnected]);
-
-  useEffect(() => {
-    const initializeWeb3 = () => {
-      try {
-        // Delay Web3 initialization to after app is fully loaded
-        setTimeout(() => {
-          setIsInitialized(true);
-        }, 1000);
-      } catch (error) {
-        console.error('Web3 initialization error:', error);
-        // Still mark as initialized to prevent blocking the app
-        setIsInitialized(true);
-      }
-    };
-
-    const handleAppStateChange = (nextAppState: string) => {
-      if (nextAppState === 'active' && !isInitialized) {
-        initializeWeb3();
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    // Initialize on mount if app is already active
-    if (AppState.currentState === 'active') {
-      initializeWeb3();
-    }
-
-    return () => subscription?.remove();
-  }, [isInitialized]);
+  const [isInitialized, setIsInitialized] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const connectWallet = async () => {
-    if (!isInitialized) {
-      throw new Error('Web3 not initialized yet. Please try again.');
-    }
-    
-    try {
-      const walletConnectConnector = connectors.find(
-        (connector) => connector.id === 'walletConnect'
-      );
-      
-      if (!walletConnectConnector) {
-        throw new Error('WalletConnect connector not found');
-      }
-      
-      await connect({ connector: walletConnectConnector });
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
-      throw error;
-    }
+    setIsConnecting(true);
+    Alert.alert(
+      'Expo Go Limitation', 
+      'Web3 wallet functionality is not available in Expo Go. Please build a development client to test wallet features.',
+      [{ text: 'OK', onPress: () => setIsConnecting(false) }]
+    );
   };
 
   const handleDisconnect = async () => {
-    try {
-      await disconnect();
-      setAddress(null);
-      setIsConnected(false);
-    } catch (error) {
-      console.error('Failed to disconnect:', error);
-      setAddress(null);
-      setIsConnected(false);
-    }
+    setAddress(null);
+    setIsConnected(false);
   };
 
   const value = {
@@ -138,9 +51,7 @@ function Web3ContextProvider({ children }: { children: React.ReactNode }) {
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiConfig config={config}>
-      <Web3ContextProvider>{children}</Web3ContextProvider>
-    </WagmiConfig>
+    <Web3ContextProvider>{children}</Web3ContextProvider>
   );
 }
 

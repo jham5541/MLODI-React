@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
-import * as Linking from 'expo-linking';
 
 interface Profile {
   id: string;
@@ -92,16 +91,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => {
     set({ loading: true, error: null });
     try {
-      const redirectUrl = Linking.createURL('/auth/callback');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-        }
+      // OAuth not available in Expo Go
+      set({ 
+        error: 'Google sign-in requires a development build. Please use email authentication in Expo Go.',
+        loading: false 
       });
-      
-      if (error) throw error;
       
       set({ loading: false });
       return false;
@@ -114,16 +108,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithApple: async () => {
     set({ loading: true, error: null });
     try {
-      const redirectUrl = Linking.createURL('/auth/callback');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: redirectUrl,
-        }
+      // OAuth not available in Expo Go
+      set({ 
+        error: 'Apple sign-in requires a development build. Please use email authentication in Expo Go.',
+        loading: false 
       });
-      
-      if (error) throw error;
       
       set({ loading: false });
       return false;
