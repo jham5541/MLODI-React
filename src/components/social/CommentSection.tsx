@@ -175,13 +175,13 @@ export default function CommentSection({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                (!newComment.trim() || !user) && styles.sendButtonDisabled
+                (!replyContent.trim() || !user) && styles.sendButtonDisabled
               ]}
               onPress={() => handleSubmitReply(comment.id)}
-              disabled={!newComment.trim() || !user}
+              disabled={!replyContent.trim() || !user}
             >
               <Text style={styles.submitButtonText}>Reply</Text>
-                {user ? 'Send' : 'Sign In'}
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -434,13 +434,13 @@ export default function CommentSection({
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!newComment.trim() || !isConnected) && styles.sendButtonDisabled
+              (!newComment.trim() || !user) && styles.sendButtonDisabled
             ]}
             onPress={handleSubmitComment}
-            disabled={!newComment.trim() || !isConnected}
+            disabled={!newComment.trim() || !user}
           >
             <Text style={styles.sendButtonText}>
-              {isConnected ? 'Send' : 'Connect Wallet'}
+              {user ? 'Send' : 'Connect Wallet'}
             </Text>
           </TouchableOpacity>
         </View>
