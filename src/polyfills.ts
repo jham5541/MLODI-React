@@ -1,36 +1,30 @@
 import 'react-native-get-random-values';
 import 'react-native-url-polyfill/auto';
 
-// React DOM polyfill for @tanstack/react-query
-import { unstable_batchedUpdates } from 'react-native';
-const ReactDOM = {
-  unstable_batchedUpdates,
-  render: () => {},
-  createPortal: () => {},
-  findDOMNode: () => {},
-  unmountComponentAtNode: () => {},
-};
-
-// Make react-dom available globally
-if (typeof window !== 'undefined') {
-  (window as any)['react-dom'] = ReactDOM;
-}
-if (typeof global !== 'undefined') {
-  (global as any)['react-dom'] = ReactDOM;
-}
-
-// Module exports for ES modules
-(global as any).__reactDomModule = ReactDOM;
-
 // TextEncoder/TextDecoder polyfill for React Native
 if (typeof global.TextEncoder === 'undefined') {
-  // Use the util polyfill for TextEncoder/TextDecoder
-  const { TextEncoder, TextDecoder } = require('util');
-  global.TextEncoder = TextEncoder;
-  global.TextDecoder = TextDecoder;
+  // Simple polyfill for TextEncoder/TextDecoder
+  global.TextEncoder = class {
+    encode(str: string) {
+      const uint8Array = new Uint8Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        uint8Array[i] = str.charCodeAt(i);
+      }
+      return uint8Array;
+    }
+  } as any;
+  
+  global.TextDecoder = class {
+    decode(uint8Array: Uint8Array) {
+      return String.fromCharCode(...uint8Array);
+    }
+  } as any;
 }
 
-// Buffer polyfill
+// Buffer polyfill (basic implementation for Expo Go)
 if (typeof global.Buffer === 'undefined') {
-  global.Buffer = require('buffer').Buffer;
+  global.Buffer = {
+    from: (str: string) => new Uint8Array(Buffer.from ? Buffer.from(str) : []),
+    isBuffer: () => false,
+  } as any;
 }
