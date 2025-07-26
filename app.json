@@ -51,6 +51,9 @@
       ]
     ],
     "extra": {
+      "metro": {
+        "resetCache": true
+      },
       "eas": {
         "projectId": "60578151-9cf1-46bb-8469-35659e9abb9c"
       }
