@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>M3lodi</string>
+    <string>MLODI</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,14 +27,20 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>m3lodi</string>
-          <string>com.heftydon.m3lodi</string>
+          <string>mlodi</string>
+          <string>com.heftydon.mlodi</string>
         </array>
       </dict>
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>exp+m3lodi-mobile</string>
+          <string>exp+mlodi-mobile</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.594703687162-shqsh2ca0htait8j6fl024urfmbpmbhl.apps.googleusercontent.com</string>
         </array>
       </dict>
     </array>
