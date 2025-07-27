@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 
 interface MarketplaceItem {
@@ -47,8 +48,13 @@ export default function MarketplaceCard({
   viewMode = 'grid' 
 }: MarketplaceCardProps) {
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const [showDetails, setShowDetails] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+
+  const handleArtistPress = () => {
+    navigation.navigate('ArtistProfile', { artistId: item.artist });
+  };
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -487,7 +493,7 @@ export default function MarketplaceCard({
                 {item.title}
               </Text>
               
-              <View style={styles.artistContainer}>
+              <TouchableOpacity style={styles.artistContainer} onPress={handleArtistPress}>
                 {item.artistAvatar && (
                   <Image source={{ uri: item.artistAvatar }} style={styles.artistAvatar} />
                 )}
@@ -500,7 +506,7 @@ export default function MarketplaceCard({
                     style={styles.verifiedIcon}
                   />
                 )}
-              </View>
+              </TouchableOpacity>
               
               <Text style={styles.collection} numberOfLines={1}>
                 {item.collection}

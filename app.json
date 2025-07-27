@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "M3lodi",
-    "slug": "m3lodi-mobile",
+    "name": "MLODI",
+    "slug": "mlodi-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "auto",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -14,17 +14,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.heftydon.m3lodi",
+      "bundleIdentifier": "com.heftydon.mlodi",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
         ],
         "NSCameraUsageDescription": "This app uses the camera to take photos for profile pictures and content sharing.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for profile pictures and content sharing."
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "package": "com.heftydon.m3lodi",
+      "package": "com.heftydon.mlodi",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -48,9 +49,15 @@
         {
           "photosPermission": "The app accesses your photos to let you select images for your profile and content sharing."
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.594703687162-shqsh2ca0htait8j6fl024urfmbpmbhl.apps.googleusercontent.com"
+        }
       ]
     ],
-    "scheme": "m3lodi",
+    "scheme": "mlodi",
     "extra": {
       "eas": {
         "projectId": "60578151-9cf1-46bb-8469-35659e9abb9c"

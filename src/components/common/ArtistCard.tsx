@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { Artist } from '../../types/music';
+import { formatNumber } from '../../utils/uiHelpers';
 
 interface ArtistCardProps {
   artist: Artist;
@@ -12,15 +13,6 @@ interface ArtistCardProps {
 export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-
-  const formatFollowers = (count: number) => {
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M`;
-    } else if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
-    }
-    return count.toString();
-  };
 
   const styles = StyleSheet.create({
     container: {
@@ -91,7 +83,7 @@ export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
       </Text>
       
       <Text style={styles.followers}>
-        {formatFollowers(artist.followers)} followers
+        {formatNumber(artist.followers)} followers
       </Text>
     </TouchableOpacity>
   );

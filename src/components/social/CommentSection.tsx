@@ -26,12 +26,13 @@ interface Comment {
 }
 
 interface CommentSectionProps {
-  comments: Comment[];
-  onAddComment: (content: string, parentId?: string) => void;
-  onLikeComment: (commentId: string) => void;
+  comments?: Comment[];
+  onAddComment?: (content: string, parentId?: string) => void;
+  onLikeComment?: (commentId: string) => void;
   onDeleteComment?: (commentId: string) => void;
   placeholder?: string;
   maxLength?: number;
+  artistId?: string;
 }
 
 export default function CommentSection({
@@ -45,6 +46,41 @@ export default function CommentSection({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { isConnected, user } = useAuthStore();
+  
+  // Default comments with sample data
+  const defaultComments: Comment[] = [
+    {
+      id: '1',
+      userId: 'user1',
+      username: 'MusicFan23',
+      content: 'Amazing artist! Love the new tracks 🔥',
+      timestamp: Date.now() - 1000 * 60 * 30, // 30 minutes ago
+      likes: 12,
+      isLiked: false,
+    },
+    {
+      id: '2',
+      userId: 'user2',
+      username: 'VinylCollector',
+      content: 'Been following since the early days. Still killing it!',
+      timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
+      likes: 8,
+      isLiked: true,
+      replies: [
+        {
+          id: '2-1',
+          userId: 'user3',
+          username: 'RetroVibes',
+          content: 'Same here! The evolution has been incredible.',
+          timestamp: Date.now() - 1000 * 60 * 45, // 45 minutes ago
+          likes: 3,
+          isLiked: false,
+        },
+      ],
+    },
+  ];
+  
+  const commentsData = comments || defaultComments;
   
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -124,7 +160,7 @@ export default function CommentSection({
       <View style={styles.commentActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => onLikeComment(comment.id)}
+          onPress={() => onLikeComment?.(comment.id)}
         >
           <Ionicons
             name={comment.isLiked ? 'heart' : 'heart-outline'}
@@ -394,14 +430,14 @@ export default function CommentSection({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          Comments ({comments.reduce((total, comment) => 
+          Comments ({commentsData.reduce((total, comment) => 
             total + 1 + (comment.replies?.length || 0), 0
           )})
         </Text>
       </View>
 
       <ScrollView style={styles.commentsContainer} showsVerticalScrollIndicator={false}>
-        {comments.length === 0 ? (
+        {commentsData.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbubbles-outline" size={48} color={themeColors.textSecondary} />
             <Text style={styles.emptyStateText}>
@@ -409,7 +445,7 @@ export default function CommentSection({
             </Text>
           </View>
         ) : (
-          comments.map(comment => renderComment(comment))
+          commentsData.map(comment => renderComment(comment))
         )}
       </ScrollView>
 

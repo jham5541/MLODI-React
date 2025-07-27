@@ -11,7 +11,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, colors } from '../../context/ThemeContext';
 
 interface Challenge {
   id: string;
@@ -61,7 +61,8 @@ export default function EngagementChallenges({
   onChallengeComplete,
   onStartChallenge,
 }: EngagementChallengesProps) {
-  const { colors } = useTheme();
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [challengeSets, setChallengeSets] = useState<ChallengeSet[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -225,7 +226,7 @@ export default function EngagementChallenges({
       case 'social': return '#10B981';
       case 'engagement': return '#F59E0B';
       case 'creative': return '#8B5CF6';
-      default: return colors.primary;
+      default: return themeColors.primary;
     }
   };
 
@@ -235,7 +236,7 @@ export default function EngagementChallenges({
       case 'medium': return '#F59E0B';
       case 'hard': return '#EF4444';
       case 'legendary': return '#8B5CF6';
-      default: return colors.textSecondary;
+      default: return themeColors.textSecondary;
     }
   };
 
@@ -319,12 +320,12 @@ export default function EngagementChallenges({
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
       borderRadius: 16,
       padding: 20,
       marginBottom: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     header: {
       marginBottom: 20,
@@ -332,16 +333,16 @@ export default function EngagementChallenges({
     title: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 4,
     },
     subtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     tabContainer: {
       flexDirection: 'row',
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 8,
       padding: 2,
       marginBottom: 20,
@@ -353,32 +354,32 @@ export default function EngagementChallenges({
       borderRadius: 6,
     },
     activeTab: {
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
     },
     tabText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     activeTabText: {
-      color: colors.background,
+      color: themeColors.background,
     },
     challengesList: {
       gap: 12,
     },
     challengeCard: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     lockedChallenge: {
       opacity: 0.6,
     },
     completedChallenge: {
-      borderColor: colors.success,
-      backgroundColor: colors.success + '10',
+      borderColor: themeColors.success,
+      backgroundColor: themeColors.success + '10',
     },
     legendaryChallenge: {
       borderColor: '#8B5CF6',
@@ -403,12 +404,12 @@ export default function EngagementChallenges({
     challengeTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 2,
     },
     challengeDescription: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     challengeStatus: {
       alignItems: 'flex-end',
@@ -428,7 +429,7 @@ export default function EngagementChallenges({
     },
     timeRemaining: {
       fontSize: 10,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginTop: 4,
     },
     progressSection: {
@@ -443,16 +444,16 @@ export default function EngagementChallenges({
     progressText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
     },
     progressValue: {
       fontSize: 12,
-      color: colors.primary,
+      color: themeColors.primary,
       fontWeight: '600',
     },
     progressBarContainer: {
       height: 8,
-      backgroundColor: colors.border,
+      backgroundColor: themeColors.border,
       borderRadius: 4,
       overflow: 'hidden',
     },
@@ -472,32 +473,32 @@ export default function EngagementChallenges({
     rewardText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.primary,
+      color: themeColors.primary,
     },
     badgeReward: {
       fontSize: 11,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginTop: 2,
     },
     actionButton: {
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
     },
     lockedButton: {
-      backgroundColor: colors.textSecondary,
+      backgroundColor: themeColors.textSecondary,
     },
     completedButton: {
-      backgroundColor: colors.success,
+      backgroundColor: themeColors.success,
     },
     claimButton: {
-      backgroundColor: colors.warning,
+      backgroundColor: themeColors.warning,
     },
     actionButtonText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.background,
+      color: themeColors.background,
     },
     lockIcon: {
       marginLeft: 8,
@@ -510,7 +511,7 @@ export default function EngagementChallenges({
       alignItems: 'center',
     },
     modalContent: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 20,
       padding: 24,
       width: '90%',
@@ -525,12 +526,12 @@ export default function EngagementChallenges({
     modalTitle: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
     },
     closeButton: {
       padding: 8,
       borderRadius: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
     },
     requirementsList: {
       marginBottom: 16,

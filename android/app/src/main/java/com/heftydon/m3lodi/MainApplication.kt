@@ -1,4 +1,4 @@
-package com.heftydon.m3lodi
+package com.heftydon.mlodi
 
 import android.app.Application
 import android.content.res.Configuration

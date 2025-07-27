@@ -2,12 +2,24 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
+import { googleAuthService } from '../services/googleAuth';
 
 interface Profile {
   id: string;
   username?: string;
+  display_name?: string;
+  bio?: string;
   avatar_url?: string;
-  email?: string;
+  cover_url?: string;
+  location?: string;
+  website_url?: string;
+  social_links?: Record<string, any>;
+  preferences?: Record<string, any>;
+  subscription_tier?: string;
+  subscription_expires_at?: string;
+  total_listening_time_ms?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AuthState {
@@ -16,6 +28,8 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   error: string | null;
+  hasCompletedOnboarding: boolean;
+  needsProfileCompletion: boolean;
   
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
@@ -30,6 +44,10 @@ interface AuthState {
   
   // Session management
   checkSession: () => Promise<void>;
+  
+  // Onboarding management
+  completeOnboarding: () => void;
+  completeProfileSetup: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -38,6 +56,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   loading: false,
   error: null,
+  hasCompletedOnboarding: false,
+  needsProfileCompletion: false,
   
   signInWithEmail: async (email, password) => {
     set({ loading: true, error: null });
@@ -67,12 +87,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUpWithEmail: async (email, password) => {
     set({ loading: true, error: null });
     try {
+      console.log('🔐 Starting signup for:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase auth signup error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Supabase auth signup success:', { 
+        userId: data?.user?.id, 
+        hasSession: !!data?.session,
+        emailConfirmed: data?.user?.email_confirmed_at
+      });
       
       set({ 
         user: data?.user || null, 
@@ -80,10 +111,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false 
       });
       
-      await get().getProfile();
+      // Only try to create profile if we have a confirmed user
+      if (data?.user?.id) {
+        console.log('🔍 Checking for existing profile...');
+        await get().getProfile();
+        
+        // If no profile exists, create a basic one
+        if (!get().profile) {
+          console.log('📝 Creating new user profile...');
+          try {
+            // Wait a moment for auth to fully process
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await get().updateUserProfile({
+              id: data.user.id,
+              subscription_tier: 'free',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            console.log('✅ User profile created successfully');
+          } catch (profileError: any) {
+            console.error('❌ Failed to create user profile:', profileError);
+            console.error('Profile error details:', {
+              message: profileError.message,
+              code: profileError.code,
+              details: profileError.details,
+              hint: profileError.hint
+            });
+            // Don't fail signup if profile creation fails
+          }
+        } else {
+          console.log('✅ Profile already exists');
+        }
+      }
       
       return true; // New user
     } catch (error: any) {
+      console.error('❌ Signup failed:', error);
       set({ error: error.message, loading: false });
       return false;
     }
@@ -92,20 +156,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => {
     set({ loading: true, error: null });
     try {
-      const redirectUrl = Linking.createURL('/auth/callback');
+      console.log('🔐 Starting Google Sign-In...');
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
+      const result = await googleAuthService.signIn();
+      
+      if (result.success && result.user) {
+        set({ 
+          user: result.user, 
+          session: result.session,
+          loading: false 
+        });
+        
+        // Check if profile exists, create if not
+        await get().getProfile();
+        
+        if (!get().profile && result.user.id) {
+          console.log('📝 Creating Google user profile...');
+          try {
+            await get().updateUserProfile({
+              id: result.user.id,
+              display_name: result.user.user_metadata?.full_name || result.user.email?.split('@')[0],
+              avatar_url: result.user.user_metadata?.avatar_url,
+              subscription_tier: 'free',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            console.log('✅ Google user profile created successfully');
+          } catch (profileError) {
+            console.error('❌ Failed to create Google user profile:', profileError);
+          }
         }
-      });
+        
+        return true;
+      }
       
-      if (error) throw error;
-      
-      set({ loading: false });
       return false;
     } catch (error: any) {
+      console.error('❌ Google Sign-In failed:', error);
       set({ error: error.message, loading: false });
       return false;
     }
@@ -144,32 +231,53 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   
   updateUserProfile: async (updates) => {
-    if (!get().user) return;
+    if (!get().user) {
+      console.error('❌ No user found for profile update');
+      return;
+    }
     
+    console.log('📝 Updating user profile:', { userId: get().user!.id, updates });
     set({ loading: true, error: null });
     
     try {
-      const { error } = await supabase
+      const profileData = {
+        id: get().user!.id,
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('📤 Sending to database:', profileData);
+      
+      const { data, error } = await supabase
         .from('users')
-        .upsert({
-          id: get().user!.id,
-          ...updates,
-          updated_at: new Date()
-        })
+        .upsert(profileData)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database error:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+      
+      console.log('✅ Profile updated successfully:', data);
       
       set(state => ({
         profile: {
           ...state.profile,
-          ...updates
+          ...updates,
+          id: get().user!.id
         } as Profile,
         loading: false
       }));
     } catch (error: any) {
+      console.error('❌ updateUserProfile failed:', error);
       set({ error: error.message, loading: false });
+      throw error; // Re-throw so UI can handle it
     }
   },
   
@@ -184,6 +292,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .single();
       
       if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
         throw error;
       }
       
@@ -208,6 +317,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Session check error:', error);
     }
+  },
+  
+  completeOnboarding: () => {
+    set({ hasCompletedOnboarding: true });
+  },
+  
+  completeProfileSetup: () => {
+    set({ needsProfileCompletion: false });
   }
 }));
 

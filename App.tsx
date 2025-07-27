@@ -6,12 +6,36 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SearchProvider } from './src/context/SearchContext';
-import { Web3Provider } from './src/context/Web3Context';
-import { Web3ErrorBoundary } from './src/components/common/Web3ErrorBoundary';
+import { PlayProvider, usePlay } from './src/context/PlayContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
-import Player from './src/components/audio/Player';
-import SearchModal from './src/components/search/SearchModal';
+import PlayBar from './src/components/PlayBar';
+
+function PlayBarWrapper() {
+  const {
+    currentSong,
+    isPlaying,
+    isPlayBarVisible,
+    togglePlayPause,
+    nextSong,
+    previousSong,
+    closePlayBar,
+    expandPlayBar,
+  } = usePlay();
+
+  return (
+    <PlayBar
+      currentSong={currentSong}
+      isPlaying={isPlaying}
+      isVisible={isPlayBarVisible}
+      onPlayPause={togglePlayPause}
+      onNext={nextSong}
+      onPrevious={previousSong}
+      onClose={closePlayBar}
+      onExpand={expandPlayBar}
+    />
+  );
+}
 
 function AppContent() {
   const { activeTheme } = useTheme();
@@ -27,8 +51,7 @@ function AppContent() {
       <SafeAreaProvider>
         <StatusBar style={activeTheme === 'dark' ? 'light' : 'dark'} />
         <AppNavigator />
-        <SearchModal />
-        <Player />
+        <PlayBarWrapper />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -37,13 +60,11 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <Web3ErrorBoundary>
-        <Web3Provider>
-          <SearchProvider>
-            <AppContent />
-          </SearchProvider>
-        </Web3Provider>
-      </Web3ErrorBoundary>
+      <PlayProvider>
+        <SearchProvider>
+          <AppContent />
+        </SearchProvider>
+      </PlayProvider>
     </ThemeProvider>
   );
 }

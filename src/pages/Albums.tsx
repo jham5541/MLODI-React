@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
-import { useWeb3 } from '../context/Web3Context';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import AlbumCard from '../components/albums/AlbumCard';
 import AlbumGrid from '../components/albums/AlbumGrid';
@@ -12,7 +11,6 @@ import { Song } from '../types/music';
 export default function AlbumsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected } = useWeb3();
   const { playSong } = useAudioPlayer();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -108,30 +106,6 @@ export default function AlbumsScreen() {
     },
   });
 
-  if (!isConnected) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Albums</Text>
-          <Text style={styles.subtitle}>Your music album collection</Text>
-        </View>
-        
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="wallet-outline"
-            size={64}
-            color={themeColors.textSecondary}
-            style={styles.emptyIcon}
-          />
-          <Text style={styles.emptyTitle}>Connect Your Wallet</Text>
-          <Text style={styles.emptySubtitle}>
-            Please connect your wallet to view your album collection and owned music NFTs
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   const totalSongs = sampleAlbums.reduce((total, album) => total + album.songs.length, 0);
 
   return (
@@ -179,10 +153,10 @@ export default function AlbumsScreen() {
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
               {sampleAlbums.filter(album => 
-                album.songs.some(song => song.tokenMetadata)
+                album.songs.some(song => song.duration && song.duration > 180)
               ).length}
             </Text>
-            <Text style={styles.statLabel}>NFT Albums</Text>
+            <Text style={styles.statLabel}>Long Tracks</Text>
           </View>
         </View>
       </View>

@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../../context/ThemeContext';
-import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { usePlay } from '../../context/PlayContext';
 import { Song } from '../../types/music';
+import { formatDuration } from '../../utils/uiHelpers';
 
 interface SongCardProps {
   song: Song;
@@ -14,22 +16,23 @@ interface SongCardProps {
 export default function SongCard({ song, onPress, showArtwork = true }: SongCardProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { playSong, currentTrack, isPlaying } = useAudioPlayer();
+  const { playSong, currentSong, isPlaying } = usePlay();
+  const navigation = useNavigation();
 
-  const isCurrentSong = currentTrack?.id === song.id;
+  const isCurrentSong = currentSong?.id === song.id;
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handlePlay = async () => {
+  const handlePlay = () => {
     try {
-      await playSong(song);
+      playSong(song, [song]);
     } catch (error) {
       console.error('Error playing song:', error);
     }
+  };
+
+  const handleArtistPress = () => {
+    // Navigate to artist profile - we'll use the artist name as ID for now
+    // In a real app, you'd have an artistId field in the song object
+    navigation.navigate('ArtistProfile', { artistId: song.artist });
   };
 
   const styles = StyleSheet.create({
@@ -114,9 +117,11 @@ export default function SongCard({ song, onPress, showArtwork = true }: SongCard
         <Text style={styles.title} numberOfLines={1}>
           {song.title}
         </Text>
-        <Text style={styles.artist} numberOfLines={1}>
-          {song.artist}
-        </Text>
+        <TouchableOpacity onPress={handleArtistPress}>
+          <Text style={styles.artist} numberOfLines={1}>
+            {song.artist}
+          </Text>
+        </TouchableOpacity>
         <View style={styles.metadata}>
           <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
           {song.tokenMetadata && (

@@ -1,114 +1,189 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  TextInput,
+  Alert,
+  FlatList,
+  RefreshControl,
+  ActivityIndicator,
+  Modal
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
-import { useWeb3 } from '../context/Web3Context';
-import NFTCard from '../components/marketplace/NFTCard';
+import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
+import ProductCard from '../components/marketplace/ProductCard';
+import CartModal from '../components/marketplace/CartModal';
 import MarketplaceHeader from '../components/marketplace/MarketplaceHeader';
 import MarketplaceStats from '../components/marketplace/MarketplaceStats';
-import MarketplaceCard from '../components/marketplace/MarketplaceCard';
-import { useMarketplaceStore } from '../store/marketplaceStore';
-import { MarketplaceFilters } from '../services/marketplaceService';
+import MarketplaceStatsView from '../components/marketplace/MarketplaceStatsView';
+import MarketplaceDropCard from '../components/marketplace/MarketplaceDropCard';
+import { marketplaceService } from '../services/marketplaceService';
+import { Product, ProductType } from '../types/marketplace';
+import { allProducts, featuredProducts, onSaleProducts } from '../data/marketplaceData';
 
-type MarketplaceFilter = 'all' | 'music' | 'collectibles' | 'trending';
+type FilterType = 'all' | 'featured' | 'sale' | 'drops' | ProductType;
+type ViewMode = 'marketplace' | 'stats' | 'drops';
 
 export default function MarketplaceScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected, address } = useWeb3();
-  
-  // Marketplace store
-  const {
-    listings,
-    featuredListings,
-    collections,
-    trendingCollections,
-    marketplaceStats,
-    currentFilters,
-    searchQuery,
-    searchResults,
-    isLoadingListings,
-    isLoadingStats,
-    isSearching,
-    isPurchasing,
-    hasMoreListings,
-    loadListings,
-    loadMoreListings,
-    loadFeaturedListings,
-    loadCollections,
-    loadTrendingCollections,
-    loadMarketplaceStats,
-    updateFilters,
-    clearFilters,
-    searchMarketplace,
-    clearSearch,
-    purchaseNFT,
-  } = useMarketplaceStore();
+  const { user } = useAuthStore();
+  const { 
+    cart, 
+    initializeCart,
+    loadLibrary,
+    addToCart, 
+    getCartItemCount, 
+    isInCart, 
+    isOwned,
+    isLoading 
+  } = useCartStore();
 
-  const [activeFilter, setActiveFilter] = useState<MarketplaceFilter>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('marketplace');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [showListModal, setShowListModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load data on component mount
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  // Sample upcoming drops data
+  const upcomingDrops = [
+    {
+      id: 'drop-1',
+      title: 'Genesis Collection - Digital Dreams',
+      artist: 'Luna Nova',
+      artistAvatar: 'https://picsum.photos/100/100?random=1',
+      coverImage: 'https://picsum.photos/400/300?random=10',
+      dropDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+      price: 0.5,
+      currency: 'ETH',
+      description: 'Limited edition NFT collection featuring exclusive tracks and digital artwork.',
+      supply: 1000,
+    },
+    {
+      id: 'drop-2',
+      title: 'Cyberpunk Chronicles Vol. 1',
+      artist: 'Neon Pulse',
+      artistAvatar: 'https://picsum.photos/100/100?random=2',
+      coverImage: 'https://picsum.photos/400/300?random=11',
+      dropDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+      price: 0.8,
+      currency: 'ETH',
+      description: 'A journey through futuristic soundscapes and electronic beats.',
+      supply: 500,
+    },
+  ];
 
-  // Update listings when filters change
+  // Sample marketplace statistics
+  const marketplaceStats = [
+    { id: '1', name: 'Total Volume', value: '1,234.5 ETH', trend: 'up' as const, change: 12.5 },
+    { id: '2', name: 'Floor Price', value: '0.25 ETH', trend: 'up' as const, change: 8.2 },
+    { id: '3', name: 'Listed Items', value: '8,234', trend: 'down' as const, change: -2.1 },
+    { id: '4', name: 'Unique Owners', value: '3,456', trend: 'up' as const, change: 15.7 },
+    { id: '5', name: '24h Sales', value: '156', trend: 'up' as const, change: 23.4 },
+    { id: '6', name: 'Average Price', value: '1.2 ETH', trend: 'down' as const, change: -5.3 },
+  ];
+
   useEffect(() => {
-    if (activeFilter === 'trending') {
-      loadTrendingCollections();
-    } else {
-      loadListings(getFiltersForActiveFilter(), true);
+    if (user?.id) {
+      initializeCart();
+      loadLibrary();
     }
-  }, [activeFilter]);
+  }, [user?.id, initializeCart, loadLibrary]);
 
-  const loadInitialData = async () => {
+  useEffect(() => {
+    loadProducts();
+  }, [activeFilter, searchQuery]);
+
+  const loadProducts = async () => {
     try {
-      await Promise.all([
-        loadListings(),
-        loadFeaturedListings(),
-        loadCollections(),
-        loadTrendingCollections(),
-        loadMarketplaceStats(),
-      ]);
+      setLoading(true);
+      let products: Product[] = [];
+
+      if (activeFilter === 'featured') {
+        products = await marketplaceService.getFeaturedProducts();
+      } else if (activeFilter === 'sale') {
+        products = await marketplaceService.getProducts({ on_sale: true });
+      } else if (activeFilter !== 'all') {
+        products = await marketplaceService.getProductsByType(activeFilter as ProductType);
+      } else {
+        products = await marketplaceService.getProducts({
+          search: searchQuery.trim() || undefined,
+          limit: 50
+        });
+      }
+
+      setProducts(products);
     } catch (error) {
-      console.error('Failed to load marketplace data:', error);
+      console.error('Failed to load products:', error);
+      Alert.alert('Error', 'Failed to load products. Please try again.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleAddToCart = async (product: Product, variantId?: string) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.');
+      return;
+    }
+
+    if (isOwned(product.id)) {
+      Alert.alert('Already Owned', 'You already own this item.');
+      return;
+    }
+
+    try {
+      await addToCart(product, variantId);
+      Alert.alert('Added to Cart', `${product.title} has been added to your cart.`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+    }
+  };
+
+  const handlePlayPreview = async (product: Product) => {
+    // Implement preview playback
+    console.log('Playing preview for:', product.title);
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadInitialData();
-    setRefreshing(false);
-  };
-
-  const getFiltersForActiveFilter = (): Partial<MarketplaceFilters> => {
-    const baseFilters = { ...currentFilters };
-    
-    switch (activeFilter) {
-      case 'music':
-        return { ...baseFilters, search: undefined };
-      case 'trending':
-        return { ...baseFilters, sort_by: 'recent' as const };
-      case 'collectibles':
-        return { ...baseFilters, verified_only: true };
-      default:
-        return baseFilters;
+    try {
+      await loadProducts();
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const handleSearch = (query: string) => {
-    if (query.trim()) {
-      searchMarketplace(query);
-    } else {
-      clearSearch();
+  const handleListNewSong = () => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to list a new song.');
+      return;
     }
+    setShowListModal(true);
   };
 
-  const handleFiltersChange = (newFilters: Partial<MarketplaceFilters>) => {
-    updateFilters(newFilters);
+  const handleNotifyMe = (dropId: string) => {
+    console.log('Setting notification for drop:', dropId);
+    // Implement notification logic
   };
+
+  const filters = [
+    { key: 'all', label: 'All', icon: 'grid' },
+    { key: 'featured', label: 'Featured', icon: 'star' },
+    { key: 'sale', label: 'Sale', icon: 'pricetag' },
+    { key: 'song', label: 'Songs', icon: 'musical-note' },
+    { key: 'album', label: 'Albums', icon: 'albums' },
+    { key: 'video', label: 'Videos', icon: 'videocam' },
+    { key: 'merch', label: 'Merch', icon: 'storefront' },
+  ];
 
   const styles = StyleSheet.create({
     container: {
@@ -131,32 +206,57 @@ export default function MarketplaceScreen() {
       fontWeight: 'bold',
       color: themeColors.text,
     },
-    walletStatus: {
+    cartButton: {
+      position: 'relative',
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: themeColors.surface,
+    },
+    cartBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: themeColors.error,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    cartBadgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-      backgroundColor: isConnected ? themeColors.success + '20' : themeColors.error + '20',
-    },
-    walletStatusText: {
-      fontSize: 12,
-      color: isConnected ? themeColors.success : themeColors.error,
-      marginLeft: 4,
-      fontWeight: '500',
-    },
-    subtitle: {
-      fontSize: 16,
-      color: themeColors.textSecondary,
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
       marginBottom: 16,
     },
-    filterContainer: {
-      flexDirection: 'row',
-      gap: 8,
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      height: 44,
+      fontSize: 16,
+      color: themeColors.text,
+    },
+    filtersContainer: {
+      marginBottom: 16,
+    },
+    filtersList: {
+      paddingHorizontal: 16,
     },
     filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 8,
+      marginRight: 8,
       borderRadius: 20,
       backgroundColor: themeColors.surface,
       borderWidth: 1,
@@ -166,53 +266,50 @@ export default function MarketplaceScreen() {
       backgroundColor: themeColors.primary,
       borderColor: themeColors.primary,
     },
-    filterButtonText: {
+    filterIcon: {
+      marginRight: 6,
+    },
+    filterText: {
       fontSize: 14,
       fontWeight: '500',
       color: themeColors.text,
     },
-    activeFilterButtonText: {
+    activeFilterText: {
       color: 'white',
     },
     content: {
       flex: 1,
-      padding: 16,
     },
-    statsContainer: {
+    resultsHeader: {
       flexDirection: 'row',
-      marginBottom: 24,
-      gap: 16,
-    },
-    statCard: {
-      flex: 1,
-      backgroundColor: themeColors.surface,
-      padding: 16,
-      borderRadius: 12,
+      justifyContent: 'space-between',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: themeColors.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: themeColors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
     },
-    statValue: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: themeColors.primary,
-      marginBottom: 4,
-    },
-    statLabel: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-      textAlign: 'center',
-    },
-    sectionTitle: {
-      fontSize: 20,
+    resultsText: {
+      fontSize: 16,
       fontWeight: '600',
       color: themeColors.text,
-      marginBottom: 16,
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6,
+      backgroundColor: themeColors.background,
+    },
+    sortText: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      marginRight: 4,
+    },
+    productsList: {
+      padding: 16,
     },
     emptyContainer: {
       flex: 1,
@@ -224,178 +321,172 @@ export default function MarketplaceScreen() {
       marginBottom: 16,
     },
     emptyTitle: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '600',
       color: themeColors.text,
       marginBottom: 8,
       textAlign: 'center',
     },
     emptySubtitle: {
-      fontSize: 14,
+      fontSize: 16,
       color: themeColors.textSecondary,
       textAlign: 'center',
+      lineHeight: 24,
     },
-    resultsHeader: {
-      paddingHorizontal: 16,
+    navigationTabs: {
+      flexDirection: 'row',
+      backgroundColor: themeColors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
+    },
+    navTab: {
+      flex: 1,
+      paddingVertical: 16,
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    activeNavTab: {
+      borderBottomWidth: 2,
+      borderBottomColor: themeColors.primary,
+    },
+    navTabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
+      marginLeft: 6,
+    },
+    activeNavTabText: {
+      color: themeColors.primary,
+    },
+    listButton: {
+      position: 'absolute',
+      bottom: 20,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: themeColors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: themeColors.background,
+      borderRadius: 16,
+      padding: 24,
+      width: '90%',
+      maxHeight: '80%',
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: themeColors.text,
       marginBottom: 16,
+      textAlign: 'center',
     },
-    gridContainer: {
-      paddingHorizontal: 16,
+    modalText: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 24,
     },
-    gridItem: {
-      marginBottom: 16,
+    modalButton: {
+      backgroundColor: themeColors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 8,
+      alignItems: 'center',
     },
-    filterContainer: {
-      marginBottom: 16,
+    modalButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
     },
   });
 
-  const handleSort = (sortBy: string, direction: 'asc' | 'desc') => {
-    const sortMapping: Record<string, MarketplaceFilters['sort_by']> = {
-      'price': direction === 'asc' ? 'price_asc' : 'price_desc',
-      'rarity': direction === 'asc' ? 'rarity_asc' : 'rarity_desc',
-      'recent': 'recent',
-    };
-    
-    updateFilters({ sort_by: sortMapping[sortBy] || 'recent' });
-  };
-
-  const handlePurchase = async (listing: any) => {
-    if (!isConnected) {
-      Alert.alert('Wallet Required', 'Please connect your wallet to purchase NFTs');
-      return;
-    }
-
-    try {
-      const transaction = await purchaseNFT(listing.id);
-      Alert.alert(
-        'Purchase Successful!',
-        `You have successfully purchased "${listing.song?.title || 'Music NFT'}" for ${listing.price} ${listing.currency}`
-      );
-    } catch (error) {
-      console.error('Purchase failed:', error);
-      Alert.alert('Purchase Failed', 'There was an error processing your purchase. Please try again.');
-    }
-  };
-
-  const handleListingPress = (listing: any) => {
-    console.log('View NFT details:', listing.song?.title || listing.id);
-    // TODO: Navigate to listing detail screen
-  };
-
-  const getCurrentListings = () => {
-    if (searchQuery && searchResults.length > 0) {
-      return searchResults;
-    }
-    
-    switch (activeFilter) {
-      case 'trending':
-        return listings.filter(l => l.collection?.is_verified);
-      case 'collectibles':
-        return listings.filter(l => l.collection?.is_verified);
-      case 'music':
-        return listings.filter(l => l.song_id);
-      default:
-        return listings;
-    }
-  };
-
-  const renderLoadingState = () => (
+  const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <ActivityIndicator size="large" color={themeColors.primary} />
-      <Text style={[styles.emptySubtitle, { marginTop: 16 }]}>
-        Loading marketplace data...
+      <Ionicons
+        name="search-outline"
+        size={64}
+        color={themeColors.textSecondary}
+        style={styles.emptyIcon}
+      />
+      <Text style={styles.emptyTitle}>No Products Found</Text>
+      <Text style={styles.emptySubtitle}>
+        Try adjusting your search terms or filters to find what you're looking for.
       </Text>
     </View>
   );
 
-  if (!isConnected) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.title}>Marketplace</Text>
-            <View style={styles.walletStatus}>
-              <Ionicons name="wallet-outline" size={14} color={themeColors.error} />
-              <Text style={styles.walletStatusText}>Not Connected</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitle}>
-            Discover and collect unique music NFTs from your favorite artists
-          </Text>
-        </View>
-        
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name="wallet-outline"
-            size={64}
-            color={themeColors.textSecondary}
-            style={styles.emptyIcon}
-          />
-          <Text style={styles.emptyTitle}>Connect Your Wallet</Text>
-          <Text style={styles.emptySubtitle}>
-            Connect your Web3 wallet to browse and purchase music NFTs on the marketplace
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  const currentListings = getCurrentListings();
-
   return (
     <View style={styles.container}>
-      {/* Enhanced Header with Search and Filters */}
-      <MarketplaceHeader
-        searchQuery={searchQuery}
-        onSearchChange={handleSearch}
-        filters={currentFilters}
-        onFiltersChange={handleFiltersChange}
-        totalItems={currentListings.length}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Marketplace</Text>
+          <TouchableOpacity style={styles.cartButton} onPress={() => setShowCart(true)}>
+            <Ionicons name="cart" size={24} color={themeColors.text} />
+            {getCartItemCount() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[themeColors.primary]}
-            tintColor={themeColors.primary}
+        <View style={styles.searchContainer}>
+          <Ionicons 
+            name="search" 
+            size={20} 
+            color={themeColors.textSecondary} 
+            style={styles.searchIcon}
           />
-        }
-      >
-        {/* Marketplace Statistics */}
-        <MarketplaceStats onSort={handleSort} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search songs, albums, videos, merch..."
+            placeholderTextColor={themeColors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
 
-        {/* Category Filters */}
-        <View style={styles.filterContainer}>
-          <ScrollView
-            horizontal
+        <View style={styles.filtersContainer}>
+          <ScrollView 
+            horizontal 
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+            contentContainerStyle={styles.filtersList}
           >
-            {[
-              { key: 'all', label: 'All NFTs' },
-              { key: 'music', label: 'Music' },
-              { key: 'collectibles', label: 'Collectibles' },
-              { key: 'trending', label: 'Trending' },
-            ].map((filter) => (
+            {filters.map((filter) => (
               <TouchableOpacity
                 key={filter.key}
                 style={[
                   styles.filterButton,
                   activeFilter === filter.key && styles.activeFilterButton,
                 ]}
-                onPress={() => setActiveFilter(filter.key as MarketplaceFilter)}
+                onPress={() => setActiveFilter(filter.key as FilterType)}
               >
+                <Ionicons
+                  name={filter.icon as any}
+                  size={16}
+                  color={activeFilter === filter.key ? 'white' : themeColors.text}
+                  style={styles.filterIcon}
+                />
                 <Text
                   style={[
-                    styles.filterButtonText,
-                    activeFilter === filter.key && styles.activeFilterButtonText,
+                    styles.filterText,
+                    activeFilter === filter.key && styles.activeFilterText,
                   ]}
                 >
                   {filter.label}
@@ -404,114 +495,58 @@ export default function MarketplaceScreen() {
             ))}
           </ScrollView>
         </View>
+      </View>
 
-        {/* Enhanced Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="cube-outline" size={24} color={themeColors.primary} />
-            <Text style={styles.statValue}>
-              {marketplaceStats?.total_sales || listings.length}
-            </Text>
-            <Text style={styles.statLabel}>Total Items</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="trending-up" size={24} color={themeColors.success} />
-            <Text style={styles.statValue}>
-              {marketplaceStats?.average_price?.toFixed(2) || '0.00'}
-            </Text>
-            <Text style={styles.statLabel}>Avg. Price (ETH)</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="people-outline" size={24} color={themeColors.warning} />
-            <Text style={styles.statValue}>
-              {marketplaceStats?.unique_buyers ? `${(marketplaceStats.unique_buyers / 1000).toFixed(1)}K` : '0'}
-            </Text>
-            <Text style={styles.statLabel}>Total Buyers</Text>
-          </View>
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsText}>
+          {products.length} {products.length === 1 ? 'item' : 'items'}
+        </Text>
+        <TouchableOpacity style={styles.sortButton}>
+          <Text style={styles.sortText}>Sort</Text>
+          <Ionicons name="chevron-down" size={16} color={themeColors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={[styles.emptyContainer, { justifyContent: 'center' }]}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
+          <Text style={[styles.emptyTitle, { marginTop: 16 }]}>Loading Products...</Text>
         </View>
-
-        {/* Results Section */}
-        <View style={styles.resultsHeader}>
-          <Text style={styles.sectionTitle}>
-            {isLoadingListings ? 'Loading...' :
-             currentListings.length === 0 ? 'No Results Found' :
-             activeFilter === 'all' ? `All Music NFTs (${currentListings.length})` : 
-             activeFilter === 'trending' ? `Trending NFTs (${currentListings.length})` : 
-             `Music NFTs (${currentListings.length})`}
-          </Text>
-        </View>
-
-        {/* Loading State */}
-        {isLoadingListings && currentListings.length === 0 ? (
-          renderLoadingState()
-        ) : currentListings.length > 0 ? (
-          /* Enhanced NFT Grid/List */
-          viewMode === 'grid' ? (
-            <View style={styles.gridContainer}>
-              {currentListings.map((item) => (
-                <View key={item.id} style={styles.gridItem}>
-                  <MarketplaceCard
-                    item={item}
-                    onPress={() => handleListingPress(item)}
-                    onPurchase={() => handlePurchase(item)}
-                    viewMode="grid"
-                    isPurchasing={isPurchasing}
-                  />
-                </View>
-              ))}
-              
-              {/* Load More Button */}
-              {hasMoreListings && !isLoadingListings && (
-                <TouchableOpacity
-                  style={[styles.filterButton, { marginTop: 16, alignSelf: 'center' }]}
-                  onPress={loadMoreListings}
-                >
-                  <Text style={styles.filterButtonText}>Load More</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+      ) : (
+        <ScrollView 
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[themeColors.primary]}
+              tintColor={themeColors.primary}
+            />
+          }
+        >
+          {products.length === 0 ? (
+            renderEmptyState()
           ) : (
-            <View>
-              {currentListings.map((item) => (
-                <MarketplaceCard
-                  key={item.id}
-                  item={item}
-                  onPress={() => handleListingPress(item)}
-                  onPurchase={() => handlePurchase(item)}
-                  viewMode="list"
-                  isPurchasing={isPurchasing}
+            <View style={styles.productsList}>
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                  onPlayPreview={handlePlayPreview}
+                  showAddToCart={!isOwned(product.id)}
                 />
               ))}
-              
-              {/* Load More Button */}
-              {hasMoreListings && !isLoadingListings && (
-                <TouchableOpacity
-                  style={[styles.filterButton, { marginTop: 16, alignSelf: 'center' }]}
-                  onPress={loadMoreListings}
-                >
-                  <Text style={styles.filterButtonText}>Load More</Text>
-                </TouchableOpacity>
-              )}
             </View>
-          )
-        ) : (
-          /* Empty State */
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="search-outline"
-              size={64}
-              color={themeColors.textSecondary}
-              style={styles.emptyIcon}
-            />
-            <Text style={styles.emptyTitle}>No Items Found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try adjusting your filters or search terms to find what you're looking for
-            </Text>
-          </View>
-        )}
+          )}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      )}
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+      <CartModal
+        isVisible={showCart}
+        onClose={() => setShowCart(false)}
+      />
     </View>
   );
 }

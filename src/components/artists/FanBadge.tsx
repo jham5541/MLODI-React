@@ -9,7 +9,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, colors } from '../../context/ThemeContext';
 import { FanTier } from './FanTierSystem';
 
 interface FanBadgeProps {
@@ -36,7 +36,8 @@ export default function FanBadge({
   animated = false,
   size = 'medium',
 }: FanBadgeProps) {
-  const { colors } = useTheme();
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
   const [showTooltip, setShowTooltip] = useState(false);
   const scaleAnim = new Animated.Value(1);
   const glowAnim = new Animated.Value(0);
@@ -216,7 +217,7 @@ export default function FanBadge({
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: sizeConfig.borderWidth,
-      borderColor: colors.background,
+      borderColor: themeColors.background,
       shadowColor: tierConfig.color,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.4,
@@ -240,7 +241,7 @@ export default function FanBadge({
       marginTop: 6,
       fontSize: sizeConfig.fontSize,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
       textAlign: 'center',
     },
     compactLabel: {
@@ -255,7 +256,7 @@ export default function FanBadge({
       alignItems: 'center',
     },
     tooltipContainer: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 16,
       padding: 20,
       margin: 20,
@@ -280,7 +281,7 @@ export default function FanBadge({
       justifyContent: 'center',
       marginBottom: 12,
       borderWidth: 4,
-      borderColor: colors.background,
+      borderColor: themeColors.background,
       shadowColor: tierConfig.color,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.5,
@@ -290,19 +291,19 @@ export default function FanBadge({
     tooltipTitle: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
       textAlign: 'center',
       marginBottom: 8,
     },
     tooltipDescription: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,
       marginBottom: 16,
     },
     requirementsSection: {
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
       borderRadius: 12,
       padding: 16,
       marginBottom: 16,
@@ -310,12 +311,12 @@ export default function FanBadge({
     requirementsTitle: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 8,
     },
     requirementsText: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       lineHeight: 16,
     },
     nextTierHint: {
@@ -331,13 +332,13 @@ export default function FanBadge({
       fontWeight: '600',
     },
     closeButton: {
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
       borderRadius: 8,
       paddingVertical: 12,
       alignItems: 'center',
     },
     closeButtonText: {
-      color: colors.background,
+      color: themeColors.background,
       fontSize: 14,
       fontWeight: '600',
     },
@@ -377,7 +378,7 @@ export default function FanBadge({
             <Ionicons
               name={tierConfig.icon as any}
               size={sizeConfig.iconSize}
-              color={colors.background}
+              color={themeColors.background}
             />
           </View>
         </Animated.View>
@@ -406,7 +407,7 @@ export default function FanBadge({
                 <Ionicons
                   name={tierConfig.icon as any}
                   size={40}
-                  color={colors.background}
+                  color={themeColors.background}
                 />
               </View>
               <Text style={styles.tooltipTitle}>{tooltipInfo.title}</Text>

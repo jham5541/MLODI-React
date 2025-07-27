@@ -1,19 +1,31 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, FlatList, TouchableOpacity, RefreshControl, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
 import { useSearch } from '../context/SearchContext';
+import { usePlay } from '../context/PlayContext';
 import AuthButton from '../components/auth/AuthButton';
 import SongCard from '../components/common/SongCard';
 import ArtistCard from '../components/common/ArtistCard';
+import PlaylistCarousel from '../components/home/PlaylistCarousel';
+import ArtistCarousel from '../components/home/ArtistCarousel';
+import RadioCarousel from '../components/home/RadioCarousel';
+import ChartCarousel from '../components/home/ChartCarousel';
+import SongList from '../components/home/SongList';
+import { SubscriptionStatusCard } from '../components/SubscriptionStatusCard';
 import { useMusicStore } from '../store/musicStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useMarketplaceStore } from '../store/marketplaceStore';
+import { createCommonStyles, LoadingState, EmptyState } from '../utils/uiHelpers';
+import { useBatchAsyncOperations } from '../hooks/useAsyncOperation';
 
 export default function HomeScreen() {
-  const { activeTheme } = useTheme();
+  const { activeTheme, toggleTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { openSearch } = useSearch();
+  const { playSong } = usePlay();
+  const navigation = useNavigation();
 
   // Music store
   const {
@@ -29,7 +41,6 @@ export default function HomeScreen() {
     loadPopularSongs,
     loadFollowedArtists,
     loadRecommendations,
-    playSong,
   } = useMusicStore();
 
   // Playlist store
@@ -46,6 +57,74 @@ export default function HomeScreen() {
   } = useMarketplaceStore();
 
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Mock data for demonstration
+  const mockDailyMixes = [
+    {
+      id: '1',
+      name: 'Daily Mix 1',
+      description: 'Your favorite tracks mixed with new discoveries',
+      coverUrl: 'https://via.placeholder.com/200x200?text=Daily+Mix+1',
+      songs: [],
+      isPrivate: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: '2',
+      name: 'Daily Mix 2',
+      description: 'Electronic and dance hits',
+      coverUrl: 'https://via.placeholder.com/200x200?text=Daily+Mix+2',
+      songs: [],
+      isPrivate: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  const mockRadioStations = [
+    {
+      id: '1',
+      name: 'Top Hits Radio',
+      genre: 'Pop',
+      description: 'The biggest hits right now',
+      coverUrl: 'https://via.placeholder.com/160x120?text=Top+Hits',
+      isLive: true,
+      listeners: 1247,
+    },
+    {
+      id: '2',
+      name: 'Chill Vibes',
+      genre: 'Ambient',
+      description: 'Relaxing sounds for focus',
+      coverUrl: 'https://via.placeholder.com/160x120?text=Chill+Vibes',
+      isLive: true,
+      listeners: 834,
+    },
+  ];
+
+  const mockCharts = [
+    {
+      id: '1',
+      name: 'Global Top 50',
+      category: 'Global',
+      description: 'The most played songs worldwide',
+      coverUrl: 'https://via.placeholder.com/180x140?text=Global+Top+50',
+      position: 1,
+      trending: 'up' as const,
+      trackCount: 50,
+    },
+    {
+      id: '2',
+      name: 'Viral 50',
+      category: 'Trending',
+      description: 'Songs going viral right now',
+      coverUrl: 'https://via.placeholder.com/180x140?text=Viral+50',
+      position: 2,
+      trending: 'up' as const,
+      trackCount: 50,
+    },
+  ];
 
   // Load data on component mount
   useEffect(() => {
@@ -76,13 +155,12 @@ export default function HomeScreen() {
   const handleSongPress = (song: any) => {
     // Play the song and set up queue
     const queue = trendingSongs.length > 0 ? trendingSongs : [song];
-    const startIndex = queue.findIndex(s => s.id === song.id);
-    playSong(song, queue, startIndex);
+    playSong(song, queue);
   };
 
   const handleArtistPress = (artist: any) => {
     console.log('Navigate to artist:', artist.name);
-    // TODO: Navigate to artist detail screen
+    navigation.navigate('ArtistProfile', { artistId: artist.id });
   };
 
   const handlePlaylistPress = (playlist: any) => {
@@ -90,19 +168,33 @@ export default function HomeScreen() {
     // TODO: Navigate to playlist detail screen
   };
 
+  const handleRadioPress = (station: any) => {
+    console.log('Play radio station:', station.name);
+    // TODO: Start playing radio station
+  };
+
+  const handleChartPress = (chart: any) => {
+    console.log('Navigate to chart:', chart.name);
+    // TODO: Navigate to chart detail screen
+  };
+
+  const commonStyles = createCommonStyles(themeColors);
   const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: themeColors.background,
-    },
-    content: {
-      padding: 16,
-    },
-    header: {
+    ...commonStyles,
+    headerLeft: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+    },
+    logo: {
+      width: 40,
+      height: 40,
+      resizeMode: 'contain',
+    },
+    logoText: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: themeColors.primary,
+      marginLeft: 8,
     },
     headerActions: {
       flexDirection: 'row',
@@ -114,22 +206,10 @@ export default function HomeScreen() {
       borderRadius: 20,
       backgroundColor: themeColors.surface,
     },
-    title: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      color: themeColors.text,
-    },
-    subtitle: {
-      fontSize: 18,
-      color: themeColors.textSecondary,
-      marginBottom: 24,
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: themeColors.text,
-      marginBottom: 12,
-      marginTop: 24,
+    themeButton: {
+      padding: 8,
+      borderRadius: 20,
+      backgroundColor: themeColors.surface,
     },
     placeholder: {
       padding: 20,
@@ -141,45 +221,11 @@ export default function HomeScreen() {
       color: themeColors.textSecondary,
       textAlign: 'center',
     },
-    horizontalList: {
-      paddingLeft: 16,
-    },
     songsList: {
       marginHorizontal: -4,
     },
-    loadingContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-    },
-    loadingText: {
-      marginLeft: 8,
-      color: themeColors.textSecondary,
-    },
-    emptyState: {
-      padding: 20,
-      alignItems: 'center',
-    },
-    emptyText: {
-      color: themeColors.textSecondary,
-      textAlign: 'center',
-      fontSize: 14,
-    },
   });
 
-  const renderLoadingState = (text: string) => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="small" color={themeColors.primary} />
-      <Text style={styles.loadingText}>{text}</Text>
-    </View>
-  );
-
-  const renderEmptyState = (text: string) => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyText}>{text}</Text>
-    </View>
-  );
 
   return (
     <ScrollView 
@@ -195,126 +241,63 @@ export default function HomeScreen() {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Welcome to M3lodi</Text>
-            <Text style={styles.subtitle}>Your Web3 Music Platform</Text>
+          <View style={styles.headerLeft}>
+            <Image source={require('../../assets/images/logo.png')} style={styles.logo} />
+            <Text style={styles.logoText}>MLODI</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.searchButton} onPress={openSearch}>
-              <Ionicons name="search" size={20} color={themeColors.text} />
+              <Ionicons name="search" size={22} color={themeColors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.themeButton} onPress={toggleTheme}>
+              <Ionicons name={activeTheme === 'dark' ? 'sunny' : 'moon'} size={22} color={themeColors.text} />
             </TouchableOpacity>
             <AuthButton />
           </View>
         </View>
+        
+        {/* Subscription Status */}
+        <SubscriptionStatusCard 
+          onPress={() => navigation.navigate('Subscription' as never)}
+          compact={true}
+        />
+        
+        {/* Daily Mixes Carousel */}
+        <PlaylistCarousel
+          title="Daily Mixes"
+          playlists={mockDailyMixes}
+          onPlaylistPress={handlePlaylistPress}
+          onPlayPress={(playlist) => console.log('Play daily mix:', playlist.name)}
+        />
 
-        {/* Followed Artists Section */}
-        <Text style={styles.sectionTitle}>Following</Text>
-        {isLoadingFollowed ? (
-          renderLoadingState('Loading followed artists...')
-        ) : followedArtists.length > 0 ? (
-          <FlatList
-            data={followedArtists}
-            renderItem={({ item }) => (
-              <ArtistCard
-                artist={item}
-                onPress={() => handleArtistPress(item)}
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          />
-        ) : (
-          renderEmptyState('Follow some artists to see them here!')
-        )}
-        
-        {/* Trending Tracks Section */}
-        <Text style={styles.sectionTitle}>Trending Tracks</Text>
-        {isLoadingTrending ? (
-          renderLoadingState('Loading trending songs...')
-        ) : trendingSongs.length > 0 ? (
-          <View style={styles.songsList}>
-            {trendingSongs.slice(0, 3).map((song) => (
-              <SongCard
-                key={song.id}
-                song={song}
-                onPress={() => handleSongPress(song)}
-              />
-            ))}
-          </View>
-        ) : (
-          renderEmptyState('No trending songs available')
-        )}
+        {/* Popular Artists Carousel */}
+        <ArtistCarousel
+          title="Popular Artists"
+          artists={followedArtists.length > 0 ? followedArtists : []}
+          onArtistPress={handleArtistPress}
+        />
 
-        {/* Recommended For You Section */}
-        {recommendedSongs.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-            {isLoadingRecommended ? (
-              renderLoadingState('Loading recommendations...')
-            ) : (
-              <View style={styles.songsList}>
-                {recommendedSongs.slice(0, 3).map((song) => (
-                  <SongCard
-                    key={song.id}
-                    song={song}
-                    onPress={() => handleSongPress(song)}
-                  />
-                ))}
-              </View>
-            )}
-          </>
-        )}
-        
-        {/* Your Playlists Section */}
-        <Text style={styles.sectionTitle}>Your Playlists</Text>
-        {isLoadingPlaylists ? (
-          renderLoadingState('Loading playlists...')
-        ) : userPlaylists.length > 0 ? (
-          <FlatList
-            data={userPlaylists.slice(0, 5)}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.placeholder}
-                onPress={() => handlePlaylistPress(item)}
-              >
-                <Text style={styles.placeholderText}>
-                  {item.name} • {item.total_tracks} tracks
-                </Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          />
-        ) : (
-          renderEmptyState('Create your first playlist to get started!')
-        )}
-        
-        {/* Featured NFTs Section */}
-        <Text style={styles.sectionTitle}>Featured Music NFTs</Text>
-        {featuredListings.length > 0 ? (
-          <FlatList
-            data={featuredListings.slice(0, 3)}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.placeholder}>
-                <Text style={styles.placeholderText}>
-                  {item.song?.title || 'Music NFT'} • {item.price} {item.currency}
-                </Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          />
-        ) : (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Browse the marketplace for exclusive music NFTs</Text>
-          </View>
-        )}
+        {/* Radio Stations Carousel */}
+        <RadioCarousel
+          title="Radio Stations"
+          stations={mockRadioStations}
+          onStationPress={handleRadioPress}
+        />
+
+        {/* Top Charts Carousel */}
+        <ChartCarousel
+          title="Top Charts"
+          charts={mockCharts}
+          onChartPress={handleChartPress}
+        />
+
+        {/* Popular Tracks List */}
+        <SongList
+          title="Popular Tracks"
+          songs={trendingSongs.length > 0 ? trendingSongs : popularSongs}
+          onSongPress={handleSongPress}
+          maxItems={8}
+        />
       </View>
     </ScrollView>
   );

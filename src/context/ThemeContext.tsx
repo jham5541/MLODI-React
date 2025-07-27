@@ -65,30 +65,50 @@ export function useTheme() {
   return context;
 }
 
-// Theme colors for React Native
+// Theme colors matching modern music platform aesthetic
 export const colors = {
   light: {
     background: '#ffffff',
-    surface: '#f8f9fa',
-    primary: '#6366f1',
-    secondary: '#64748b',
-    text: '#1e293b',
-    textSecondary: '#64748b',
+    surface: '#f8fafc',
+    surfaceElevated: '#ffffff',
+    primary: '#8b5cf6', // Purple accent
+    primaryLight: '#a78bfa',
+    secondary: '#06b6d4', // Cyan accent
+    accent: '#f59e0b', // Gold/yellow accent
+    text: '#0f172a',
+    textSecondary: '#475569',
+    textMuted: '#94a3b8',
     border: '#e2e8f0',
+    borderLight: '#f1f5f9',
     error: '#ef4444',
     success: '#10b981',
     warning: '#f59e0b',
+    info: '#06b6d4',
+    // Music-specific colors
+    playButton: '#8b5cf6',
+    waveform: '#a78bfa',
+    albumArt: '#f1f5f9',
   },
   dark: {
-    background: '#0f172a',
-    surface: '#1e293b',
-    primary: '#818cf8',
-    secondary: '#94a3b8',
-    text: '#f1f5f9',
-    textSecondary: '#94a3b8',
-    border: '#334155',
+    background: '#0a0a0a', // Deep black
+    surface: '#111111',
+    surfaceElevated: '#1a1a1a',
+    primary: '#a78bfa', // Brighter purple for dark mode
+    primaryLight: '#c4b5fd',
+    secondary: '#22d3ee', // Brighter cyan
+    accent: '#fbbf24', // Brighter gold
+    text: '#ffffff',
+    textSecondary: '#e2e8f0',
+    textMuted: '#94a3b8',
+    border: '#27272a',
+    borderLight: '#3f3f46',
     error: '#f87171',
     success: '#34d399',
     warning: '#fbbf24',
+    info: '#22d3ee',
+    // Music-specific colors
+    playButton: '#a78bfa',
+    waveform: '#8b5cf6',
+    albumArt: '#27272a',
   },
 };

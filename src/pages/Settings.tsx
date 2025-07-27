@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
+import { SubscriptionStatusCard } from '../components/SubscriptionStatusCard';
 
 export default function SettingsScreen() {
   const { activeTheme, theme, setTheme, toggleTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const navigation = useNavigation();
 
   const styles = StyleSheet.create({
     container: {
@@ -58,10 +62,48 @@ export default function SettingsScreen() {
       flexDirection: 'row',
       paddingHorizontal: 16,
     },
+    subscriptionSection: {
+      marginBottom: 24,
+    },
+    settingItemWithIcon: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: themeColors.surface,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    settingIcon: {
+      marginRight: 12,
+    },
+    settingContent: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
   });
 
   return (
     <View style={styles.container}>
+      <View style={styles.subscriptionSection}>
+        <Text style={styles.sectionTitle}>Subscription</Text>
+        <SubscriptionStatusCard 
+          onPress={() => navigation.navigate('SubscriptionManagement' as never)}
+        />
+        <TouchableOpacity 
+          style={styles.settingItemWithIcon}
+          onPress={() => navigation.navigate('Subscription' as never)}
+        >
+          <Ionicons name="diamond-outline" size={20} color={themeColors.primary} style={styles.settingIcon} />
+          <View style={styles.settingContent}>
+            <Text style={styles.settingLabel}>Browse Plans</Text>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textSecondary} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Appearance</Text>
         

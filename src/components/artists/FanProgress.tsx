@@ -9,7 +9,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, colors } from '../../context/ThemeContext';
 import { FanTier } from './FanTierSystem';
 
 interface ProgressMilestone {
@@ -65,7 +65,8 @@ export default function FanProgress({
   onClaimReward,
   onStartChallenge,
 }: FanProgressProps) {
-  const { colors } = useTheme();
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
   const [activeTab, setActiveTab] = useState<'milestones' | 'challenges'>('milestones');
   const [progressAnimations, setProgressAnimations] = useState<{ [key: string]: Animated.Value }>({});
 
@@ -103,7 +104,7 @@ export default function FanProgress({
       case 'social': return '#10B981';
       case 'engagement': return '#F59E0B';
       case 'loyalty': return '#8B5CF6';
-      default: return colors.primary;
+      default: return themeColors.primary;
     }
   };
 
@@ -122,7 +123,7 @@ export default function FanProgress({
       case 'easy': return '#10B981';
       case 'medium': return '#F59E0B';
       case 'hard': return '#EF4444';
-      default: return colors.textSecondary;
+      default: return themeColors.textSecondary;
     }
   };
 
@@ -159,12 +160,12 @@ export default function FanProgress({
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
       borderRadius: 16,
       padding: 20,
       marginBottom: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     header: {
       marginBottom: 20,
@@ -172,12 +173,12 @@ export default function FanProgress({
     title: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 4,
     },
     subtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     statsRow: {
       flexDirection: 'row',
@@ -186,27 +187,27 @@ export default function FanProgress({
     },
     statCard: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 12,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     statValue: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.primary,
+      color: themeColors.primary,
     },
     statLabel: {
       fontSize: 10,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       textAlign: 'center',
       marginTop: 2,
     },
     tabContainer: {
       flexDirection: 'row',
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 8,
       padding: 2,
       marginBottom: 20,
@@ -218,15 +219,15 @@ export default function FanProgress({
       borderRadius: 6,
     },
     activeTab: {
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
     },
     tabText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     activeTabText: {
-      color: colors.background,
+      color: themeColors.background,
     },
     section: {
       marginBottom: 20,
@@ -234,7 +235,7 @@ export default function FanProgress({
     sectionTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 12,
       flexDirection: 'row',
       alignItems: 'center',
@@ -242,30 +243,30 @@ export default function FanProgress({
     sectionCount: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.background,
-      backgroundColor: colors.primary,
+      color: themeColors.background,
+      backgroundColor: themeColors.primary,
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 10,
       marginLeft: 8,
     },
     milestoneItem: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
       flexDirection: 'row',
       alignItems: 'center',
     },
     completedMilestone: {
-      borderColor: colors.success,
-      backgroundColor: colors.success + '10',
+      borderColor: themeColors.success,
+      backgroundColor: themeColors.success + '10',
     },
     availableMilestone: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary + '10',
+      borderColor: themeColors.primary,
+      backgroundColor: themeColors.primary + '10',
     },
     milestoneIcon: {
       width: 48,
@@ -281,43 +282,43 @@ export default function FanProgress({
     milestoneTitle: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 2,
     },
     milestoneDescription: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginBottom: 4,
     },
     milestoneReward: {
       fontSize: 11,
       fontWeight: '500',
-      color: colors.primary,
+      color: themeColors.primary,
     },
     milestoneAction: {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
     },
     completedAction: {
-      backgroundColor: colors.success,
+      backgroundColor: themeColors.success,
     },
     unavailableAction: {
-      backgroundColor: colors.textSecondary,
+      backgroundColor: themeColors.textSecondary,
     },
     actionText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.background,
+      color: themeColors.background,
     },
     challengeItem: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     challengeHeader: {
       flexDirection: 'row',
@@ -338,12 +339,12 @@ export default function FanProgress({
     challengeTitle: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 2,
     },
     challengeDescription: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     challengeStatus: {
       alignItems: 'flex-end',
@@ -358,7 +359,7 @@ export default function FanProgress({
     },
     timeRemaining: {
       fontSize: 10,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginTop: 2,
     },
     progressSection: {
@@ -373,16 +374,16 @@ export default function FanProgress({
     progressText: {
       fontSize: 12,
       fontWeight: '500',
-      color: colors.text,
+      color: themeColors.text,
     },
     progressValue: {
       fontSize: 12,
-      color: colors.primary,
+      color: themeColors.primary,
       fontWeight: '600',
     },
     progressBarContainer: {
       height: 6,
-      backgroundColor: colors.border,
+      backgroundColor: themeColors.border,
       borderRadius: 3,
       overflow: 'hidden',
     },
@@ -399,18 +400,18 @@ export default function FanProgress({
     rewardText: {
       fontSize: 11,
       fontWeight: '500',
-      color: colors.primary,
+      color: themeColors.primary,
     },
     claimButton: {
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 6,
-      backgroundColor: colors.success,
+      backgroundColor: themeColors.success,
     },
     claimButtonText: {
       fontSize: 10,
       fontWeight: '600',
-      color: colors.background,
+      color: themeColors.background,
     },
     emptyState: {
       alignItems: 'center',
@@ -421,7 +422,7 @@ export default function FanProgress({
     },
     emptyText: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       textAlign: 'center',
     },
   });
@@ -474,13 +475,13 @@ export default function FanProgress({
               <View
                 style={[
                   styles.milestoneIcon,
-                  { backgroundColor: colors.textSecondary + '20' },
+                  { backgroundColor: themeColors.textSecondary + '20' },
                 ]}
               >
                 <Ionicons
                   name={milestone.icon as any}
                   size={24}
-                  color={colors.textSecondary}
+                  color={themeColors.textSecondary}
                 />
               </View>
               <View style={styles.milestoneContent}>
@@ -509,10 +510,10 @@ export default function FanProgress({
               <View
                 style={[
                   styles.milestoneIcon,
-                  { backgroundColor: colors.success + '20' },
+                  { backgroundColor: themeColors.success + '20' },
                 ]}
               >
-                <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                <Ionicons name="checkmark-circle" size={24} color={themeColors.success} />
               </View>
               <View style={styles.milestoneContent}>
                 <Text style={styles.milestoneTitle}>{milestone.title}</Text>
@@ -633,10 +634,10 @@ export default function FanProgress({
                 <View
                   style={[
                     styles.challengeIcon,
-                    { backgroundColor: colors.success + '20' },
+                    { backgroundColor: themeColors.success + '20' },
                   ]}
                 >
-                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Ionicons name="checkmark-circle" size={20} color={themeColors.success} />
                 </View>
                 <View style={styles.challengeInfo}>
                   <Text style={styles.challengeTitle}>{challenge.title}</Text>
@@ -653,7 +654,7 @@ export default function FanProgress({
           <Ionicons
             name="trophy-outline"
             size={48}
-            color={colors.textSecondary}
+            color={themeColors.textSecondary}
             style={styles.emptyIcon}
           />
           <Text style={styles.emptyText}>

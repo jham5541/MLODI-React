@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { usePlay } from '../../context/PlayContext';
 import { Playlist } from '../../types/music';
 
 interface PlaylistCardProps {
@@ -20,6 +21,8 @@ export default function PlaylistCard({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
+const { playSong } = usePlay();
+
   const formatDuration = () => {
     const totalSeconds = playlist.songs.reduce((total, song) => total + song.duration, 0);
     const hours = Math.floor(totalSeconds / 3600);
@@ -29,6 +32,12 @@ export default function PlaylistCard({
       return `${hours}h ${minutes}m`;
     }
     return `${minutes}m`;
+  };
+
+  const handlePlayPress = () => {
+    if (playlist.songs.length > 0) {
+      playSong(playlist.songs[0]); // Play the first song in the playlist
+    }
   };
 
   const styles = StyleSheet.create({
@@ -223,7 +232,7 @@ export default function PlaylistCard({
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionButton, styles.playButton]}
-            onPress={onPlay}
+onPress={handlePlayPress}
           >
             <Ionicons name="play" size={16} color="white" />
           </TouchableOpacity>

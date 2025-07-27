@@ -1,228 +1,38 @@
 import { supabase } from '../lib/supabase/client';
+import { 
+  Product, 
+  Cart, 
+  CartItem, 
+  Order, 
+  UserLibrary,
+  MarketplaceFilters,
+  ProductType 
+} from '../types/marketplace';
 
-export interface NFTCollection {
-  id: string;
-  name: string;
-  description?: string;
-  artist_id: string;
-  artist?: {
-    id: string;
-    name: string;
-    avatar_url?: string;
-    is_verified: boolean;
-  };
-  contract_address: string;
-  symbol: string;
-  total_supply: number;
-  floor_price: number;
-  volume_traded: number;
-  is_verified: boolean;
-  metadata_uri?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NFTListing {
-  id: string;
-  token_id: string;
-  collection_id: string;
-  collection?: NFTCollection;
-  seller_id: string;
-  seller?: {
-    id: string;
-    username?: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
-  song_id?: string;
-  song?: {
-    id: string;
-    title: string;
-    artist_id: string;
-    cover_url?: string;
-    duration_ms: number;
-  };
-  price: number;
-  currency: string;
-  is_auction: boolean;
-  auction_end_time?: string;
-  highest_bid: number;
-  highest_bidder_id?: string;
-  status: 'active' | 'sold' | 'cancelled' | 'expired';
-  metadata_uri?: string;
-  rarity_rank?: number;
-  traits: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NFTTransaction {
-  id: string;
-  listing_id: string;
-  listing?: NFTListing;
-  buyer_id?: string;
-  buyer?: {
-    id: string;
-    username?: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
-  seller_id?: string;
-  seller?: {
-    id: string;
-    username?: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
-  price: number;
-  currency: string;
-  transaction_hash?: string;
-  gas_fee: number;
-  marketplace_fee: number;
-  royalty_fee: number;
-  transaction_type: 'sale' | 'mint' | 'transfer';
-  created_at: string;
-}
-
-export interface MarketplaceStats {
-  id: string;
-  date: string;
-  total_volume: number;
-  total_sales: number;
-  unique_buyers: number;
-  unique_sellers: number;
-  average_price: number;
-  floor_price: number;
-  top_collection_id?: string;
-  top_collection?: NFTCollection;
-  created_at: string;
-}
-
-export interface MarketplaceFilters {
-  collections?: string[];
-  price_min?: number;
-  price_max?: number;
-  rarity_ranks?: number[];
-  traits?: Record<string, string[]>;
-  verified_only?: boolean;
-  auction_only?: boolean;
-  search?: string;
-  sort_by?: 'price_asc' | 'price_desc' | 'rarity_asc' | 'rarity_desc' | 'recent';
-  limit?: number;
-  offset?: number;
-}
-
-class MarketplaceService {
-  // Collections
-  async getCollections(options?: {
-    artist_id?: string;
-    verified_only?: boolean;
-    search?: string;
-    limit?: number;
-    offset?: number;
-    include_artist?: boolean;
-  }) {
-    let selectClause = '*';
-    if (options?.include_artist) {
-      selectClause += ', artists(id, name, avatar_url, is_verified)';
-    }
-
+export class MarketplaceService {
+  // Products
+  async getProducts(filters?: MarketplaceFilters): Promise<Product[]> {
     let query = supabase
-      .from('nft_collections')
-      .select(selectClause);
-
-    if (options?.artist_id) {
-      query = query.eq('artist_id', options.artist_id);
-    }
-
-    if (options?.verified_only) {
-      query = query.eq('is_verified', true);
-    }
-
-    if (options?.search) {
-      query = query.ilike('name', `%${options.search}%`);
-    }
-
-    query = query.order('volume_traded', { ascending: false });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.range(options.offset, (options.offset + (options.limit || 10)) - 1);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data as NFTCollection[];
-  }
-
-  async getCollection(id: string) {
-    const { data, error } = await supabase
-      .from('nft_collections')
-      .select('*, artists(id, name, avatar_url, is_verified)')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data as NFTCollection;
-  }
-
-  async getCollectionStats(collectionId: string) {
-    // Get basic collection info
-    const collection = await this.getCollection(collectionId);
-
-    // Get listings count
-    const { count: totalListings } = await supabase
-      .from('nft_listings')
-      .select('*', { count: 'exact', head: true })
-      .eq('collection_id', collectionId)
-      .eq('status', 'active');
-
-    // Get recent transactions for volume calculation
-    const { data: recentTransactions } = await supabase
-      .from('nft_transactions')
-      .select('price')
-      .eq('collection_id', collectionId)
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // 24h
-
-    const volume24h = recentTransactions?.reduce((sum, tx) => sum + tx.price, 0) || 0;
-
-    // Get owners count (unique sellers/buyers)
-    const { data: owners } = await supabase
-      .from('nft_listings')
-      .select('seller_id')
-      .eq('collection_id', collectionId);
-
-    const uniqueOwners = new Set(owners?.map(o => o.seller_id) || []).size;
-
-    return {
-      collection,
-      totalSupply: collection.total_supply,
-      totalListings: totalListings || 0,
-      floorPrice: collection.floor_price,
-      volume24h,
-      volumeTotal: collection.volume_traded,
-      uniqueOwners,
-    };
-  }
-
-  // Listings
-  async getListings(filters?: MarketplaceFilters) {
-    let query = supabase
-      .from('nft_listings')
+      .from('products')
       .select(`
         *,
-        nft_collections(*,  artists(id, name, avatar_url, is_verified)),
-        user_profiles:seller_id(id, username, display_name, avatar_url),
-        songs(id, title, artist_id, cover_url, duration_ms)
+        artists(id, name, avatar_url, is_verified),
+        product_categories(id, name, slug),
+        product_variants(*)
       `)
-      .eq('status', 'active');
+      .eq('is_active', true);
 
     // Apply filters
-    if (filters?.collections && filters.collections.length > 0) {
-      query = query.in('collection_id', filters.collections);
+    if (filters?.type) {
+      query = query.eq('type', filters.type);
+    }
+
+    if (filters?.artist_id) {
+      query = query.eq('artist_id', filters.artist_id);
+    }
+
+    if (filters?.category_id) {
+      query = query.eq('category_id', filters.category_id);
     }
 
     if (filters?.price_min !== undefined) {
@@ -233,32 +43,20 @@ class MarketplaceService {
       query = query.lte('price', filters.price_max);
     }
 
-    if (filters?.rarity_ranks && filters.rarity_ranks.length > 0) {
-      query = query.in('rarity_rank', filters.rarity_ranks);
-    }
-
-    if (filters?.verified_only) {
-      query = query.eq('nft_collections.is_verified', true);
-    }
-
-    if (filters?.auction_only) {
-      query = query.eq('is_auction', true);
+    if (filters?.on_sale) {
+      query = query.eq('is_on_sale', true);
     }
 
     if (filters?.search) {
       query = query.or(`
-        nft_collections.name.ilike.%${filters.search}%,
-        songs.title.ilike.%${filters.search}%
+        title.ilike.%${filters.search}%,
+        description.ilike.%${filters.search}%,
+        artists.name.ilike.%${filters.search}%
       `);
     }
 
-    // Traits filtering (simplified - would need more complex logic for production)
-    if (filters?.traits) {
-      for (const [traitType, values] of Object.entries(filters.traits)) {
-        if (values.length > 0) {
-          query = query.contains('traits', { [traitType]: values[0] });
-        }
-      }
+    if (filters?.tags && filters.tags.length > 0) {
+      query = query.overlaps('tags', filters.tags);
     }
 
     // Sorting
@@ -269,14 +67,17 @@ class MarketplaceService {
       case 'price_desc':
         query = query.order('price', { ascending: false });
         break;
-      case 'rarity_asc':
-        query = query.order('rarity_rank', { ascending: true, nullsLast: true });
+      case 'name_asc':
+        query = query.order('title', { ascending: true });
         break;
-      case 'rarity_desc':
-        query = query.order('rarity_rank', { ascending: false, nullsLast: true });
+      case 'name_desc':
+        query = query.order('title', { ascending: false });
         break;
-      case 'recent':
+      case 'newest':
         query = query.order('created_at', { ascending: false });
+        break;
+      case 'oldest':
+        query = query.order('created_at', { ascending: true });
         break;
       default:
         query = query.order('created_at', { ascending: false });
@@ -292,355 +93,399 @@ class MarketplaceService {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data as NFTListing[];
+    return data as Product[];
   }
 
-  async getListing(id: string) {
+  async getProduct(id: string): Promise<Product> {
     const { data, error } = await supabase
-      .from('nft_listings')
+      .from('products')
       .select(`
         *,
-        nft_collections(*, artists(id, name, avatar_url, is_verified)),
-        user_profiles:seller_id(id, username, display_name, avatar_url),
-        songs(id, title, artist_id, cover_url, duration_ms)
+        artists(id, name, avatar_url, is_verified),
+        product_categories(id, name, slug),
+        product_variants(*),
+        songs(id, title, duration_ms),
+        albums(id, title, total_tracks)
       `)
       .eq('id', id)
+      .eq('is_active', true)
       .single();
 
     if (error) throw error;
-    return data as NFTListing;
+    return data as Product;
   }
 
-  async createListing(data: {
-    token_id: string;
-    collection_id: string;
-    song_id?: string;
-    price: number;
-    currency?: string;
-    is_auction?: boolean;
-    auction_end_time?: string;
-    metadata_uri?: string;
-    rarity_rank?: number;
-    traits?: Record<string, any>;
-  }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const { data: listing, error } = await supabase
-      .from('nft_listings')
-      .insert({
-        ...data,
-        seller_id: user.id,
-        currency: data.currency || 'ETH',
-        is_auction: data.is_auction || false,
-        traits: data.traits || {},
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return listing as NFTListing;
-  }
-
-  async updateListing(id: string, data: {
-    price?: number;
-    is_auction?: boolean;
-    auction_end_time?: string;
-    status?: NFTListing['status'];
-  }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const { data: listing, error } = await supabase
-      .from('nft_listings')
-      .update(data)
-      .eq('id', id)
-      .eq('seller_id', user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return listing as NFTListing;
-  }
-
-  async cancelListing(id: string) {
-    return this.updateListing(id, { status: 'cancelled' });
-  }
-
-  // Bidding (for auctions)
-  async placeBid(listingId: string, bidAmount: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    // Get current listing
-    const listing = await this.getListing(listingId);
-
-    if (!listing.is_auction) {
-      throw new Error('This is not an auction listing');
-    }
-
-    if (listing.status !== 'active') {
-      throw new Error('Auction is not active');
-    }
-
-    if (listing.auction_end_time && new Date(listing.auction_end_time) < new Date()) {
-      throw new Error('Auction has ended');
-    }
-
-    if (bidAmount <= listing.highest_bid) {
-      throw new Error('Bid must be higher than current highest bid');
-    }
-
-    // Update listing with new highest bid
+  async getFeaturedProducts(limit = 10): Promise<Product[]> {
     const { data, error } = await supabase
-      .from('nft_listings')
-      .update({
-        highest_bid: bidAmount,
-        highest_bidder_id: user.id,
-      })
-      .eq('id', listingId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as NFTListing;
-  }
-
-  // Purchasing
-  async purchaseNFT(listingId: string, paymentDetails?: {
-    transaction_hash?: string;
-    gas_fee?: number;
-  }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const listing = await this.getListing(listingId);
-
-    if (listing.status !== 'active') {
-      throw new Error('Listing is not active');
-    }
-
-    if (listing.seller_id === user.id) {
-      throw new Error('Cannot purchase your own listing');
-    }
-
-    // Calculate fees (simplified)
-    const marketplaceFeeRate = 0.025; // 2.5%
-    const royaltyFeeRate = 0.1; // 10% (could be dynamic based on collection)
-    
-    const marketplaceFee = listing.price * marketplaceFeeRate;
-    const royaltyFee = listing.price * royaltyFeeRate;
-
-    // Create transaction record
-    const { data: transaction, error: txError } = await supabase
-      .from('nft_transactions')
-      .insert({
-        listing_id: listingId,
-        buyer_id: user.id,
-        seller_id: listing.seller_id,
-        price: listing.price,
-        currency: listing.currency,
-        transaction_hash: paymentDetails?.transaction_hash,
-        gas_fee: paymentDetails?.gas_fee || 0,
-        marketplace_fee: marketplaceFee,
-        royalty_fee: royaltyFee,
-        transaction_type: 'sale',
-      })
-      .select()
-      .single();
-
-    if (txError) throw txError;
-
-    // Update listing status
-    await supabase
-      .from('nft_listings')
-      .update({ status: 'sold' })
-      .eq('id', listingId);
-
-    // Update collection volume
-    await supabase.rpc('increment_collection_volume', {
-      collection_id: listing.collection_id,
-      amount: listing.price,
-    });
-
-    return transaction as NFTTransaction;
-  }
-
-  // Transactions
-  async getTransactions(options?: {
-    user_id?: string;
-    collection_id?: string;
-    transaction_type?: NFTTransaction['transaction_type'];
-    limit?: number;
-    offset?: number;
-  }) {
-    let query = supabase
-      .from('nft_transactions')
+      .from('products')
       .select(`
         *,
-        nft_listings(*, nft_collections(*, artists(name))),
-        buyer:user_profiles!buyer_id(id, username, display_name, avatar_url),
-        seller:user_profiles!seller_id(id, username, display_name, avatar_url)
-      `);
-
-    if (options?.user_id) {
-      query = query.or(`buyer_id.eq.${options.user_id},seller_id.eq.${options.user_id}`);
-    }
-
-    if (options?.collection_id) {
-      query = query.eq('nft_listings.collection_id', options.collection_id);
-    }
-
-    if (options?.transaction_type) {
-      query = query.eq('transaction_type', options.transaction_type);
-    }
-
-    query = query.order('created_at', { ascending: false });
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.range(options.offset, (options.offset + (options.limit || 10)) - 1);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data as NFTTransaction[];
-  }
-
-  async getUserTransactions(type?: 'bought' | 'sold') {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    let query = supabase
-      .from('nft_transactions')
-      .select(`
-        *,
-        nft_listings(*, nft_collections(*, artists(name))),
-        buyer:user_profiles!buyer_id(id, username, display_name, avatar_url),
-        seller:user_profiles!seller_id(id, username, display_name, avatar_url)
-      `);
-
-    if (type === 'bought') {
-      query = query.eq('buyer_id', user.id);
-    } else if (type === 'sold') {
-      query = query.eq('seller_id', user.id);
-    } else {
-      query = query.or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
-    }
-
-    query = query.order('created_at', { ascending: false });
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data as NFTTransaction[];
-  }
-
-  // Statistics
-  async getMarketplaceStats(period?: 'day' | 'week' | 'month' | 'all') {
-    let dateFilter = '';
-    const now = new Date();
-
-    switch (period) {
-      case 'day':
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        dateFilter = yesterday.toISOString().split('T')[0];
-        break;
-      case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        dateFilter = weekAgo.toISOString().split('T')[0];
-        break;
-      case 'month':
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        dateFilter = monthAgo.toISOString().split('T')[0];
-        break;
-    }
-
-    let query = supabase
-      .from('marketplace_stats')
-      .select('*, nft_collections:top_collection_id(*)');
-
-    if (dateFilter) {
-      query = query.gte('date', dateFilter);
-    }
-
-    query = query.order('date', { ascending: false });
-
-    if (period && period !== 'all') {
-      query = query.limit(period === 'day' ? 1 : period === 'week' ? 7 : 30);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // Aggregate data if multiple days
-    if (data && data.length > 1) {
-      const aggregated = data.reduce((acc, stat) => ({
-        total_volume: acc.total_volume + stat.total_volume,
-        total_sales: acc.total_sales + stat.total_sales,
-        unique_buyers: acc.unique_buyers + stat.unique_buyers, // This is not accurate for aggregation
-        unique_sellers: acc.unique_sellers + stat.unique_sellers, // This is not accurate for aggregation
-        average_price: (acc.total_volume + stat.total_volume) / (acc.total_sales + stat.total_sales),
-        floor_price: Math.min(acc.floor_price, stat.floor_price),
-      }), {
-        total_volume: 0,
-        total_sales: 0,
-        unique_buyers: 0,
-        unique_sellers: 0,
-        average_price: 0,
-        floor_price: Infinity,
-      });
-
-      return aggregated;
-    }
-
-    return data?.[0] as MarketplaceStats;
-  }
-
-  async getTrendingCollections(limit = 10) {
-    const { data, error } = await supabase
-      .from('nft_collections')
-      .select('*, artists(id, name, avatar_url, is_verified)')
-      .order('volume_traded', { ascending: false })
+        artists(id, name, avatar_url, is_verified)
+      `)
+      .eq('is_active', true)
+      .eq('is_featured', true)
+      .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data as NFTCollection[];
+    return data as Product[];
   }
 
-  // User-specific data
-  async getUserListings() {
+  async getProductsByType(type: ProductType, limit = 20): Promise<Product[]> {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        artists(id, name, avatar_url, is_verified)
+      `)
+      .eq('is_active', true)
+      .eq('type', type)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data as Product[];
+  }
+
+  // Cart Management
+  async getOrCreateCart(): Promise<Cart> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Try to get existing cart
+    let { data: cart, error } = await supabase
+      .from('carts')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error?.code === 'PGRST116') {
+      // No cart exists, create one
+      const { data: newCart, error: createError } = await supabase
+        .from('carts')
+        .insert({
+          user_id: user.id,
+          currency: 'USD'
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      cart = newCart;
+    } else if (error) {
+      throw error;
+    }
+
+    // Get cart items
+    const { data: cartItems, error: itemsError } = await supabase
+      .from('cart_items')
+      .select(`
+        *,
+        products(*),
+        product_variants(*)
+      `)
+      .eq('cart_id', cart.id);
+
+    if (itemsError) throw itemsError;
+
+    return {
+      ...cart,
+      items: cartItems as CartItem[]
+    } as Cart;
+  }
+
+  async addToCart(productId: string, variantId?: string, quantity = 1): Promise<void> {
+    const cart = await this.getOrCreateCart();
+    
+    // Get product to check price
+    const product = await this.getProduct(productId);
+    let price = product.price;
+    
+    if (variantId) {
+      const variant = product.product_variants?.find(v => v.id === variantId);
+      if (variant) {
+        price = variant.price || product.price;
+      }
+    }
+
+    // Check if item already exists in cart
+    const { data: existingItem } = await supabase
+      .from('cart_items')
+      .select('*')
+      .eq('cart_id', cart.id)
+      .eq('product_id', productId)
+      .eq('variant_id', variantId || null)
+      .single();
+
+    if (existingItem) {
+      // Update quantity
+      const { error } = await supabase
+        .from('cart_items')
+        .update({
+          quantity: existingItem.quantity + quantity,
+          price
+        })
+        .eq('id', existingItem.id);
+
+      if (error) throw error;
+    } else {
+      // Add new item
+      const { error } = await supabase
+        .from('cart_items')
+        .insert({
+          cart_id: cart.id,
+          product_id: productId,
+          variant_id: variantId,
+          quantity,
+          price
+        });
+
+      if (error) throw error;
+    }
+  }
+
+  async updateCartItem(cartItemId: string, quantity: number): Promise<void> {
+    if (quantity <= 0) {
+      await this.removeFromCart(cartItemId);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('cart_items')
+      .update({ quantity })
+      .eq('id', cartItemId);
+
+    if (error) throw error;
+  }
+
+  async removeFromCart(cartItemId: string): Promise<void> {
+    const { error } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('id', cartItemId);
+
+    if (error) throw error;
+  }
+
+  async clearCart(): Promise<void> {
+    const cart = await this.getOrCreateCart();
+    
+    const { error } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('cart_id', cart.id);
+
+    if (error) throw error;
+  }
+
+  // Checkout
+  async createOrder(checkoutData: {
+    paymentMethod: string;
+    billingAddress?: any;
+    shippingAddress?: any;
+    paymentReference?: string;
+  }): Promise<Order> {
+    const cart = await this.getOrCreateCart();
+    
+    if (!cart.items || cart.items.length === 0) {
+      throw new Error('Cart is empty');
+    }
+
+    // Call the checkout Edge Function
+    const { data, error } = await supabase.functions.invoke('marketplace-checkout', {
+      body: {
+        cart_id: cart.id,
+        payment_method: checkoutData.paymentMethod,
+        billing_address: checkoutData.billingAddress,
+        shipping_address: checkoutData.shippingAddress,
+        payment_reference: checkoutData.paymentReference
+      }
+    });
+
+    if (error) throw error;
+    if (!data.success) throw new Error(data.error);
+
+    // Get the created order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items(*)
+      `)
+      .eq('id', data.order_id)
+      .single();
+
+    if (orderError) throw orderError;
+    return order as Order;
+  }
+
+  // Orders
+  async getUserOrders(): Promise<Order[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
-      .from('nft_listings')
+      .from('orders')
       .select(`
         *,
-        nft_collections(*, artists(name)),
-        songs(id, title, cover_url)
+        order_items(*)
       `)
-      .eq('seller_id', user.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data as NFTListing[];
+    return data as Order[];
   }
 
-  async getUserWatchlist() {
-    // This would require a separate watchlist table
-    // For now, return empty array
-    return [];
+  async getOrder(orderId: string): Promise<Order> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items(*)
+      `)
+      .eq('id', orderId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) throw error;
+    return data as Order;
+  }
+
+  // User Library
+  async getUserLibrary(): Promise<UserLibrary[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('user_library')
+      .select(`
+        *,
+        products(*),
+        orders(order_number)
+      `)
+      .eq('user_id', user.id)
+      .order('purchased_at', { ascending: false });
+
+    if (error) throw error;
+    return data as UserLibrary[];
+  }
+
+  async getLibraryByType(type: ProductType): Promise<UserLibrary[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('user_library')
+      .select(`
+        *,
+        products(*),
+        orders(order_number)
+      `)
+      .eq('user_id', user.id)
+      .eq('products.type', type)
+      .order('purchased_at', { ascending: false });
+
+    if (error) throw error;
+    return data as UserLibrary[];
+  }
+
+  // Product Categories
+  async getCategories(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order');
+
+    if (error) throw error;
+    return data;
   }
 
   // Search
-  async searchMarketplace(query: string, filters?: Partial<MarketplaceFilters>) {
-    return this.getListings({
+  async searchProducts(query: string, filters?: Partial<MarketplaceFilters>): Promise<Product[]> {
+    return this.getProducts({
       ...filters,
-      search: query,
+      search: query
     });
+  }
+
+  // Wishlist
+  async addToWishlist(productId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+      .from('wishlists')
+      .insert({
+        user_id: user.id,
+        product_id: productId
+      });
+
+    if (error && error.code !== '23505') { // Ignore duplicate key error
+      throw error;
+    }
+  }
+
+  async removeFromWishlist(productId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+      .from('wishlists')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('product_id', productId);
+
+    if (error) throw error;
+  }
+
+  async getWishlist(): Promise<Product[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('wishlists')
+      .select(`
+        products(
+          *,
+          artists(id, name, avatar_url, is_verified)
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('added_at', { ascending: false });
+
+    if (error) throw error;
+    return data.map(item => item.products) as Product[];
+  }
+
+  // Listings (alias for products)
+  async getListings(filters?: MarketplaceFilters): Promise<Product[]> {
+    return this.getProducts(filters);
+  }
+
+  // Statistics
+  async getMarketplaceStats(): Promise<any> {
+    // Get total products by type
+    const { data: stats, error } = await supabase
+      .from('products')
+      .select('type')
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    const statsByType = stats.reduce((acc, product) => {
+      acc[product.type] = (acc[product.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalProducts: stats.length,
+      productsByType: statsByType
+    };
   }
 }
 

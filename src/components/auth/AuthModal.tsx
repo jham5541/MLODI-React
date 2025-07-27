@@ -10,19 +10,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import { useWeb3 } from '../../context/Web3Context';
 
 interface AuthModalProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
-type AuthMode = 'signin' | 'signup' | 'web3';
+type AuthMode = 'signin' | 'signup';
 
 export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const { activeTheme } = useTheme();
@@ -32,9 +32,9 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
   
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, loading, error } = useAuthStore();
-  const { connectWallet, isConnecting, isConnected } = useWeb3();
 
   const styles = StyleSheet.create({
     modalContainer: {
@@ -43,170 +43,250 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     },
     modalContent: {
       backgroundColor: themeColors.background,
-      marginHorizontal: 20,
-      borderRadius: 20,
+      marginHorizontal: 16,
+      borderRadius: 28,
       padding: 0,
-      maxHeight: '80%',
+      maxHeight: '85%',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 10,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 25,
+      elevation: 15,
     },
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.border,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: themeColors.text,
+      paddingTop: 32,
+      paddingHorizontal: 24,
+      paddingBottom: 24,
+      position: 'relative',
     },
     closeButton: {
-      padding: 4,
+      position: 'absolute',
+      top: 20,
+      right: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: themeColors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+    },
+    logoContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    logo: {
+      width: 48,
+      height: 48,
+      marginRight: 16,
+    },
+    brandName: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: themeColors.primary,
+      letterSpacing: -0.5,
+    },
+    welcomeText: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      marginTop: 8,
+      fontWeight: '400',
     },
     content: {
-      padding: 20,
+      paddingHorizontal: 24,
+      paddingBottom: 32,
     },
     tabContainer: {
       flexDirection: 'row',
-      marginBottom: 30,
+      marginBottom: 32,
       backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      padding: 4,
+      borderRadius: 16,
+      padding: 6,
+      shadowColor: themeColors.primary,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
     },
     tab: {
       flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderRadius: 12,
       alignItems: 'center',
     },
     activeTab: {
       backgroundColor: themeColors.primary,
+      shadowColor: themeColors.primary,
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
     tabText: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 15,
+      fontWeight: '500',
       color: themeColors.textSecondary,
     },
     activeTabText: {
       color: 'white',
+      fontWeight: '600',
     },
     form: {
-      gap: 16,
+      gap: 20,
     },
     inputContainer: {
       position: 'relative',
     },
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.text,
+      marginBottom: 8,
+    },
     input: {
       backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      borderRadius: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
       fontSize: 16,
       color: themeColors.text,
-      borderWidth: 1,
-      borderColor: themeColors.border,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
     },
     inputFocused: {
       borderColor: themeColors.primary,
+      shadowColor: themeColors.primary,
+      shadowOpacity: 0.15,
     },
     passwordToggle: {
       position: 'absolute',
       right: 16,
       top: 16,
+      padding: 4,
     },
     button: {
       backgroundColor: themeColors.primary,
-      borderRadius: 12,
-      paddingVertical: 16,
+      borderRadius: 16,
+      paddingVertical: 18,
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: 12,
+      shadowColor: themeColors.primary,
+      shadowOffset: {
+        width: 0,
+        height: 6,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
     },
     buttonDisabled: {
       opacity: 0.6,
+      shadowOpacity: 0.1,
     },
     buttonText: {
       color: 'white',
       fontSize: 16,
       fontWeight: '600',
+      letterSpacing: 0.5,
     },
     socialButton: {
       backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      paddingVertical: 14,
+      borderRadius: 16,
+      paddingVertical: 16,
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'center',
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: themeColors.border,
-      marginTop: 12,
+      marginTop: 16,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
     },
     socialButtonText: {
       color: themeColors.text,
-      fontSize: 16,
-      fontWeight: '500',
-      marginLeft: 8,
-    },
-    web3Container: {
-      alignItems: 'center',
-      gap: 20,
-    },
-    web3Title: {
-      fontSize: 20,
+      fontSize: 15,
       fontWeight: '600',
-      color: themeColors.text,
-      textAlign: 'center',
-    },
-    web3Subtitle: {
-      fontSize: 14,
-      color: themeColors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    connectedContainer: {
-      alignItems: 'center',
-      gap: 12,
-      padding: 20,
-      backgroundColor: themeColors.surface,
-      borderRadius: 12,
-    },
-    connectedText: {
-      fontSize: 16,
-      color: themeColors.text,
-      fontWeight: '500',
-    },
-    addressText: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-      fontFamily: 'monospace',
+      marginLeft: 12,
     },
     errorText: {
       color: themeColors.error,
       fontSize: 14,
       textAlign: 'center',
-      marginTop: 8,
+      marginTop: 12,
+      fontWeight: '500',
     },
     divider: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginVertical: 20,
+      marginVertical: 24,
     },
     dividerLine: {
       flex: 1,
       height: 1,
       backgroundColor: themeColors.border,
+      opacity: 0.5,
     },
     dividerText: {
-      marginHorizontal: 16,
+      marginHorizontal: 20,
       fontSize: 14,
       color: themeColors.textSecondary,
+      fontWeight: '500',
+      backgroundColor: themeColors.background,
+      paddingHorizontal: 8,
     },
   });
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    // At least 6 characters
+    return password.length >= 6;
+  };
+
   const handleEmailAuth = async () => {
+    // Validation
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
 
@@ -216,18 +296,25 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
 
     try {
-      let result;
+      let success = false;
       if (authMode === 'signup') {
-        result = await signUpWithEmail(email, password);
+        success = await signUpWithEmail(email, password);
+        if (success) {
+          Alert.alert(
+            'Success!', 
+            'Account created successfully! Please check your email to verify your account.',
+            [{ text: 'OK', onPress: onClose }]
+          );
+        }
       } else {
-        result = await signInWithEmail(email, password);
+        success = await signInWithEmail(email, password);
+        if (success) {
+          onClose();
+        }
       }
-
-      if (result) {
-        onClose();
-      }
-    } catch (err) {
-      Alert.alert('Authentication Error', 'Please try again');
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      Alert.alert('Authentication Error', err.message || 'Please try again');
     }
   };
 
@@ -240,16 +327,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
   };
 
-  const handleWeb3Connect = async () => {
-    try {
-      await connectWallet();
-      if (isConnected) {
-        onClose();
-      }
-    } catch (err) {
-      Alert.alert('Wallet Connection Error', 'Failed to connect wallet');
-    }
-  };
 
   const resetForm = () => {
     setEmail('');
@@ -277,12 +354,22 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
         style={styles.modalContent}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            {authMode === 'web3' ? 'Connect Wallet' : 'Welcome to M3lodi'}
-          </Text>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color={themeColors.text} />
           </TouchableOpacity>
+          
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../../assets/images/logo.png')} 
+              style={styles.logo} 
+              resizeMode="contain"
+            />
+            <Text style={styles.brandName}>MLODI</Text>
+          </View>
+          
+          <Text style={styles.welcomeText}>
+            {authMode === 'signin' ? 'Welcome back!' : 'Join the music revolution'}
+          </Text>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -304,59 +391,19 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
                 Sign Up
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, authMode === 'web3' && styles.activeTab]}
-              onPress={() => switchAuthMode('web3')}
-            >
-              <Text style={[styles.tabText, authMode === 'web3' && styles.activeTabText]}>
-                Web3
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Web3 Authentication */}
-          {authMode === 'web3' ? (
-            <View style={styles.web3Container}>
-              <Text style={styles.web3Title}>Connect Your Wallet</Text>
-              <Text style={styles.web3Subtitle}>
-                Connect your Web3 wallet to access exclusive features, own music NFTs, and participate in the decentralized music economy.
-              </Text>
-
-              {isConnected ? (
-                <View style={styles.connectedContainer}>
-                  <Ionicons name="checkmark-circle" size={48} color={themeColors.success} />
-                  <Text style={styles.connectedText}>Wallet Connected!</Text>
-                  <TouchableOpacity
-                    style={styles.button}
-                    onPress={onClose}
-                  >
-                    <Text style={styles.buttonText}>Continue</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.button, isConnecting && styles.buttonDisabled]}
-                  onPress={handleWeb3Connect}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.buttonText}>Connect Wallet</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            /* Email Authentication */
-            <View style={styles.form}>
+          {/* Email Authentication */}
+          <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, focusedInput === 'email' && styles.inputFocused]}
                   placeholder="Email"
                   placeholderTextColor={themeColors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
+                  onFocus={() => setFocusedInput('email')}
+                  onBlur={() => setFocusedInput(null)}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -365,11 +412,13 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
 
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, focusedInput === 'password' && styles.inputFocused]}
                   placeholder="Password"
                   placeholderTextColor={themeColors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setFocusedInput('password')}
+                  onBlur={() => setFocusedInput(null)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -388,11 +437,13 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
               {authMode === 'signup' && (
                 <View style={styles.inputContainer}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, focusedInput === 'confirmPassword' && styles.inputFocused]}
                     placeholder="Confirm Password"
                     placeholderTextColor={themeColors.textSecondary}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    onFocus={() => setFocusedInput('confirmPassword')}
+                    onBlur={() => setFocusedInput(null)}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                   />
@@ -425,7 +476,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
                 <Text style={styles.socialButtonText}>Continue with Google</Text>
               </TouchableOpacity>
             </View>
-          )}
 
           {error && <Text style={styles.errorText}>{error}</Text>}
         </ScrollView>

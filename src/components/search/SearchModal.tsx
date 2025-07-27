@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useSearch } from '../../context/SearchContext';
 import SearchBar from './SearchBar';
@@ -23,12 +26,16 @@ type SearchResult = {
   albums: Album[];
 };
 
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 export default function SearchModal() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { isSearchOpen, closeSearch, searchQuery, setSearchQuery } = useSearch();
+  const navigation = useNavigation<NavigationProp>();
   const [results, setResults] = useState<SearchResult>({ songs: [], artists: [], albums: [] });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   const performSearch = (query: string) => {
     if (!query.trim()) {
@@ -64,6 +71,15 @@ export default function SearchModal() {
   useEffect(() => {
     performSearch(searchQuery);
   }, [searchQuery]);
+
+  // Handle navigation after modal closes
+  useEffect(() => {
+    if (!isSearchOpen && pendingNavigation) {
+      console.log('Modal closed, executing pending navigation to artist:', pendingNavigation);
+      navigation.navigate('ArtistProfile', { artistId: pendingNavigation });
+      setPendingNavigation(null);
+    }
+  }, [isSearchOpen, pendingNavigation, navigation]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -272,7 +288,12 @@ export default function SearchModal() {
                     renderItem={({ item }) => (
                       <ArtistCard
                         artist={item}
-                        onPress={() => console.log('View artist:', item.name)}
+                        onPress={() => {
+                          console.log('Artist pressed:', item.name, 'ID:', item.id);
+                          console.log('Setting pending navigation and closing search');
+                          setPendingNavigation(item.id);
+                          closeSearch();
+                        }}
                       />
                     )}
                     keyExtractor={(item) => item.id}

@@ -11,7 +11,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, colors } from '../../context/ThemeContext';
 
 export type FanTier = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Platinum';
 
@@ -72,7 +72,8 @@ export default function FanTierSystem({
   onTierUpgrade,
   onRedeemReward,
 }: FanTierSystemProps) {
-  const { colors } = useTheme();
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTier, setSelectedTier] = useState<FanTierData | null>(null);
   const [progressAnimation] = useState(new Animated.Value(0));
@@ -243,7 +244,7 @@ export default function FanTierSystem({
       case 'rare': return '#3B82F6';
       case 'epic': return '#8B5CF6';
       case 'legendary': return '#F59E0B';
-      default: return colors.textSecondary;
+      default: return themeColors.textSecondary;
     }
   };
 
@@ -253,12 +254,12 @@ export default function FanTierSystem({
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
       borderRadius: 16,
       padding: 20,
       marginBottom: 16,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     header: {
       flexDirection: 'row',
@@ -277,11 +278,11 @@ export default function FanTierSystem({
     title: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
     },
     subtitle: {
       fontSize: 13,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginTop: 2,
     },
     currentTierSection: {
@@ -301,12 +302,12 @@ export default function FanTierSystem({
     tierName: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.background,
+      color: themeColors.background,
       textAlign: 'center',
     },
     tierPoints: {
       fontSize: 12,
-      color: colors.background,
+      color: themeColors.background,
       opacity: 0.9,
       textAlign: 'center',
       marginTop: 2,
@@ -323,15 +324,15 @@ export default function FanTierSystem({
     progressText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
     },
     pointsText: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     progressBarContainer: {
       height: 8,
-      backgroundColor: colors.border,
+      backgroundColor: themeColors.border,
       borderRadius: 4,
       overflow: 'hidden',
     },
@@ -346,24 +347,24 @@ export default function FanTierSystem({
       marginBottom: 20,
     },
     statCard: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 12,
       alignItems: 'center',
       flex: 1,
       minWidth: '30%',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     statValue: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.primary,
+      color: themeColors.primary,
       marginBottom: 2,
     },
     statLabel: {
       fontSize: 10,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       textAlign: 'center',
     },
     achievementsSection: {
@@ -372,7 +373,7 @@ export default function FanTierSystem({
     sectionTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.text,
+      color: themeColors.text,
       marginBottom: 12,
     },
     achievementsList: {
@@ -381,11 +382,11 @@ export default function FanTierSystem({
     achievementItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     achievementIcon: {
       width: 32,
@@ -401,30 +402,30 @@ export default function FanTierSystem({
     achievementTitle: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: themeColors.text,
     },
     achievementDescription: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       marginTop: 2,
     },
     achievementPoints: {
       fontSize: 11,
       fontWeight: '600',
-      color: colors.primary,
+      color: themeColors.primary,
     },
     tiersGrid: {
       gap: 12,
     },
     tierCard: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 12,
       padding: 16,
       borderWidth: 2,
       borderColor: 'transparent',
     },
     currentTierCard: {
-      borderColor: colors.primary,
+      borderColor: themeColors.primary,
     },
     tierCardHeader: {
       flexDirection: 'row',
@@ -440,15 +441,15 @@ export default function FanTierSystem({
     tierCardName: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.text,
+      color: themeColors.text,
     },
     tierCardRange: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
     },
     tierCardRarity: {
       fontSize: 10,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       fontStyle: 'italic',
     },
     benefitsList: {
@@ -461,7 +462,7 @@ export default function FanTierSystem({
     },
     benefitText: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: themeColors.textSecondary,
       flex: 1,
     },
     actions: {
@@ -476,21 +477,21 @@ export default function FanTierSystem({
       paddingVertical: 12,
       paddingHorizontal: 16,
       borderRadius: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: themeColors.primary,
       gap: 6,
     },
     secondaryButton: {
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: themeColors.border,
     },
     actionButtonText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.background,
+      color: themeColors.background,
     },
     secondaryButtonText: {
-      color: colors.text,
+      color: themeColors.text,
     },
     // Modal styles
     modalOverlay: {
@@ -500,7 +501,7 @@ export default function FanTierSystem({
       alignItems: 'center',
     },
     modalContent: {
-      backgroundColor: colors.background,
+      backgroundColor: themeColors.background,
       borderRadius: 20,
       padding: 24,
       width: '90%',
@@ -515,12 +516,12 @@ export default function FanTierSystem({
     modalTitle: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.text,
+      color: themeColors.text,
     },
     closeButton: {
       padding: 8,
       borderRadius: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: themeColors.surface,
     },
   });
 
@@ -539,7 +540,7 @@ export default function FanTierSystem({
               style={styles.closeButton}
               onPress={() => setShowDetailModal(false)}
             >
-              <Ionicons name="close" size={24} color={colors.text} />
+              <Ionicons name="close" size={24} color={themeColors.text} />
             </TouchableOpacity>
           </View>
 
@@ -618,7 +619,7 @@ export default function FanTierSystem({
             <Ionicons
               name={currentTier.icon as any}
               size={32}
-              color={colors.background}
+              color={themeColors.background}
             />
           </View>
           <Text style={styles.tierName}>{currentTier.name}</Text>
@@ -706,14 +707,14 @@ export default function FanTierSystem({
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={() => setShowDetailModal(true)}
         >
-          <Ionicons name="information-circle-outline" size={16} color={colors.text} />
+          <Ionicons name="information-circle-outline" size={16} color={themeColors.text} />
           <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>
             View All Tiers
           </Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="gift-outline" size={16} color={colors.background} />
+          <Ionicons name="gift-outline" size={16} color={themeColors.background} />
           <Text style={styles.actionButtonText}>Redeem Rewards</Text>
         </TouchableOpacity>
       </View>

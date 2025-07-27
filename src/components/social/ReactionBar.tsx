@@ -18,11 +18,12 @@ interface Reaction {
 }
 
 interface ReactionBarProps {
-  reactions: Reaction[];
-  onReaction: (type: Reaction['type']) => void;
+  reactions?: Reaction[];
+  onReaction?: (type: Reaction['type']) => void;
   showLabels?: boolean;
   size?: 'small' | 'medium' | 'large';
   orientation?: 'horizontal' | 'vertical';
+  artistId?: string;
 }
 
 const reactionConfig = {
@@ -31,7 +32,7 @@ const reactionConfig = {
   fire: { icon: 'flame-outline', activeIcon: 'flame', color: '#f97316', label: 'Fire' },
   wow: { icon: 'happy-outline', activeIcon: 'happy', color: '#eab308', label: 'Wow' },
   sad: { icon: 'sad-outline', activeIcon: 'sad', color: '#6366f1', label: 'Sad' },
-  angry: { icon: 'ios-sad-outline', activeIcon: 'ios-sad', color: '#dc2626', label: 'Angry' },
+  angry: { icon: 'thunderstorm-outline', activeIcon: 'thunderstorm', color: '#dc2626', label: 'Angry' },
 };
 
 export default function ReactionBar({
@@ -40,12 +41,26 @@ export default function ReactionBar({
   showLabels = false,
   size = 'medium',
   orientation = 'horizontal',
+  artistId,
 }: ReactionBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { isConnected } = useAuthStore();
+  
+  // Default reactions with sample data
+  const defaultReactions: Reaction[] = [
+    { type: 'like', count: 42, isActive: false },
+    { type: 'love', count: 28, isActive: false },
+    { type: 'fire', count: 15, isActive: true },
+    { type: 'wow', count: 8, isActive: false },
+    { type: 'sad', count: 2, isActive: false },
+    { type: 'angry', count: 1, isActive: false },
+  ];
+  
+  const reactionData = reactions || defaultReactions;
+  
   const [animatedValues] = useState(() => 
-    reactions.reduce((acc, reaction) => {
+    reactionData.reduce((acc, reaction) => {
       acc[reaction.type] = new Animated.Value(1);
       return acc;
     }, {} as Record<Reaction['type'], Animated.Value>)
@@ -80,15 +95,15 @@ export default function ReactionBar({
       ]).start();
     }
 
-    onReaction(type);
+    onReaction?.(type);
   };
 
   const getTotalReactions = () => {
-    return reactions.reduce((total, reaction) => total + reaction.count, 0);
+    return reactionData.reduce((total, reaction) => total + reaction.count, 0);
   };
 
   const getMostPopularReaction = () => {
-    return reactions.reduce((max, reaction) => 
+    return reactionData.reduce((max, reaction) => 
       reaction.count > max.count ? reaction : max
     );
   };
@@ -230,7 +245,7 @@ export default function ReactionBar({
 
   return (
     <View style={styles.container}>
-      {reactions.map(renderReaction)}
+      {reactionData.map(renderReaction)}
     </View>
   );
 }

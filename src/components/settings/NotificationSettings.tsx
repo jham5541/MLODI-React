@@ -101,7 +101,7 @@ export default function NotificationSettings({ onSave }: NotificationSettingsPro
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Test Notification',
-        body: 'This is a test notification from M3lodi',
+        body: 'This is a test notification from MLODI',
         data: { test: true },
       },
       trigger: { seconds: 1 },

@@ -20,9 +20,9 @@ export function useAudioPlayer() {
   });
 
   useEffect(() => {
-    let stateUnsubscribe: (() => void) | undefined;
-    let trackUnsubscribe: (() => void) | undefined;
-    let progressUnsubscribe: (() => void) | undefined;
+    let stateUnsubscribe: { remove: () => void } | undefined;
+    let trackUnsubscribe: { remove: () => void } | undefined;
+    let progressUnsubscribe: { remove: () => void } | undefined;
 
     const setupListeners = async () => {
       // State change listener
@@ -55,9 +55,9 @@ export function useAudioPlayer() {
     setupListeners();
 
     return () => {
-      stateUnsubscribe?.();
-      trackUnsubscribe?.();
-      progressUnsubscribe?.();
+      stateUnsubscribe?.remove();
+      trackUnsubscribe?.remove();
+      progressUnsubscribe?.remove();
     };
   }, []);
 
