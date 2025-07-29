@@ -195,7 +195,12 @@ export const useCartStore = create<CartStore>()(
           set({ userLibrary, isLoading: false });
         } catch (error) {
           console.error('Failed to load library:', error);
-          set({ error: (error as Error).message, isLoading: false });
+          // Don't set error state for authentication errors
+          if ((error as Error).message === 'Not authenticated') {
+            set({ userLibrary: [], isLoading: false });
+          } else {
+            set({ error: (error as Error).message, isLoading: false });
+          }
         }
       },
 

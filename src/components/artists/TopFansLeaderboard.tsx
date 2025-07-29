@@ -1,157 +1,87 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 
-// Mock data with Billboard-style position tracking
-const topFans = [
-  { 
-    walletAddress: '0x1a2b3c4d...ef56789a', 
-    points: 12847, 
-    rank: 1, 
-    lastWeekRank: 2,
-    badges: ['Super Fan', 'Early Supporter', 'VIP'],
-    avatar: '🥇',
-    username: 'CryptoMelody',
-    streakDays: 45,
-    totalSpent: 2450,
-    fanLevel: 'Diamond',
-    trend: 2.5
-  },
-  { 
-    walletAddress: '0x9f8e7d6c...ba098765', 
-    points: 11239, 
-    rank: 2, 
-    lastWeekRank: 1,
-    badges: ['Super Fan', 'Collector'],
-    avatar: '🥈',
-    username: 'BeatLover2024',
-    streakDays: 32,
-    totalSpent: 1890,
-    fanLevel: 'Platinum',
-    trend: 0.5
-  },
-  { 
-    walletAddress: '0xa1b2c3d4...e5f6789b', 
-    points: 10564, 
-    rank: 3, 
-    lastWeekRank: 3,
-    badges: ['Super Fan'],
-    avatar: '🥉',
-    username: 'MusicNFTFan',
-    streakDays: 28,
-    totalSpent: 1650,
-    fanLevel: 'Gold',
-    trend: -1.2
-  },
-  { 
-    walletAddress: '0x5d4c3b2a...19876543', 
-    points: 9832, 
-    rank: 4, 
-    lastWeekRank: 6,
-    badges: ['Early Supporter'],
-    avatar: '🎵',
-    username: 'VibeCollector',
-    streakDays: 21,
-    totalSpent: 1420,
-    fanLevel: 'Silver',
-    trend: 1.7
-  },
-  { 
-    walletAddress: '0x6e7f8a9b...cdef0123', 
-    points: 8765, 
-    rank: 5, 
-    lastWeekRank: 4,
-    badges: [],
-    avatar: '🎧',
-    username: 'SonicExplorer',
-    streakDays: 15,
-    totalSpent: 980,
-    fanLevel: 'Bronze',
-    trend: -0.4
-  },
-  { 
-    walletAddress: '0x7f8e9a0b...1c2d3e4f', 
-    points: 8234, 
-    rank: 6, 
-    lastWeekRank: 5,
-    badges: ['Collector'],
-    avatar: '🎤',
-    username: 'VinylVibe',
-    streakDays: 12,
-    totalSpent: 750,
-    fanLevel: 'Bronze',
-    trend: -0.8
-  },
-  { 
-    walletAddress: '0x9a1b2c3d...4e5f6789', 
-    points: 7890, 
-    rank: 7, 
-    lastWeekRank: null,
-    badges: [],
-    avatar: '🎹',
-    username: 'NewFanRising',
-    streakDays: 8,
-    totalSpent: 450,
-    fanLevel: 'Bronze',
-    trend: 5.2
-  },
-  { 
-    walletAddress: '0xb2c3d4e5...f6789abc', 
-    points: 7456, 
-    rank: 8, 
-    lastWeekRank: 7,
-    badges: ['Early Supporter'],
-    avatar: '🎸',
-    username: 'GuitarHero88',
-    streakDays: 18,
-    totalSpent: 890,
-    fanLevel: 'Bronze',
-    trend: -0.3
-  }
-];
+// Mock data with expanded list for infinite scroll demonstration
+const generateMockFans = (start: number, count: number) => {
+  const levels = ['Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'];
+  const avatars = ['🥇', '🥈', '🥉', '🎵', '🎧', '🎤', '🎹', '🎸', '🎺', '🥁'];
+  const usernames = ['CryptoMelody', 'BeatLover2024', 'MusicNFTFan', 'VibeCollector', 'SonicExplorer', 'VinylVibe', 'NewFanRising', 'GuitarHero88', 'DrumMachine', 'BasslineKing'];
+
+  return Array.from({ length: count }, (_, i) => {
+    const rank = start + i;
+    const points = Math.max(15000 - (rank * 100) - Math.random() * 50, 100);
+
+    return {
+      walletAddress: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`,
+      points: Math.floor(points),
+      rank,
+      lastWeekRank: rank > 1 ? rank + Math.floor(Math.random() * 3 - 1) : rank,
+      badges: rank <= 10 ? ['Super Fan'] : rank <= 50 ? ['Early Supporter'] : [],
+      avatar: avatars[Math.floor(Math.random() * avatars.length)],
+      username: `${usernames[Math.floor(Math.random() * usernames.length)]}${rank}`,
+      streakDays: Math.floor(Math.random() * 60),
+      totalSpent: Math.floor(Math.random() * 3000),
+      fanLevel: levels[Math.min(Math.floor(rank / 20), levels.length - 1)],
+      trend: (Math.random() - 0.5) * 10
+    };
+  });
+};
 
 const TopFansLeaderboard = () => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const listRef = useRef<FlatList>(null);
+
+  const [fans, setFans] = useState(() => generateMockFans(1, 50));
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+
+  // Mock current user - in real app this would come from context/auth
+  const currentUser = { walletAddress: fans[2]?.walletAddress }; // Third place user for demo
+
+  const fetchMoreFans = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    // Simulate API delay
+    setTimeout(() => {
+      const nextPage = page + 1;
+      const newFans = generateMockFans((page * 50) + 1, 50);
+      setFans(prevFans => [...prevFans, ...newFans]);
+      setPage(nextPage);
+      setLoading(false);
+    }, 1000);
+  };
+
+  const autoScrollToUser = (userIndex: number) => {
+    if (listRef.current && userIndex !== -1) {
+      // Delay scroll to ensure the list is rendered
+      setTimeout(() => {
+        listRef.current?.scrollToIndex({
+          index: userIndex,
+          animated: true,
+          viewPosition: 0.5 // Center the user's position in view
+        });
+      }, 500);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && fans.length > 0) {
+      const userIndex = fans.findIndex(fan => fan.walletAddress === currentUser.walletAddress);
+      if (userIndex !== -1) {
+        autoScrollToUser(userIndex);
+      }
+    }
+  }, [fans, currentUser]);
 
   const formatPoints = (points: number) => {
     if (points >= 1000) {
       return `${(points / 1000).toFixed(1)}K`;
     }
     return points.toString();
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString()}`;
-  };
-
-  const getRankColor = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '#FFD700'; // Gold
-      case 2:
-        return '#C0C0C0'; // Silver
-      case 3:
-        return '#CD7F32'; // Bronze
-      default:
-        return '#667eea'; // Purple
-    }
-  };
-
-  const getBadgeColor = (badge: string) => {
-    switch (badge) {
-      case 'Super Fan':
-        return { bg: '#FF6B6B20', text: '#FF6B6B', border: '#FF6B6B' };
-      case 'Early Supporter':
-        return { bg: '#4ECDC420', text: '#4ECDC4', border: '#4ECDC4' };
-      case 'VIP':
-        return { bg: '#FFD93D20', text: '#FFD93D', border: '#FFD93D' };
-      case 'Collector':
-        return { bg: '#6BCF7F20', text: '#6BCF7F', border: '#6BCF7F' };
-      default:
-        return { bg: '#A8A8A820', text: '#A8A8A8', border: '#A8A8A8' };
-    }
   };
 
   const getFanLevelColor = (level: string) => {
@@ -175,7 +105,7 @@ const TopFansLeaderboard = () => {
     if (lastWeekRank === null) {
       return { type: 'new', change: 0, text: 'NEW' };
     }
-    
+
     const change = lastWeekRank - currentRank;
     if (change > 0) {
       return { type: 'up', change, text: `+${change}` };
@@ -184,6 +114,98 @@ const TopFansLeaderboard = () => {
     } else {
       return { type: 'same', change: 0, text: '—' };
     }
+  };
+
+  const renderFan = ({ item, index }: { item: any; index: number }) => {
+    const isTopThree = item.rank <= 3;
+    const positionChange = getPositionChange(item.rank, item.lastWeekRank);
+    const isCurrentUser = item.walletAddress === currentUser?.walletAddress;
+
+    const rowStyle = [
+      styles.fanRow,
+      isTopThree && styles.topThreeRow,
+      isCurrentUser && styles.currentUserRow
+    ];
+
+    return (
+      <View style={rowStyle}>
+        {/* Rank and Position Change */}
+        <View style={styles.rankSection}>
+          <Text style={[styles.rankNumber, isTopThree && styles.topThreeRank]}>
+            {item.rank}
+          </Text>
+          <View style={[
+            styles.positionChange,
+            styles[`${positionChange.type}Change`]
+          ]}>
+            <Text style={[
+              styles.positionChangeText,
+              styles[`${positionChange.type}Text`]
+            ]}>
+              {positionChange.text}
+            </Text>
+          </View>
+        </View>
+
+        {/* Fan Avatar */}
+        <View style={styles.avatarSection}>
+          <View style={[styles.avatar, isTopThree && styles.topThreeAvatar]}>
+            <Text style={styles.avatarEmoji}>{item.avatar}</Text>
+          </View>
+          {isTopThree && (
+            <View style={styles.topBadge}>
+              <Ionicons name="star" size={10} color="#FFD700" />
+            </View>
+          )}
+          {isCurrentUser && (
+            <View style={styles.currentUserBadge}>
+              <Ionicons name="person" size={8} color={themeColors.primary} />
+            </View>
+          )}
+        </View>
+
+        {/* Fan Information */}
+        <View style={styles.fanInfoSection}>
+          <Text style={[styles.username, isCurrentUser && styles.currentUserText]} numberOfLines={1}>
+            {item.username}
+            {isCurrentUser && ' (You)'}
+          </Text>
+          <View style={styles.detailsRow}>
+            <View style={[styles.fanLevelBadge, { backgroundColor: `${getFanLevelColor(item.fanLevel)}20` }]}>
+              <Text style={[styles.fanLevelText, { color: getFanLevelColor(item.fanLevel) }]}>
+                {item.fanLevel}
+              </Text>
+            </View>
+            <Text style={styles.pointsText}>{formatPoints(item.points)} pts</Text>
+          </View>
+        </View>
+
+        {/* Trend Indicator */}
+        <View style={styles.trendSection}>
+          <Ionicons 
+            name={item.trend >= 0 ? "trending-up" : "trending-down"} 
+            size={16} 
+            color={item.trend >= 0 ? '#22C55E' : '#EF4444'} 
+          />
+          <Text style={[
+            styles.trendText,
+            { color: item.trend >= 0 ? '#22C55E' : '#EF4444' }
+          ]}>
+            {item.trend > 0 ? '+' : ''}{item.trend.toFixed(1)}%
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFooter = () => {
+    if (!loading) return null;
+
+    return (
+      <View style={styles.loadingFooter}>
+        <Text style={styles.loadingText}>Loading more fans...</Text>
+      </View>
+    );
   };
 
   const styles = StyleSheet.create({
@@ -230,13 +252,8 @@ const TopFansLeaderboard = () => {
       paddingVertical: 3,
       borderRadius: 8,
     },
-    subtitle: {
-      fontSize: 13,
-      color: themeColors.textSecondary,
-      fontWeight: '400',
-    },
     chartContainer: {
-      flex: 1,
+      height: 400, // Fixed height for contained scrolling
     },
     chartHeader: {
       flexDirection: 'row',
@@ -254,22 +271,21 @@ const TopFansLeaderboard = () => {
       flex: 1,
       textAlign: 'center',
     },
-    scrollableList: {
-      maxHeight: 400,
-    },
-    listContainer: {
-      paddingBottom: 8,
-    },
     fanRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
+      borderBottomColor: themeColors.border + '30',
     },
     topThreeRow: {
-      backgroundColor: activeTheme === 'dark' ? themeColors.surfaceElevated : '#fefbf3',
+      backgroundColor: activeTheme === 'dark' ? themeColors.surface + '40' : '#fefbf3',
+    },
+    currentUserRow: {
+      backgroundColor: themeColors.primary + '15',
+      borderLeftWidth: 3,
+      borderLeftColor: themeColors.primary,
     },
     rankSection: {
       width: 50,
@@ -350,6 +366,14 @@ const TopFansLeaderboard = () => {
       borderRadius: 8,
       padding: 1,
     },
+    currentUserBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: 8,
+      backgroundColor: themeColors.primary,
+      borderRadius: 8,
+      padding: 2,
+    },
     fanInfoSection: {
       flex: 1,
       marginLeft: 8,
@@ -359,6 +383,10 @@ const TopFansLeaderboard = () => {
       fontWeight: '600',
       color: themeColors.text,
       marginBottom: 3,
+    },
+    currentUserText: {
+      color: themeColors.primary,
+      fontWeight: '700',
     },
     detailsRow: {
       flexDirection: 'row',
@@ -388,74 +416,21 @@ const TopFansLeaderboard = () => {
       fontWeight: '600',
       marginTop: 2,
     },
+    scrollableList: {
+      flex: 1,
+    },
+    listContainer: {
+      paddingBottom: 8,
+    },
+    loadingFooter: {
+      paddingVertical: 20,
+      alignItems: 'center',
+    },
+    loadingText: {
+      color: themeColors.textSecondary,
+      fontSize: 14,
+    },
   });
-
-  const renderFan = ({ item, index }) => {
-    const isTopThree = item.rank <= 3;
-    const positionChange = getPositionChange(item.rank, item.lastWeekRank);
-    
-    return (
-      <View style={[styles.fanRow, isTopThree && styles.topThreeRow]}>
-        {/* Rank and Position Change */}
-        <View style={styles.rankSection}>
-          <Text style={[styles.rankNumber, isTopThree && styles.topThreeRank]}>
-            {item.rank}
-          </Text>
-          <View style={[
-            styles.positionChange,
-            styles[`${positionChange.type}Change`]
-          ]}>
-            <Text style={[
-              styles.positionChangeText,
-              styles[`${positionChange.type}Text`]
-            ]}>
-              {positionChange.text}
-            </Text>
-          </View>
-        </View>
-        
-        {/* Fan Avatar */}
-        <View style={styles.avatarSection}>
-          <View style={[styles.avatar, isTopThree && styles.topThreeAvatar]}>
-            <Text style={styles.avatarEmoji}>{item.avatar}</Text>
-          </View>
-          {isTopThree && (
-            <View style={styles.topBadge}>
-              <Ionicons name="star" size={10} color="#FFD700" />
-            </View>
-          )}
-        </View>
-        
-        {/* Fan Information */}
-        <View style={styles.fanInfoSection}>
-          <Text style={styles.username} numberOfLines={1}>{item.username}</Text>
-          <View style={styles.detailsRow}>
-            <View style={[styles.fanLevelBadge, { backgroundColor: `${getFanLevelColor(item.fanLevel)}20` }]}>
-              <Text style={[styles.fanLevelText, { color: getFanLevelColor(item.fanLevel) }]}>
-                {item.fanLevel}
-              </Text>
-            </View>
-            <Text style={styles.pointsText}>{formatPoints(item.points)} pts</Text>
-          </View>
-        </View>
-        
-        {/* Trend Indicator */}
-        <View style={styles.trendSection}>
-          <Ionicons 
-            name={item.trend >= 0 ? "trending-up" : "trending-down"} 
-            size={16} 
-            color={item.trend >= 0 ? '#22C55E' : '#EF4444'} 
-          />
-          <Text style={[
-            styles.trendText,
-            { color: item.trend >= 0 ? '#22C55E' : '#EF4444' }
-          ]}>
-            {item.trend > 0 ? '+' : ''}{item.trend}%
-          </Text>
-        </View>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -467,9 +442,8 @@ const TopFansLeaderboard = () => {
           </View>
           <Text style={styles.weekLabel}>This Week</Text>
         </View>
-        <Text style={styles.subtitle}>Billboard-style fan engagement rankings</Text>
       </View>
-      
+
       <View style={styles.chartContainer}>
         <View style={styles.chartHeader}>
           <Text style={styles.chartHeaderText}>Rank</Text>
@@ -477,20 +451,30 @@ const TopFansLeaderboard = () => {
           <Text style={styles.chartHeaderText}>Fan</Text>
           <Text style={styles.chartHeaderText}>Trend</Text>
         </View>
-        
+
         <FlatList
-          data={topFans}
+          ref={listRef}
+          data={fans}
           renderItem={renderFan}
           keyExtractor={(item) => item.walletAddress}
           showsVerticalScrollIndicator={true}
+          onEndReached={fetchMoreFans}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
+          maxToRenderPerBatch={20}
+          windowSize={10}
           style={styles.scrollableList}
           contentContainerStyle={styles.listContainer}
+          getItemLayout={(data, index) => ({
+            length: 60, // Approximate item height
+            offset: 60 * index,
+            index,
+          })}
         />
       </View>
     </View>
   );
 };
-
 
 export default TopFansLeaderboard;
 

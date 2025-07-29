@@ -10,6 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { purchaseService } from '../../services/purchaseService';
+import { useCartStore } from '../../store/cartStore';
+import TicketPurchaseModal from '../purchase/TicketPurchaseModal';
+import TicketViewModal from '../tickets/TicketViewModal';
 
 interface TourDate {
   id: string;
@@ -32,9 +36,12 @@ export default function TourDates({
 }: TourDatesProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { loadLibrary } = useCartStore();
   const [tourDates, setTourDates] = useState<TourDate[]>([]);
-  const [purchasedTickets, setPurchasedTickets] = useState<string[]>([]);
-  const [qrCodeVisible, setQrCodeVisible] = useState<null | string>(null);
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedTourDate, setSelectedTourDate] = useState<TourDate | null>(null);
+  const [ticketViewModalVisible, setTicketViewModalVisible] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     // Mock data - replace with actual API call
@@ -72,25 +79,19 @@ export default function TourDates({
   }, [artistId]);
 
   const handleBuyTickets = (date: TourDate) => {
-    Alert.alert(
-      'Buy Tickets',
-      `Purchase tickets for ${date.venue} on ${date.date}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Buy Now', onPress: () => {
-          console.log('Buying tickets for:', date.id);
-          setPurchasedTickets((prev) => [...prev, date.id]); // Mark as purchased
-        }},
-      ]
-    );
+    setSelectedTourDate(date);
+    setPurchaseModalVisible(true);
   };
 
-  const showQrCode = (dateId: string) => {
-    setQrCodeVisible(dateId);
+  const handlePurchaseComplete = async (quantity: number) => {
+    // Refresh the user's library to show the new ticket purchase
+    await loadLibrary();
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
-  const closeModal = () => {
-    setQrCodeVisible(null);
+  const handleViewTickets = (date: TourDate) => {
+    setSelectedTourDate(date);
+    setTicketViewModalVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -144,6 +145,12 @@ export default function TourDates({
       color: themeColors.background,
       fontSize: 14,
       fontWeight: '600',
+    },
+    ticketCount: {
+      fontSize: 12,
+      color: themeColors.primary,
+      fontWeight: '600',
+      marginTop: 2,
     },
     buyButtonPurchased: {
       backgroundColor: themeColors.success,
@@ -254,83 +261,79 @@ export default function TourDates({
         <Text style={styles.title}>Tour Dates</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {tourDates.map((date) => (
-          <View key={date.id} style={styles.tourCard}>
-            <View style={styles.tourInfo}>
-              <Text style={styles.venue}>{date.venue}</Text>
-              <Text style={styles.cityDate}>
-                {date.city}{' \u2022 '}{date.date} at {date.time}
-              </Text>
-              <Text style={styles.cityDate}>{`Tickets: $${date.price}`}</Text>
-            </View>
-            {purchasedTickets.includes(date.id) ? (
-              <TouchableOpacity
-                style={styles.buyButtonPurchased}
-                onPress={() => showQrCode(date.id)}
-              >
-                <Ionicons name="qr-code" size={16} color={themeColors.background} />
-                <Text style={styles.buyButtonText}>View Ticket</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.buyButton}
-                onPress={() => handleBuyTickets(date)}
-              >
-                <Ionicons name="ticket" size={16} color={themeColors.background} />
-                <Text style={styles.buyButtonText}>Buy</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-      </ScrollView>
+        {tourDates.map((date) => {
+          const isPurchased = purchaseService.isTicketPurchased(date.id);
+          const ticketCount = purchaseService.getTicketPurchaseCount(date.id);
 
-      {/* QR Code Modal */}
-      <Modal
-        visible={qrCodeVisible !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Your Ticket</Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeIconButton}>
-                <Ionicons name="close" size={24} color={themeColors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.ticketInfo}>
-              {qrCodeVisible && (
-                <>
-                  {(() => {
-                    const selectedDate = tourDates.find(d => d.id === qrCodeVisible);
-                    return selectedDate ? (
-                      <>
-                        <Text style={styles.ticketVenue}>{selectedDate.venue}</Text>
-                        <Text style={styles.ticketDetails}>
-                          {selectedDate.city} • {selectedDate.date} at {selectedDate.time}
-                        </Text>
-                      </>
-                    ) : null;
-                  })()} 
-                </>
+          return (
+            <View key={`${date.id}-${refreshKey}`} style={styles.tourCard}>
+              <View style={styles.tourInfo}>
+                <Text style={styles.venue}>{date.venue}</Text>
+                <Text style={styles.cityDate}>
+                  {date.city}{' • '}{date.date} at {date.time}
+                </Text>
+                <Text style={styles.cityDate}>{`Tickets: $${date.price}`}</Text>
+                {ticketCount > 0 && (
+                  <Text style={styles.ticketCount}>
+                    {ticketCount} ticket{ticketCount > 1 ? 's' : ''} purchased
+                  </Text>
+                )}
+              </View>
+              {isPurchased ? (
+                <TouchableOpacity
+                  style={styles.buyButtonPurchased}
+                  onPress={() => handleViewTickets(date)}
+                >
+                  <Ionicons name="qr-code" size={16} color={themeColors.background} />
+                  <Text style={styles.buyButtonText}>View Tickets</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.buyButton}
+                  onPress={() => handleBuyTickets(date)}
+                >
+                  <Ionicons name="ticket" size={16} color={themeColors.background} />
+                  <Text style={styles.buyButtonText}>Buy Now</Text>
+                </TouchableOpacity>
               )}
             </View>
-            
-            <View style={styles.qrCodeContainer}>
-              <View style={styles.qrCodePlaceholder}>
-                <Ionicons name="qr-code" size={80} color={themeColors.textSecondary} />
-                <Text style={styles.qrCodeText}>Scan at venue entrance</Text>
-              </View>
-            </View>
-            
-            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-              <Text style={styles.closeButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          );
+        })}
+      </ScrollView>
+
+      {/* Ticket Purchase Modal */}
+      {selectedTourDate && (
+        <TicketPurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedTourDate(null);
+          }}
+          tourDateId={selectedTourDate.id}
+          venue={selectedTourDate.venue}
+          city={selectedTourDate.city}
+          date={selectedTourDate.date}
+          time={selectedTourDate.time}
+          price={selectedTourDate.price}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      )}
+
+      {/* Ticket View Modal */}
+      {selectedTourDate && (
+        <TicketViewModal
+          visible={ticketViewModalVisible}
+          onClose={() => {
+            setTicketViewModalVisible(false);
+            setSelectedTourDate(null);
+          }}
+          venue={selectedTourDate.venue}
+          city={selectedTourDate.city}
+          date={selectedTourDate.date}
+          time={selectedTourDate.time}
+          tickets={purchaseService.getTickets(selectedTourDate.id)}
+        />
+      )}
     </View>
   );
 }

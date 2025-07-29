@@ -2,8 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ImageBackground, TouchableOpacity, Dimensions, ScrollView, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
+import { usePlay } from '../context/PlayContext';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import AlbumPurchaseModal from '../components/purchase/AlbumPurchaseModal';
+import PurchaseModal from '../components/purchase/PurchaseModal';
+import { purchaseService } from '../services/purchaseService';
+import { Song as PlaySong } from '../types/music';
 
 interface Song {
   id: string;
@@ -65,6 +70,33 @@ const albumData: Album = {
   bannerMedia: 'https://picsum.photos/800/400?random=banner1',
 };
 
+// Convert album songs to PlayContext format
+const convertToPlaySongs = (songs: Song[]): PlaySong[] => {
+  return songs.map(song => ({
+    id: song.id,
+    title: song.title,
+    artist: song.artist,
+    artistId: 'artist-1', // Mock artistId
+    album: song.album,
+    coverUrl: 'https://picsum.photos/300/300?random=' + song.id,
+    duration: parseDuration(song.duration),
+    audioUrl: 'https://audio.example.com/' + song.id + '.mp3', // Mock audio URL
+  }));
+};
+
+// Helper function to convert duration string to seconds
+const parseDuration = (duration: string): number => {
+  const [minutes, seconds] = duration.split(':').map(Number);
+  return minutes * 60 + seconds;
+};
+
+// Helper function to format duration from seconds to MM:SS
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 // Analytics data
 const analyticsData: AnalyticsItem[] = [
   {
@@ -120,42 +152,189 @@ const AlbumPage = ({ route, navigation }: Props) => {
   const { albumId } = route.params;
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { playSong, currentSong, isPlaying, togglePlayPause } = usePlay();
   const { width, height } = Dimensions.get('window');
-  const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
   const [album, setAlbum] = useState<Album | null>(null);
   const [userRating, setUserRating] = useState(0);
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [isPurchased, setIsPurchased] = useState(false);
+  const [songPurchaseModalVisible, setSongPurchaseModalVisible] = useState(false);
+  const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isAlbumPurchaseAnimating, setIsAlbumPurchaseAnimating] = useState(false);
+  const [currentAnimatingSongIndex, setCurrentAnimatingSongIndex] = useState(-1);
   const scrollViewRef = useRef<ScrollView>(null);
+  const animatedValues = useRef(albumData.songs.map(() => new Animated.Value(0))).current;
   
   // Load album data based on albumId
   useEffect(() => {
     // In a real app, you would fetch album data from an API
     // For now, we'll use the dummy data
     setAlbum(albumData);
+    
+    // Check if album is already purchased
+    const purchased = purchaseService.isAlbumPurchased(albumId);
+    setIsPurchased(purchased);
   }, [albumId]);
   
   const handleBuyAlbum = () => {
-    console.log('Buy album:', albumData.title);
+    if (isPurchased) {
+      // If already purchased, maybe show purchase details or play the album
+      console.log('Album already purchased');
+    } else {
+      // Open purchase modal
+      setPurchaseModalVisible(true);
+    }
+  };
+  
+  const handlePurchaseComplete = async () => {
+    setIsPurchased(true);
+    console.log('Album purchase completed!');
+    
+    // Mark all songs as purchased in the service first
+    await Promise.all(
+      albumData.songs.map(song => purchaseService.purchaseSong(song.id, 1.99))
+    );
+    
+    // Start the animation sequence
+    startAlbumPurchaseAnimation();
+  };
+  
+  const startAlbumPurchaseAnimation = () => {
+    setIsAlbumPurchaseAnimating(true);
+    setCurrentAnimatingSongIndex(0);
+    
+    // Reset all animation values
+    animatedValues.forEach(value => value.setValue(0));
+    
+    // Animate each song one by one
+    const animateSong = (index: number) => {
+      if (index >= albumData.songs.length) {
+        // Animation complete
+        setIsAlbumPurchaseAnimating(false);
+        setCurrentAnimatingSongIndex(-1);
+        setRefreshKey(prev => prev + 1);
+        return;
+      }
+      
+      setCurrentAnimatingSongIndex(index);
+      
+      // Animate the highlight effect
+      Animated.sequence([
+        Animated.timing(animatedValues[index], {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animatedValues[index], {
+          toValue: 0.3,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        // Move to next song after a short delay
+        setTimeout(() => {
+          animateSong(index + 1);
+        }, 100);
+      });
+    };
+    
+    // Start the animation sequence
+    setTimeout(() => {
+      animateSong(0);
+    }, 500); // Small delay before starting
+  };
+  
+  const closePurchaseModal = () => {
+    setPurchaseModalVisible(false);
   };
 
   const handleBuySong = (song: Song) => {
-    console.log('Buy song:', song.title);
+    setSelectedSongForPurchase(song);
+    setSongPurchaseModalVisible(true);
+  };
+  
+  const handleSongPurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
-  const handlePlaySong = (songId: string) => {
-    setCurrentPlayingSong(currentPlayingSong === songId ? null : songId);
+  const handlePlaySong = (song: Song) => {
+    // Convert album song to PlaySong format
+    const playSong_formatted: PlaySong = {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      artistId: 'artist-1', // Mock artistId
+      album: song.album,
+      coverUrl: 'https://picsum.photos/300/300?random=' + song.id,
+      duration: parseDuration(song.duration),
+      audioUrl: 'https://audio.example.com/' + song.id + '.mp3', // Mock audio URL
+    };
+    
+    // Convert all album songs to playlist
+    const playlist = convertToPlaySongs(albumData.songs);
+    
+    // If this song is already playing, toggle play/pause
+    if (currentSong?.id === song.id && isPlaying) {
+      togglePlayPause();
+    } else {
+      // Play the song with the album as playlist
+      playSong(playSong_formatted, playlist);
+    }
   };
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
-    const isPlaying = currentPlayingSong === item.id;
+    const isCurrentlyPlaying = currentSong?.id === item.id && isPlaying;
+    const isPurchased = purchaseService.isPurchased(item.id);
+    const purchaseCount = purchaseService.getPurchaseCount(item.id);
+    const isCurrentlyAnimating = isAlbumPurchaseAnimating && currentAnimatingSongIndex === index;
+    
+    // Get the animated background color
+    const animatedBackgroundColor = animatedValues[index].interpolate({
+      inputRange: [0, 1],
+      outputRange: [
+        isPurchased ? themeColors.primary + '20' : themeColors.surface,
+        themeColors.primary + '60'
+      ],
+    });
+    
+    const animatedBorderColor = animatedValues[index].interpolate({
+      inputRange: [0, 1],
+      outputRange: [
+        isPurchased ? themeColors.primary + '40' : 'transparent',
+        themeColors.primary
+      ],
+    });
+    
+    const animatedScale = animatedValues[index].interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 1.02],
+    });
     
     return (
-      <View style={[styles.songItem, { backgroundColor: themeColors.surface }]}>
+      <Animated.View style={[
+        styles.songItem,
+        {
+          backgroundColor: animatedBackgroundColor,
+          borderColor: animatedBorderColor,
+          borderWidth: isPurchased || isCurrentlyAnimating ? 1 : 0,
+          transform: [{ scale: animatedScale }],
+        },
+        // Add a subtle shadow during animation
+        isCurrentlyAnimating && {
+          shadowColor: themeColors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }
+      ]}>
         <TouchableOpacity 
           style={styles.songPlayButton}
-          onPress={() => handlePlaySong(item.id)}
+          onPress={() => handlePlaySong(item)}
         >
           <Ionicons 
-            name={isPlaying ? 'pause' : 'play'} 
+            name={isCurrentlyPlaying ? 'pause' : 'play'} 
             size={20} 
             color={themeColors.primary} 
           />
@@ -168,21 +347,57 @@ const AlbumPage = ({ route, navigation }: Props) => {
           <Text style={[styles.songArtist, { color: themeColors.textSecondary }]} numberOfLines={1}>
             {item.artist}
           </Text>
+          {isCurrentlyAnimating && (
+            <Text style={[styles.unlockedText, { color: themeColors.primary }]}>
+              ✓ Unlocked!
+            </Text>
+          )}
         </View>
         
         <View style={styles.songActions}>
           <Text style={[styles.songDuration, { color: themeColors.textSecondary }]}>
             {item.duration}
           </Text>
-          <TouchableOpacity 
-            style={[styles.buyButton, { backgroundColor: themeColors.primary }]}
-            onPress={() => handleBuySong(item)}
-          >
-            <Ionicons name="card" size={14} color="white" />
-            <Text style={styles.buyButtonText}>{item.price}</Text>
-          </TouchableOpacity>
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity 
+              style={[styles.buyButton, { backgroundColor: themeColors.primary }]}
+              onPress={() => handleBuySong(item)}
+              disabled={isAlbumPurchaseAnimating}
+            >
+              <Ionicons name="card" size={14} color="white" />
+              <Text style={styles.buyButtonText}>{item.price}</Text>
+            </TouchableOpacity>
+            
+            {purchaseCount > 0 && (
+              <Animated.View style={[
+                {
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  backgroundColor: themeColors.primary,
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: themeColors.surface,
+                },
+                isCurrentlyAnimating && {
+                  transform: [{ scale: 1.2 }],
+                  backgroundColor: themeColors.secondary,
+                }
+              ]}>
+                <Text style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontWeight: '700',
+                }}>{purchaseCount}</Text>
+              </Animated.View>
+            )}
+          </View>
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -456,6 +671,11 @@ const AlbumPage = ({ route, navigation }: Props) => {
     songArtist: {
       fontSize: 14,
     },
+    unlockedText: {
+      fontSize: 12,
+      fontWeight: '600',
+      marginTop: 2,
+    },
     songActions: {
       alignItems: 'flex-end',
     },
@@ -550,9 +770,21 @@ const AlbumPage = ({ route, navigation }: Props) => {
       <View style={styles.albumInfoSection}>
         <View style={styles.albumCoverSection}>
           <Image source={{ uri: albumData.coverUrl }} style={styles.albumCover} />
-          <TouchableOpacity style={styles.albumBuyButton} onPress={handleBuyAlbum}>
-            <Ionicons name="card" size={16} color="white" />
-            <Text style={styles.albumBuyButtonText}>Buy Album {albumData.price}</Text>
+          <TouchableOpacity 
+            style={[
+              styles.albumBuyButton, 
+              isPurchased && { backgroundColor: themeColors.textSecondary }
+            ]} 
+            onPress={handleBuyAlbum}
+          >
+            <Ionicons 
+              name={isPurchased ? "checkmark-circle" : "card"} 
+              size={16} 
+              color="white" 
+            />
+            <Text style={styles.albumBuyButtonText}>
+              {isPurchased ? "Purchased" : `Buy Album ${albumData.price}`}
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={styles.albumInfo}>
@@ -600,7 +832,15 @@ const AlbumPage = ({ route, navigation }: Props) => {
       <View style={styles.songsSection}>
         <View style={styles.songsHeader}>
           <Text style={styles.songsTitle}>Tracks</Text>
-          <TouchableOpacity style={styles.shuffleButton}>
+          <TouchableOpacity 
+            style={styles.shuffleButton}
+            onPress={() => {
+              const playlist = convertToPlaySongs(albumData.songs);
+              // Shuffle the playlist
+              const shuffledPlaylist = [...playlist].sort(() => Math.random() - 0.5);
+              playSong(shuffledPlaylist[0], shuffledPlaylist);
+            }}
+          >
             <Ionicons name="shuffle" size={16} color="white" />
             <Text style={styles.shuffleButtonText}>Shuffle</Text>
           </TouchableOpacity>
@@ -620,6 +860,32 @@ const AlbumPage = ({ route, navigation }: Props) => {
       </View>
       
       <View style={{ height: 100 }} />
+      
+      {/* Album Purchase Modal */}
+      <AlbumPurchaseModal
+        visible={purchaseModalVisible}
+        onClose={closePurchaseModal}
+        albumId={albumId}
+        albumTitle={albumData.title}
+        artist={albumData.artist}
+        price={albumData.price}
+        onPurchaseComplete={handlePurchaseComplete}
+      />
+      
+      {/* Song Purchase Modal */}
+      {selectedSongForPurchase && (
+        <PurchaseModal
+          visible={songPurchaseModalVisible}
+          onClose={() => {
+            setSongPurchaseModalVisible(false);
+            setSelectedSongForPurchase(null);
+          }}
+          songId={selectedSongForPurchase.id}
+          songTitle={selectedSongForPurchase.title}
+          artist={selectedSongForPurchase.artist}
+          onPurchaseComplete={handleSongPurchaseComplete}
+        />
+      )}
     </ScrollView>
   );
 };

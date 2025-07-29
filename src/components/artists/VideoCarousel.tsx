@@ -10,7 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { purchaseService } from '../../services/purchaseService';
+import VideoPurchaseModal from '../purchase/VideoPurchaseModal';
 
 interface Video {
   id: string;
@@ -30,15 +35,21 @@ interface VideoCarouselProps {
   artistName?: string;
 }
 
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 export default function VideoCarousel({
   artistId,
   artistName = 'Artist',
 }: VideoCarouselProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const navigation = useNavigation<NavigationProp>();
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedVideoForPurchase, setSelectedVideoForPurchase] = useState<Video | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     // Mock data - replace with actual API call
@@ -51,7 +62,7 @@ export default function VideoCarousel({
         views: 2500000,
         likes: 125000,
         releaseDate: '2023-08-20',
-        videoUrl: 'https://example.com/video1.mp4',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
       },
       {
         id: '2',
@@ -62,7 +73,7 @@ export default function VideoCarousel({
         likes: 89000,
         releaseDate: '2023-07-15',
         price: 2.99,
-        videoUrl: 'https://example.com/video2.mp4',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
       },
       {
         id: '3',
@@ -73,7 +84,7 @@ export default function VideoCarousel({
         likes: 32000,
         releaseDate: '2023-06-10',
         badgeRequired: 'Gold Fan',
-        videoUrl: 'https://example.com/video3.mp4',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
       },
       {
         id: '4',
@@ -83,7 +94,7 @@ export default function VideoCarousel({
         views: 950000,
         likes: 48000,
         releaseDate: '2023-05-25',
-        videoUrl: 'https://example.com/video4.mp4',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
       },
     ];
 
@@ -112,24 +123,33 @@ export default function VideoCarousel({
   };
 
   const handleVideoPress = (video: Video) => {
-    if (video.price) {
+    if (video.price && !purchaseService.isVideoPurchased(video.id)) {
       Alert.alert(
         'Premium Video',
         `This video requires a purchase of $${video.price}. Would you like to buy it?`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Buy & Watch', onPress: () => openVideoModal(video) },
+          { text: 'Buy & Watch', onPress: () => handleBuyVideo(video) },
         ]
       );
-    } else if (video.badgeRequired) {
+    } else if (video.badgeRequired && !purchaseService.isVideoPurchased(video.id)) {
       Alert.alert(
         'Badge Required',
         `This video requires the "${video.badgeRequired}" badge to watch.`,
         [{ text: 'OK', style: 'default' }]
       );
     } else {
-      openVideoModal(video);
+      navigation.navigate('VideoPage', { videoId: video.id });
     }
+  };
+  
+  const handleBuyVideo = (video: Video) => {
+    setSelectedVideoForPurchase(video);
+    setPurchaseModalVisible(true);
+  };
+  
+  const handlePurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
   const openVideoModal = (video: Video) => {
@@ -149,71 +169,104 @@ export default function VideoCarousel({
     Alert.alert('Share Video', `Sharing "${video.title}" by ${artistName}`);
   };
 
-  const renderVideoCard = (video: Video) => (
-    <TouchableOpacity
-      key={video.id}
-      style={styles.videoCard}
-      onPress={() => handleVideoPress(video)}
-    >
-      <View style={styles.thumbnailContainer}>
-        <Image source={{ uri: video.thumbnailUrl }} style={styles.thumbnail} />
-        
-        {/* Duration overlay */}
-        <View style={styles.durationOverlay}>
-          <Text style={styles.durationText}>
-            {formatDuration(video.duration)}
-          </Text>
-        </View>
+  const renderVideoCard = (video: Video) => {
+    const isPurchased = purchaseService.isVideoPurchased(video.id);
+    const purchaseCount = purchaseService.getVideoPurchaseCount(video.id);
 
-        {/* Play button overlay */}
-        <View style={styles.playButtonOverlay}>
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => handleVideoPress(video)}
-          >
-            <Ionicons name="play" size={24} color={themeColors.background} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Premium/Badge indicators */}
-        {video.price && (
-          <View style={styles.priceIndicator}>
-            <Ionicons name="diamond" size={12} color="#FFD700" />
-            <Text style={styles.priceIndicatorText}>${video.price}</Text>
-          </View>
-        )}
-        
-        {video.badgeRequired && (
-          <View style={styles.badgeIndicator}>
-            <Ionicons name="shield" size={12} color="#FF6B6B" />
-            <Text style={styles.badgeIndicatorText}>{video.badgeRequired}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.videoInfo}>
-        <Text style={styles.videoTitle} numberOfLines={2}>
-          {video.title}
-        </Text>
-        
-        <View style={styles.videoStats}>
-          <View style={styles.statItem}>
-            <Ionicons name="eye" size={12} color={themeColors.textSecondary} />
-            <Text style={styles.statText}>{formatNumber(video.views)}</Text>
-          </View>
+    return (
+      <TouchableOpacity
+        key={video.id}
+        style={styles.videoCard}
+        onPress={() => handleVideoPress(video)}
+      >
+        <View style={styles.thumbnailContainer}>
+          <Image 
+            source={{ uri: video.thumbnailUrl }} 
+            style={[
+              styles.thumbnail,
+              isPurchased && {
+                borderWidth: 3,
+                borderColor: themeColors.primary,
+              }
+            ]} 
+          />
           
-          <View style={styles.statItem}>
-            <Ionicons name="heart" size={12} color={themeColors.textSecondary} />
-            <Text style={styles.statText}>{formatNumber(video.likes)}</Text>
+          {/* Duration overlay */}
+          <View style={styles.durationOverlay}>
+            <Text style={styles.durationText}>
+              {formatDuration(video.duration)}
+            </Text>
           </View>
+
+          {/* Play button overlay */}
+          <View style={styles.playButtonOverlay}>
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={() => handleVideoPress(video)}
+            >
+              <Ionicons 
+                name="play" 
+                size={24} 
+                color={themeColors.background} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Ownership count badge */}
+          {purchaseCount > 0 && (
+            <View style={styles.ownershipBadge}>
+              <Text style={styles.ownershipCount}>{purchaseCount}</Text>
+            </View>
+          )}
+
+          {/* Premium/Badge indicators - hide if purchased */}
+          {video.price && !isPurchased && (
+            <View style={styles.priceIndicator}>
+              <Ionicons name="diamond" size={12} color="#FFD700" />
+              <Text style={styles.priceIndicatorText}>${video.price}</Text>
+            </View>
+          )}
           
-          <Text style={styles.releaseDate}>
-            {formatDate(video.releaseDate)}
-          </Text>
+          {video.badgeRequired && !isPurchased && (
+            <View style={styles.badgeIndicator}>
+              <Ionicons name="shield" size={12} color="#FF6B6B" />
+              <Text style={styles.badgeIndicatorText}>{video.badgeRequired}</Text>
+            </View>
+          )}
+          
+          {/* Purchased indicator */}
+          {isPurchased && (
+            <View style={styles.purchasedIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color={themeColors.primary} />
+              <Text style={styles.purchasedText}>OWNED</Text>
+            </View>
+          )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View style={styles.videoInfo}>
+          <Text style={styles.videoTitle} numberOfLines={2}>
+            {video.title}
+          </Text>
+          
+          <View style={styles.videoStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="eye" size={12} color={themeColors.textSecondary} />
+              <Text style={styles.statText}>{formatNumber(video.views)}</Text>
+            </View>
+            
+            <View style={styles.statItem}>
+              <Ionicons name="heart" size={12} color={themeColors.textSecondary} />
+              <Text style={styles.statText}>{formatNumber(video.likes)}</Text>
+            </View>
+            
+            <Text style={styles.releaseDate}>
+              {formatDate(video.releaseDate)}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -465,6 +518,42 @@ export default function VideoCarousel({
     secondaryActionButtonText: {
       color: themeColors.text,
     },
+    // Ownership and purchase indicators
+    ownershipBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: themeColors.primary,
+      borderRadius: 12,
+      minWidth: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'white',
+    },
+    ownershipCount: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    purchasedIndicator: {
+      position: 'absolute',
+      bottom: 8,
+      left: 8,
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    purchasedText: {
+      color: themeColors.primary,
+      fontSize: 10,
+      fontWeight: '800',
+    },
   });
 
   if (videos.length === 0) {
@@ -484,7 +573,10 @@ export default function VideoCarousel({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Videos</Text>
-        <TouchableOpacity style={styles.viewAllButton}>
+        <TouchableOpacity 
+          style={styles.viewAllButton}
+          onPress={() => navigation.navigate('Videos', { artistId })}
+        >
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
@@ -586,6 +678,23 @@ export default function VideoCarousel({
           </View>
         </View>
       </Modal>
+      
+      {/* Video Purchase Modal */}
+      {selectedVideoForPurchase && (
+        <VideoPurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedVideoForPurchase(null);
+          }}
+          videoId={selectedVideoForPurchase.id}
+          videoTitle={selectedVideoForPurchase.title}
+          artist={artistName}
+          price={`$${selectedVideoForPurchase.price}`}
+          thumbnailUrl={selectedVideoForPurchase.thumbnailUrl}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      )}
     </View>
   );
 }

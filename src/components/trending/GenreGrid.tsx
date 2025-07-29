@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 interface GenreGridProps {
   genres: string[];
   onGenrePress: (genre: string) => void;
+  onSeeAllPress?: () => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -13,7 +14,7 @@ const numColumns = 2;
 const itemMargin = 8;
 const itemWidth = (width - 32 - itemMargin * (numColumns - 1)) / numColumns;
 
-export default function GenreGrid({ genres, onGenrePress }: GenreGridProps) {
+export default function GenreGrid({ genres, onGenrePress, onSeeAllPress }: GenreGridProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
@@ -120,7 +121,7 @@ export default function GenreGrid({ genres, onGenrePress }: GenreGridProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Browse by Genre</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={onSeeAllPress}>
           <Text style={styles.seeAllText}>See All</Text>
         </TouchableOpacity>
       </View>

@@ -16,6 +16,7 @@ import SongList from '../components/home/SongList';
 import { SubscriptionStatusCard } from '../components/SubscriptionStatusCard';
 import { useMusicStore } from '../store/musicStore';
 import { usePlaylistStore } from '../store/playlistStore';
+import Top10ArtistCard from '../components/home/Top10ArtistCard';
 import { useMarketplaceStore } from '../store/marketplaceStore';
 import { createCommonStyles, LoadingState, EmptyState } from '../utils/uiHelpers';
 import { useBatchAsyncOperations } from '../hooks/useAsyncOperation';
@@ -59,6 +60,19 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
 
   // Mock data for demonstration
+  const mockTop10Artists = [
+    { id: '1', name: 'Taylor Swift', coverUrl: 'https://picsum.photos/80/80?random=1', isVerified: true, genres: ['Pop'], followers: 100000000 },
+    { id: '2', name: 'Drake', coverUrl: 'https://picsum.photos/80/80?random=2', isVerified: true, genres: ['Hip-Hop'], followers: 95000000 },
+    { id: '3', name: 'Bad Bunny', coverUrl: 'https://picsum.photos/80/80?random=3', isVerified: true, genres: ['Reggaeton'], followers: 90000000 },
+    { id: '4', name: 'The Weeknd', coverUrl: 'https://picsum.photos/80/80?random=4', isVerified: false, genres: ['R&B'], followers: 85000000 },
+    { id: '5', name: 'Ariana Grande', coverUrl: 'https://picsum.photos/80/80?random=5', isVerified: false, genres: ['Pop'], followers: 80000000 },
+    { id: '6', name: 'Post Malone', coverUrl: 'https://picsum.photos/80/80?random=6', isVerified: false, genres: ['Hip-Hop'], followers: 75000000 },
+    { id: '7', name: 'Billie Eilish', coverUrl: 'https://picsum.photos/80/80?random=7', isVerified: false, genres: ['Pop'], followers: 70000000 },
+    { id: '8', name: 'Ed Sheeran', coverUrl: 'https://picsum.photos/80/80?random=8', isVerified: false, genres: ['Pop'], followers: 65000000 },
+    { id: '9', name: 'Olivia Rodrigo', coverUrl: 'https://picsum.photos/80/80?random=9', isVerified: false, genres: ['Pop'], followers: 60000000 },
+    { id: '10', name: 'Dua Lipa', coverUrl: 'https://picsum.photos/80/80?random=10', isVerified: false, genres: ['Pop'], followers: 55000000 },
+  ];
+
   const mockDailyMixes = [
     {
       id: '1',
@@ -90,7 +104,6 @@ export default function HomeScreen() {
       description: 'The biggest hits right now',
       coverUrl: 'https://via.placeholder.com/160x120?text=Top+Hits',
       isLive: true,
-      listeners: 1247,
     },
     {
       id: '2',
@@ -99,7 +112,6 @@ export default function HomeScreen() {
       description: 'Relaxing sounds for focus',
       coverUrl: 'https://via.placeholder.com/160x120?text=Chill+Vibes',
       isLive: true,
-      listeners: 834,
     },
   ];
 
@@ -170,7 +182,18 @@ export default function HomeScreen() {
 
   const handleRadioPress = (station: any) => {
     console.log('Play radio station:', station.name);
-    // TODO: Start playing radio station
+    const radioSong = {
+      id: `radio-${station.id}`,
+      title: `${station.name} - Live Radio`,
+      artist: station.genre,
+      artistId: station.id,
+      album: 'Live Radio',
+      coverUrl: station.coverUrl,
+      duration: 3600, // 1 hour for radio
+      audioUrl: '',
+      isRadio: true,
+    };
+    playSong(radioSong, [radioSong]);
   };
 
   const handleChartPress = (chart: any) => {
@@ -224,8 +247,14 @@ export default function HomeScreen() {
     songsList: {
       marginHorizontal: -4,
     },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: themeColors.text,
+      marginLeft: 16,
+      marginBottom: 12,
+    },
   });
-
 
   return (
     <ScrollView 
@@ -276,6 +305,25 @@ export default function HomeScreen() {
           artists={followedArtists.length > 0 ? followedArtists : []}
           onArtistPress={handleArtistPress}
         />
+
+        {/* Top 10 Artists Carousel */}
+        <View style={{ marginVertical: 16 }}>
+          <Text style={styles.sectionTitle}>Top 10 Artists</Text>
+          <FlatList
+            data={mockTop10Artists}
+            renderItem={({ item, index }) => (
+              <Top10ArtistCard
+                artist={item}
+                rank={index + 1}
+                onPress={() => navigation.navigate('ArtistProfile', { artistId: item.id })}
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+          />
+        </View>
 
         {/* Radio Stations Carousel */}
         <RadioCarousel

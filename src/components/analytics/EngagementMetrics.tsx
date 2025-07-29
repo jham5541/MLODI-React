@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { usePlayTracking } from '../../context/PlayTrackingContext';
 
 interface Metric {
   label: string;
@@ -25,18 +26,49 @@ export default function EngagementMetrics({
 }: EngagementMetricsProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { getArtistTotalPlays, getArtistSongPlays, getArtistVideoPlays, artistPlayStats } = usePlayTracking();
   const [metrics, setMetrics] = useState<Metric[]>([]);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockMetrics: Metric[] = [
-      { label: 'Total Plays', value: 680000, trend: 'up' },
-      { label: 'Unique Listeners', value: 150000, trend: 'steady' },
-      { label: 'Average Listen Time', value: 4.5, trend: 'up' },
+    const totalPlays = getArtistTotalPlays(artistId);
+    const songPlays = getArtistSongPlays(artistId);
+    const videoPlays = getArtistVideoPlays(artistId);
+    const uniqueListeners = artistPlayStats[artistId]?.uniqueListeners?.size || 0;
+    
+    // Calculate average listen time (mock calculation based on total plays)
+    const avgListenTime = totalPlays > 0 ? 2.5 + (totalPlays * 0.1) : 0;
+    
+    const liveMetrics: Metric[] = [
+      { 
+        label: 'Total Plays', 
+        value: totalPlays,
+        trend: totalPlays > 0 ? 'up' : 'steady' 
+      },
+      { 
+        label: 'Song Plays', 
+        value: songPlays,
+        trend: songPlays > 0 ? 'up' : 'steady' 
+      },
+      { 
+        label: 'Video Plays', 
+        value: videoPlays,
+        trend: videoPlays > 0 ? 'up' : 'steady' 
+      },
+      { 
+        label: 'Unique Listeners', 
+        value: uniqueListeners,
+        trend: uniqueListeners > 0 ? 'up' : 'steady' 
+      },
+      { 
+        label: 'Avg Listen Time', 
+        value: parseFloat(avgListenTime.toFixed(1)),
+        trend: 'up' 
+      },
     ];
 
-    setMetrics(mockMetrics);
-  }, [artistId]);
+    setMetrics(liveMetrics);
+    console.log('EngagementMetrics: Updated metrics for artist', artistId, liveMetrics);
+  }, [artistId, artistPlayStats, getArtistTotalPlays, getArtistSongPlays, getArtistVideoPlays]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

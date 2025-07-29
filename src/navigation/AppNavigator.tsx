@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, colors } from '../context/ThemeContext';
-import { PlayProvider, usePlay } from '../context/PlayContext';
+import { usePlay } from '../context/PlayContext';
 import { useAuthStore } from '../store/authStore';
 import SearchModal from '../components/search/SearchModal';
 import PlayBar from '../components/PlayBar';
@@ -32,11 +32,21 @@ import FavoritesScreen from '../pages/Favorites';
 import AlbumPage from '../pages/AlbumPage';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { SubscriptionManagementScreen } from '../screens/SubscriptionManagementScreen';
+import Discography from '../screens/Discography';
+import VideoPage from '../screens/VideoPage';
+import VideosScreen from '../screens/VideosScreen';
+import ArtistSongsScreen from '../pages/ArtistSongs';
+import TrendingAllSongs from '../pages/TrendingAllSongs';
+import TrendingAllArtists from '../pages/TrendingAllArtists';
+import GenresAll from '../pages/GenresAll';
+import GenreDetail from '../pages/GenreDetail';
 
 export type RootStackParamList = {
   MainTabs: undefined;
   ArtistProfile: { artistId: string };
   AlbumPage: { albumId: string };
+  VideoPage: { videoId: string };
+  Videos: { artistId: string };
   Albums: undefined;
   Playlists: undefined;
   RadioAll: undefined;
@@ -44,6 +54,12 @@ export type RootStackParamList = {
   Settings: undefined;
   Subscription: undefined;
   SubscriptionManagement: undefined;
+  Discography: { artistId: string; artistName: string };
+  ArtistSongs: { artistId: string; artistName: string };
+  TrendingAllSongs: undefined;
+  TrendingAllArtists: undefined;
+  GenresAll: undefined;
+  GenreDetail: { genre: string };
 };
 
 export type TabParamList = {
@@ -239,7 +255,7 @@ function AppContent() {
         <Stack.Screen 
           name="ArtistProfile" 
           component={ArtistProfileScreen}
-          options={{ title: 'Artist' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen 
           name="AlbumPage" 
@@ -281,6 +297,46 @@ function AppContent() {
           component={SubscriptionManagementScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="Discography" 
+          component={Discography}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="VideoPage" 
+          component={VideoPage}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Videos" 
+          component={VideosScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="ArtistSongs" 
+          component={ArtistSongsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="TrendingAllSongs" 
+          component={TrendingAllSongs}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="TrendingAllArtists" 
+          component={TrendingAllArtists}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="GenresAll" 
+          component={GenresAll}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="GenreDetail" 
+          component={GenreDetail}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
       
       <SearchModal />
@@ -300,9 +356,5 @@ function AppContent() {
 }
 
 export default function AppNavigator() {
-  return (
-    <PlayProvider>
-      <AuthFlowManager />
-    </PlayProvider>
-  );
+  return <AuthFlowManager />;
 }

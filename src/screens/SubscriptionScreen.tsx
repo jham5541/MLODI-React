@@ -8,17 +8,304 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSubscriptionStore, SubscriptionPlan } from '../store/subscriptionStore';
-import { colors } from '../context/ThemeContext';
+import { useTheme, colors } from '../context/ThemeContext';
+
+const { width } = Dimensions.get('window');
 
 interface SubscriptionScreenProps {
   navigation: any;
 }
 
 export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigation }) => {
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
+
+  // Create dynamic styles based on current theme
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: themeColors.background,
+      borderBottomWidth: 0.5,
+      borderBottomColor: themeColors.border,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: themeColors.text,
+      letterSpacing: 0.5,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    currentSubscriptionInfo: {
+      marginTop: 24,
+      marginBottom: 16,
+    },
+    currentSubscriptionGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 20,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    currentSubscriptionText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+      marginLeft: 12,
+    },
+    plansContainer: {
+      marginVertical: 24,
+    },
+    planCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 20,
+      padding: 24,
+      marginBottom: 16,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      position: 'relative',
+      shadowColor: themeColors.shadow || '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    selectedPlan: {
+      borderColor: themeColors.primary,
+      shadowOpacity: 0.2,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    currentPlan: {
+      borderColor: themeColors.secondary,
+    },
+    popularBadge: {
+      position: 'absolute',
+      top: -10,
+      left: 24,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    popularText: {
+      color: 'white',
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+    },
+    planHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    planName: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: themeColors.text,
+      marginBottom: 4,
+    },
+    planDescription: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    currentBadge: {
+      backgroundColor: themeColors.secondary,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    currentText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    priceContainer: {
+      marginBottom: 20,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      marginBottom: 4,
+    },
+    price: {
+      fontSize: 36,
+      fontWeight: '900',
+      color: themeColors.text,
+    },
+    period: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
+      marginLeft: 4,
+    },
+    ethPrice: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    featuresContainer: {
+      marginTop: 8,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    checkmarkContainer: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: themeColors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    featureText: {
+      fontSize: 16,
+      color: themeColors.text,
+      fontWeight: '500',
+      flex: 1,
+    },
+    selectedIndicator: {
+      position: 'absolute',
+      top: 24,
+      right: 24,
+    },
+    selectedCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    paymentSection: {
+      marginVertical: 24,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginBottom: 20,
+      letterSpacing: 0.5,
+    },
+    paymentMethods: {
+      gap: 12,
+    },
+    paymentMethod: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 20,
+      backgroundColor: themeColors.surface,
+      borderRadius: 16,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      shadowColor: themeColors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    selectedPayment: {
+      borderColor: themeColors.primary,
+      shadowOpacity: 0.15,
+    },
+    paymentIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: themeColors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 16,
+    },
+    paymentInfo: {
+      flex: 1,
+    },
+    paymentText: {
+      fontSize: 17,
+      color: themeColors.text,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    paymentDesc: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    paymentSelected: {
+      marginLeft: 12,
+    },
+    subscribeSection: {
+      marginVertical: 32,
+      paddingBottom: 40,
+    },
+    subscribeButton: {
+      backgroundColor: themeColors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 20,
+      paddingHorizontal: 32,
+      borderRadius: 16,
+      marginBottom: 16,
+      shadowColor: themeColors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    disabledButton: {
+      opacity: 0.6,
+      shadowOpacity: 0.1,
+    },
+    subscribeText: {
+      color: 'white',
+      fontSize: 18,
+      fontWeight: '700',
+      marginRight: 8,
+      letterSpacing: 0.5,
+    },
+    disclaimer: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      fontWeight: '500',
+      paddingHorizontal: 20,
+    },
+  });
+  
   const {
     subscription,
     selectedPlan,
@@ -68,6 +355,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
       <TouchableOpacity
         key={plan.id}
         onPress={() => handlePlanSelect(plan)}
+        activeOpacity={0.8}
         style={[
           styles.planCard,
           isSelected && styles.selectedPlan,
@@ -75,34 +363,54 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
         ]}
       >
         {plan.isPopular && (
-          <View style={styles.popularBadge}>
+          <LinearGradient
+            colors={[themeColors.primary, '#FF6B9D']}
+            style={styles.popularBadge}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="star" size={12} color="white" />
             <Text style={styles.popularText}>MOST POPULAR</Text>
-          </View>
+          </LinearGradient>
         )}
 
         <View style={styles.planHeader}>
-          <Text style={styles.planName}>{plan.name}</Text>
+          <View>
+            <Text style={styles.planName}>{plan.name}</Text>
+            <Text style={styles.planDescription}>
+              {plan.tier === 'free' ? 'Perfect for trying out' : 
+               plan.tier === 'basic' ? 'For casual listeners' :
+               plan.tier === 'premium' ? 'For music enthusiasts' : 'Everything you need'}
+            </Text>
+          </View>
           {isCurrent && (
             <View style={styles.currentBadge}>
-              <Text style={styles.currentText}>CURRENT</Text>
+              <Ionicons name="checkmark-circle" size={12} color="white" />
+              <Text style={styles.currentText}>ACTIVE</Text>
             </View>
           )}
         </View>
 
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>
-            ${plan.price.usd}
-            {plan.tier !== 'free' && <Text style={styles.period}>/month</Text>}
-          </Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>
+              {plan.tier === 'free' ? 'Free' : `$${plan.price.usd}`}
+            </Text>
+            {plan.tier !== 'free' && (
+              <Text style={styles.period}>/month</Text>  
+            )}
+          </View>
           {plan.tier !== 'free' && (
-            <Text style={styles.ethPrice}>{plan.price.eth} ETH</Text>
+            <Text style={styles.ethPrice}>or {plan.price.eth} ETH</Text>
           )}
         </View>
 
         <View style={styles.featuresContainer}>
           {plan.features.map((feature, index) => (
             <View key={index} style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              <View style={styles.checkmarkContainer}>
+                <Ionicons name="checkmark" size={14} color="white" />
+              </View>
               <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
@@ -110,7 +418,12 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
 
         {isSelected && (
           <View style={styles.selectedIndicator}>
-            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+            <LinearGradient
+              colors={[themeColors.primary, '#FF6B9D']}
+              style={styles.selectedCircle}
+            >
+              <Ionicons name="checkmark" size={16} color="white" />
+            </LinearGradient>
           </View>
         )}
       </TouchableOpacity>
@@ -120,43 +433,41 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
   const renderPaymentMethods = () => {
     if (!selectedPlan || selectedPlan.tier === 'free') return null;
 
+    const paymentOptions = [
+      { id: 'card', name: 'Credit Card', icon: 'card', desc: 'Visa, Mastercard, Amex' },
+      { id: 'apple', name: 'Apple Pay', icon: 'logo-apple', desc: 'Touch ID or Face ID' },
+      { id: 'eth', name: 'Ethereum', icon: 'logo-bitcoin', desc: 'Crypto payment' },
+    ];
+
     return (
       <View style={styles.paymentSection}>
-        <Text style={styles.sectionTitle}>Payment Method</Text>
+        <Text style={styles.sectionTitle}>Choose Payment Method</Text>
         
         <View style={styles.paymentMethods}>
-          <TouchableOpacity
-            style={[
-              styles.paymentMethod,
-              paymentMethod === 'card' && styles.selectedPayment,
-            ]}
-            onPress={() => setPaymentMethod('card')}
-          >
-            <Ionicons name="card" size={24} color={colors.text} />
-            <Text style={styles.paymentText}>Credit Card</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentMethod,
-              paymentMethod === 'apple' && styles.selectedPayment,
-            ]}
-            onPress={() => setPaymentMethod('apple')}
-          >
-            <Ionicons name="logo-apple" size={24} color={colors.text} />
-            <Text style={styles.paymentText}>Apple Pay</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentMethod,
-              paymentMethod === 'eth' && styles.selectedPayment,
-            ]}
-            onPress={() => setPaymentMethod('eth')}
-          >
-            <Ionicons name="logo-bitcoin" size={24} color={colors.text} />
-            <Text style={styles.paymentText}>Ethereum</Text>
-          </TouchableOpacity>
+          {paymentOptions.map((option) => (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                styles.paymentMethod,
+                paymentMethod === option.id && styles.selectedPayment,
+              ]}
+              onPress={() => setPaymentMethod(option.id as any)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.paymentIcon}>
+                <Ionicons name={option.icon as any} size={24} color={themeColors.text} />
+              </View>
+              <View style={styles.paymentInfo}>
+                <Text style={styles.paymentText}>{option.name}</Text>
+                <Text style={styles.paymentDesc}>{option.desc}</Text>
+              </View>
+              {paymentMethod === option.id && (
+                <View style={styles.paymentSelected}>
+                  <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     );
@@ -166,7 +477,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Subscription Plans</Text>
         <View style={{ width: 24 }} />
@@ -224,191 +535,3 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  currentSubscriptionInfo: {
-    marginVertical: 20,
-  },
-  currentSubscriptionGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  currentSubscriptionText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  plansContainer: {
-    gap: 16,
-    marginVertical: 20,
-  },
-  planCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    position: 'relative',
-  },
-  selectedPlan: {
-    borderColor: colors.primary,
-  },
-  currentPlan: {
-    borderColor: colors.secondary,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    left: 20,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  popularText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  planHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  planName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  currentBadge: {
-    backgroundColor: colors.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  currentText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  priceContainer: {
-    marginBottom: 20,
-  },
-  price: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  period: {
-    fontSize: 18,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  ethPrice: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  featuresContainer: {
-    gap: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureText: {
-    fontSize: 16,
-    color: colors.text,
-    flex: 1,
-  },
-  selectedIndicator: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-  },
-  paymentSection: {
-    marginVertical: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  paymentMethods: {
-    gap: 12,
-  },
-  paymentMethod: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    gap: 12,
-  },
-  selectedPayment: {
-    borderColor: colors.primary,
-  },
-  paymentText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  subscribeSection: {
-    marginVertical: 20,
-    paddingBottom: 40,
-  },
-  subscribeButton: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 12,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  subscribeText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  disclaimer: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});

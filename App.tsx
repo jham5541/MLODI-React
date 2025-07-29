@@ -7,6 +7,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SearchProvider } from './src/context/SearchContext';
 import { PlayProvider, usePlay } from './src/context/PlayContext';
+import { PlayTrackingProvider } from './src/context/PlayTrackingContext';
+import { RadioProvider } from './src/context/RadioContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
 import PlayBar from './src/components/PlayBar';
@@ -61,9 +63,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <PlayProvider>
-        <SearchProvider>
-          <AppContent />
-        </SearchProvider>
+        <PlayTrackingProvider>
+          <RadioProvider>
+            <SearchProvider>
+              <AppContent />
+            </SearchProvider>
+          </RadioProvider>
+        </PlayTrackingProvider>
       </PlayProvider>
     </ThemeProvider>
   );

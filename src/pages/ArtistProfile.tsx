@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import BottomNavBar from '../components/common/BottomNavBar';
 
 // Artist Components
 import ArtistHeader from '../components/artists/ArtistHeader';
@@ -48,6 +49,10 @@ export default function ArtistProfileScreen({ route }: Props) {
     container: {
       flex: 1,
       backgroundColor: themeColors.background,
+    },
+    contentContainer: {
+      flex: 1,
+      paddingBottom: 180, // Space for bottom nav and play bar
     },
     header: {
       flexDirection: 'row',
@@ -101,20 +106,23 @@ export default function ArtistProfileScreen({ route }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <ArtistHeader artist={artist} />
-      <EngagementMetrics artistId={artistId} artistName={artist.name} />
-      <RevenueInsights artistId={artistId} artistName={artist.name} />
-      <PopularSongs artistId={artistId} artistName={artist.name} />
-      <ReactionBar artistId={artistId} />
-      <CollaborationHub artistId={artistId} />
-      <CommentSection artistId={artistId} />
-      <DiscographyCarousel artistId={artistId} artistName={artist.name} />
-      <VideoCarousel artistId={artistId} artistName={artist.name} />
-      <TourDates artistId={artistId} artistName={artist.name} />
-      <EngagementChallenges artistId={artistId} artistName={artist.name} userLevel={2} />
-      <PlaylistIntegration artistId={artistId} artistName={artist.name} />
-      <TopFansLeaderboard />
-    </ScrollView>
+    <View style={styles.container}>
+      <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 180 }}>
+        <ArtistHeader artist={artist} />
+        <EngagementMetrics artistId={artistId} artistName={artist.name} />
+        <RevenueInsights artistId={artistId} artistName={artist.name} />
+        <PopularSongs artistId={artistId} artistName={artist.name} />
+        <ReactionBar artistId={artistId} />
+        <CollaborationHub artistId={artistId} />
+        <CommentSection artistId={artistId} />
+        <DiscographyCarousel artistId={artistId} artistName={artist.name} />
+        <VideoCarousel artistId={artistId} artistName={artist.name} />
+        <TourDates artistId={artistId} artistName={artist.name} />
+        <EngagementChallenges artistId={artistId} artistName={artist.name} userLevel={2} />
+        <PlaylistIntegration artistId={artistId} artistName={artist.name} />
+        <TopFansLeaderboard />
+      </ScrollView>
+      <BottomNavBar />
+    </View>
   );
 }

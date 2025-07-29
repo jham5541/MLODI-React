@@ -7,6 +7,8 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
+import { purchaseService } from '../services/purchaseService';
+import PurchaseModal from '../components/purchase/PurchaseModal';
 
 type DiscoverFilter = 'albums' | 'artists' | 'songs' | 'genres';
 type GenreFilter = 'all' | 'pop' | 'rock' | 'hip-hop' | 'electronic' | 'jazz' | 'classical' | 'country' | 'r&b' | 'indie';
@@ -118,6 +120,9 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [dummyAlbums] = useState(generateDummyAlbums());
   const [dummyArtists] = useState(generateArtists());
   const [dummySongs] = useState(generateSongs());
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Filter data based on selected genre and search query
   const getFilteredData = () => {
@@ -193,9 +198,19 @@ export default function DiscoverScreen({ navigation }: Props) {
   const itemCount = filteredData.length;
 
   const onRefresh = () => {
-    // In a real app, this would refresh data from API
     console.log('Refreshing discover data...');
+    // In a real app, this would refresh data from API
+    // For now, we'll just log that a refresh occurred
   };
+
+  // Auto-refresh every 24 hours
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      onRefresh();
+    }, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+    
+    return () => clearInterval(refreshInterval);
+  }, []);
 
   const styles = StyleSheet.create({
     container: {
@@ -210,20 +225,14 @@ export default function DiscoverScreen({ navigation }: Props) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      marginBottom: 24,
     },
     title: {
       fontSize: 28,
       fontWeight: 'bold',
       color: themeColors.text,
-    },
-    refreshButton: {
-      padding: 8,
-    },
-    subtitle: {
-      fontSize: 16,
-      color: themeColors.textSecondary,
-      marginBottom: 16,
     },
     // Search bar styles
     searchContainer: {
@@ -257,7 +266,20 @@ export default function DiscoverScreen({ navigation }: Props) {
       marginLeft: 8,
     },
     filtersContainer: {
-      marginBottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: themeColors.surface,
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      marginTop: 8,
+      marginBottom: 16,
+      borderRadius: 16,
     },
     filtersList: {
       paddingHorizontal: 16,
@@ -265,13 +287,19 @@ export default function DiscoverScreen({ navigation }: Props) {
     filterButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      marginRight: 12,
-      borderRadius: 20,
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      marginHorizontal: 4,
+      borderRadius: 24,
       backgroundColor: themeColors.surface,
       borderWidth: 1,
       borderColor: themeColors.border,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
     },
     activeFilterButton: {
       backgroundColor: themeColors.primary,
@@ -369,29 +397,44 @@ export default function DiscoverScreen({ navigation }: Props) {
     },
     // Genre filters
     genreFiltersContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderTopWidth: 0.5,
+      borderBottomWidth: 0.5,
+      borderColor: themeColors.border,
       backgroundColor: themeColors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.border,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      marginBottom: 8,
     },
     genreFilterButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      marginRight: 8,
-      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginRight: 10,
+      borderRadius: 20,
       backgroundColor: themeColors.surface,
       borderWidth: 1,
       borderColor: themeColors.border,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
     },
     activeGenreFilterButton: {
       backgroundColor: themeColors.secondary,
       borderColor: themeColors.secondary,
+      elevation: 4,
+      shadowOpacity: 0.15,
     },
     genreFilterText: {
-      fontSize: 12,
-      fontWeight: '500',
+      fontSize: 13,
+      fontWeight: '600',
       color: themeColors.text,
+      letterSpacing: 0.3,
     },
     activeGenreFilterText: {
       color: 'white',
@@ -508,6 +551,44 @@ export default function DiscoverScreen({ navigation }: Props) {
       color: themeColors.textSecondary,
       marginLeft: 8,
     },
+    // Purchase-related styles
+    songItemPurchased: {
+      backgroundColor: themeColors.primary + '20', // Transparent purple
+      borderWidth: 1,
+      borderColor: themeColors.primary + '40',
+    },
+    buyButton: {
+      backgroundColor: themeColors.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginLeft: 8,
+      minWidth: 40,
+      alignItems: 'center',
+    },
+    buyButtonText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    purchaseCount: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: themeColors.primary,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+    },
+    purchaseCountText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '700',
+    },
   });
 
   // Render functions for different view types
@@ -563,25 +644,64 @@ export default function DiscoverScreen({ navigation }: Props) {
     playSong(playContextSong, songsPlaylist);
   };
 
-  const renderSongItem = ({ item }: { item: Song }) => (
-    <TouchableOpacity style={styles.songItem} onPress={() => handlePlaySong(item)}>
-      <Image source={{ uri: item.coverUrl }} style={styles.songCover} />
-      <View style={styles.songInfo}>
-        <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.songArtistAlbum} numberOfLines={1}>{item.artist} • {item.album}</Text>
-      </View>
-      <Text style={styles.songDuration}>{item.duration}</Text>
+  const handleBuySong = (song: Song) => {
+    setSelectedSongForPurchase(song);
+    setPurchaseModalVisible(true);
+  };
+
+  const handlePurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
+  };
+
+  const renderSongItem = ({ item }: { item: Song }) => {
+    const isPurchased = purchaseService.isPurchased(item.id);
+    const purchaseCount = purchaseService.getPurchaseCount(item.id);
+
+    return (
       <TouchableOpacity 
-        style={{ marginLeft: 8 }} 
-        onPress={(e) => {
-          e.stopPropagation();
-          handlePlaySong(item);
-        }}
+        style={[
+          styles.songItem, 
+          isPurchased && styles.songItemPurchased
+        ]} 
+        onPress={() => handlePlaySong(item)}
       >
-        <Ionicons name="play" size={20} color={themeColors.primary} />
+        <Image source={{ uri: item.coverUrl }} style={styles.songCover} />
+        <View style={styles.songInfo}>
+          <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.songArtistAlbum} numberOfLines={1}>{item.artist} • {item.album}</Text>
+        </View>
+        <Text style={styles.songDuration}>{item.duration}</Text>
+        
+        <TouchableOpacity 
+          style={{ marginLeft: 8 }} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handlePlaySong(item);
+          }}
+        >
+          <Ionicons name="play" size={20} color={themeColors.primary} />
+        </TouchableOpacity>
+
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity 
+            style={styles.buyButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleBuySong(item);
+            }}
+          >
+            <Text style={styles.buyButtonText}>BUY</Text>
+          </TouchableOpacity>
+          
+          {purchaseCount > 0 && (
+            <View style={styles.purchaseCount}>
+              <Text style={styles.purchaseCountText}>{purchaseCount}</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderContent = () => {
     if (filteredData.length === 0) {
@@ -645,14 +765,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.title}>Discover</Text>
-          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-            <Ionicons name="refresh" size={24} color={themeColors.text} />
-          </TouchableOpacity>
-        </View>
         
-        <Text style={styles.subtitle}>Find new music to love</Text>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -672,37 +785,31 @@ export default function DiscoverScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.filtersContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersList}
-          >
-            {filters.map((filter) => (
-              <TouchableOpacity
-                key={filter.key}
+          {filters.map((filter) => (
+            <TouchableOpacity
+              key={filter.key}
+              style={[
+                styles.filterButton,
+                activeFilter === filter.key && styles.activeFilterButton,
+              ]}
+              onPress={() => setActiveFilter(filter.key as DiscoverFilter)}
+            >
+              <Ionicons
+                name={filter.icon as any}
+                size={16}
+                color={activeFilter === filter.key ? 'white' : themeColors.text}
+                style={styles.filterIcon}
+              />
+              <Text
                 style={[
-                  styles.filterButton,
-                  activeFilter === filter.key && styles.activeFilterButton,
+                  styles.filterText,
+                  activeFilter === filter.key && styles.activeFilterText,
                 ]}
-                onPress={() => setActiveFilter(filter.key as DiscoverFilter)}
               >
-                <Ionicons
-                  name={filter.icon as any}
-                  size={16}
-                  color={activeFilter === filter.key ? 'white' : themeColors.text}
-                  style={styles.filterIcon}
-                />
-                <Text
-                  style={[
-                    styles.filterText,
-                    activeFilter === filter.key && styles.activeFilterText,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -737,6 +844,20 @@ export default function DiscoverScreen({ navigation }: Props) {
       <View style={styles.content}>
         {renderContent()}
       </View>
+      
+      {selectedSongForPurchase && (
+        <PurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedSongForPurchase(null);
+          }}
+          songId={selectedSongForPurchase.id}
+          songTitle={selectedSongForPurchase.title}
+          artist={selectedSongForPurchase.artist}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      )}
     </View>
   );
 }

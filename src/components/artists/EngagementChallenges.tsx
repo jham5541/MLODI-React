@@ -511,7 +511,7 @@ export default function EngagementChallenges({
       alignItems: 'center',
     },
     modalContent: {
-      backgroundColor: themeColors.background,
+      backgroundColor: '#FFFFFF',
       borderRadius: 20,
       padding: 24,
       width: '90%',
@@ -526,12 +526,12 @@ export default function EngagementChallenges({
     modalTitle: {
       fontSize: 20,
       fontWeight: '800',
-      color: themeColors.text,
+      color: '#000000',
     },
     closeButton: {
       padding: 8,
       borderRadius: 20,
-      backgroundColor: themeColors.surface,
+      backgroundColor: '#F5F5F5',
     },
     requirementsList: {
       marginBottom: 16,
@@ -544,11 +544,11 @@ export default function EngagementChallenges({
     },
     requirementText: {
       fontSize: 14,
-      color: colors.text,
+      color: '#000000',
       flex: 1,
     },
     tipsList: {
-      backgroundColor: colors.surface,
+      backgroundColor: '#F8F9FA',
       borderRadius: 12,
       padding: 16,
       marginBottom: 20,
@@ -556,12 +556,12 @@ export default function EngagementChallenges({
     tipsTitle: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.text,
+      color: '#000000',
       marginBottom: 8,
     },
     tipItem: {
       fontSize: 12,
-      color: colors.textSecondary,
+      color: '#666666',
       marginBottom: 4,
       paddingLeft: 8,
     },
@@ -725,22 +725,22 @@ export default function EngagementChallenges({
                 style={styles.closeButton}
                 onPress={() => setShowDetailModal(false)}
               >
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color="#000000" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, color: '#666666', marginBottom: 16 }}>
                 {selectedChallenge.description}
               </Text>
 
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#000000', marginBottom: 12 }}>
                 Requirements
               </Text>
               <View style={styles.requirementsList}>
                 {selectedChallenge.requirements.map((req, index) => (
                   <View key={index} style={styles.requirementItem}>
-                    <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
+                    <Ionicons name="checkmark-circle-outline" size={16} color={themeColors.primary} />
                     <Text style={styles.requirementText}>{req}</Text>
                   </View>
                 ))}

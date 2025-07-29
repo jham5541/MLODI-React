@@ -8,7 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { usePlay } from '../../context/PlayContext';
+import { Song as MusicSong } from '../../types/music';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 
 interface Song {
   id: string;
@@ -27,6 +32,8 @@ interface PopularSongsProps {
   limit?: number;
 }
 
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 export default function PopularSongs({
   artistId,
   artistName,
@@ -34,8 +41,9 @@ export default function PopularSongs({
 }: PopularSongsProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { playSong, currentSong, isPlaying } = usePlay();
+  const navigation = useNavigation<NavigationProp>();
   const [songs, setSongs] = useState<Song[]>([]);
-  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 
   useEffect(() => {
     // Mock data - replace with actual API call
@@ -101,12 +109,32 @@ export default function PopularSongs({
     return num.toString();
   };
 
-  const handlePlayPause = (songId: string) => {
-    if (playingSongId === songId) {
-      setPlayingSongId(null);
-    } else {
-      setPlayingSongId(songId);
-    }
+  const handlePlayPause = (song: Song) => {
+    // Convert local song format to MusicSong format
+    const musicSong: MusicSong = {
+      id: song.id,
+      title: song.title,
+      artist: artistName || 'Unknown Artist',
+      artistId: artistId,
+      album: song.album,
+      coverUrl: song.coverUrl,
+      duration: song.duration,
+      audioUrl: '', // Would be populated from API
+    };
+
+    // Create playlist from all songs
+    const playlist: MusicSong[] = songs.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: artistName || 'Unknown Artist',
+      artistId: artistId,
+      album: s.album,
+      coverUrl: s.coverUrl,
+      duration: s.duration,
+      audioUrl: '',
+    }));
+
+    playSong(musicSong, playlist);
   };
 
   const handlePurchase = (song: Song) => {
@@ -122,6 +150,13 @@ export default function PopularSongs({
 
   const handleShare = (song: Song) => {
     Alert.alert('Share', `Share "${song.title}" by ${artistName}`);
+  };
+
+  const handleViewAll = () => {
+    navigation.navigate('ArtistSongs', {
+      artistId,
+      artistName: artistName || 'Unknown Artist',
+    });
   };
 
   const styles = StyleSheet.create({
@@ -259,7 +294,7 @@ export default function PopularSongs({
   });
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
-    const isPlaying = playingSongId === item.id;
+    const isCurrentlyPlaying = currentSong?.id === item.id && isPlaying;
     const isLastItem = index === songs.length - 1;
 
     return (
@@ -290,10 +325,10 @@ export default function PopularSongs({
         <View style={styles.controls}>
           <TouchableOpacity
             style={styles.playButton}
-            onPress={() => handlePlayPause(item.id)}
+            onPress={() => handlePlayPause(item)}
           >
             <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
+              name={isCurrentlyPlaying ? 'pause' : 'play'}
               size={16}
               color={themeColors.background}
             />
@@ -336,7 +371,7 @@ export default function PopularSongs({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Popular Songs</Text>
-        <TouchableOpacity style={styles.viewAllButton}>
+        <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAll}>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>

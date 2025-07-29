@@ -17,17 +17,22 @@ export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
   const styles = StyleSheet.create({
     container: {
       alignItems: 'center',
-      padding: 16,
+      padding: 12,
       backgroundColor: themeColors.surface,
       borderRadius: 12,
       marginRight: 12,
       width: 140,
+      shadowColor: themeColors.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
     },
     image: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      marginBottom: 12,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      marginBottom: 10,
     },
     nameContainer: {
       flexDirection: 'row',
@@ -35,7 +40,7 @@ export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
       marginBottom: 4,
     },
     name: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: themeColors.text,
       textAlign: 'center',

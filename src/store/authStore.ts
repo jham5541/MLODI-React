@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { googleAuthService } from '../services/googleAuth';
 
 interface Profile {
   id: string;
@@ -34,7 +33,6 @@ interface AuthState {
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string) => Promise<boolean>;
-  signInWithGoogle: () => Promise<boolean>;
   signInWithApple: () => Promise<boolean>;
   signOut: () => Promise<void>;
   
@@ -153,50 +151,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   
-  signInWithGoogle: async () => {
-    set({ loading: true, error: null });
-    try {
-      console.log('🔐 Starting Google Sign-In...');
-      
-      const result = await googleAuthService.signIn();
-      
-      if (result.success && result.user) {
-        set({ 
-          user: result.user, 
-          session: result.session,
-          loading: false 
-        });
-        
-        // Check if profile exists, create if not
-        await get().getProfile();
-        
-        if (!get().profile && result.user.id) {
-          console.log('📝 Creating Google user profile...');
-          try {
-            await get().updateUserProfile({
-              id: result.user.id,
-              display_name: result.user.user_metadata?.full_name || result.user.email?.split('@')[0],
-              avatar_url: result.user.user_metadata?.avatar_url,
-              subscription_tier: 'free',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            console.log('✅ Google user profile created successfully');
-          } catch (profileError) {
-            console.error('❌ Failed to create Google user profile:', profileError);
-          }
-        }
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error: any) {
-      console.error('❌ Google Sign-In failed:', error);
-      set({ error: error.message, loading: false });
-      return false;
-    }
-  },
   
   signInWithApple: async () => {
     set({ loading: true, error: null });

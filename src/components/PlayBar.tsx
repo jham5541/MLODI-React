@@ -15,8 +15,13 @@ import {
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
+import { usePlayTracking } from '../context/PlayTrackingContext';
 import { formatDuration } from '../utils/uiHelpers';
 import { Song } from '../types/music';
+import { musicService } from '../services/musicService';
+import { useAuthStore } from '../store/authStore';
+import AuthModal from './auth/AuthModal';
+import AddToPlaylistModal from './playlists/AddToPlaylistModal';
 
 interface PlayBarProps {
   currentSong: Song | null;
@@ -43,6 +48,9 @@ const PlayBar: React.FC<PlayBarProps> = ({
 }) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { updateProgress } = usePlayTracking();
+  const { user } = useAuthStore();
+  
   const [slideAnim] = useState(new Animated.Value(100));
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -51,6 +59,54 @@ const PlayBar: React.FC<PlayBarProps> = ({
   const [shuffle, setShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState(0); // 0: off, 1: repeat all, 2: repeat one
   const [volume, setVolume] = useState(75);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
+
+  const handleLike = async () => {
+    console.log('👤 Like button pressed - User:', !!user, 'Current song:', !!currentSong, 'Is liked:', isLiked);
+    if (!currentSong) return;
+    
+    // Check if user is authenticated
+    if (!user) {
+      console.log('🔐 User not authenticated, showing auth modal');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    try {
+      console.log('💖 Processing like action - Current state:', isLiked ? 'liked' : 'not liked');
+      if (isLiked) {
+        await musicService.unlikeSong(currentSong.id);
+        console.log('💔 Song unliked successfully');
+      } else {
+        await musicService.likeSong(currentSong.id);
+        console.log('❤️ Song liked successfully');
+      }
+      setIsLiked(!isLiked);
+      console.log('✅ Like state updated to:', !isLiked);
+    } catch (error) {
+      console.log('❌ Error liking song:', error);
+    }
+  };
+
+  const handleShare = () => {
+    // Placeholder for sharing functionality
+    console.log('Open Share Options');
+  };
+
+  const handleAddToPlaylist = () => {
+    console.log('📝 Add to playlist button pressed - User:', !!user, 'Modal state:', showAddToPlaylistModal);
+    
+    // Check if user is authenticated
+    if (!user) {
+      console.log('🔐 User not authenticated, showing auth modal');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    console.log('📱 Opening add to playlist modal');
+    setShowAddToPlaylistModal(true);
+  };
 
   useEffect(() => {
     if (isVisible && currentSong) {
@@ -79,12 +135,34 @@ const PlayBar: React.FC<PlayBarProps> = ({
           const totalSeconds = currentSong.duration; // duration is already in seconds
           const newTime = prev + 1;
           setProgress((newTime / totalSeconds) * 100);
+          
+          // Update play tracking with current progress
+          updateProgress(newTime);
+          
           return newTime >= totalSeconds ? 0 : newTime;
         });
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [isPlaying, currentSong]);
+
+  // Check if song is liked when currentSong changes
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      if (currentSong && user) {
+        try {
+          const liked = await musicService.isLiked(currentSong.id);
+          setIsLiked(liked);
+        } catch (error) {
+          console.log('Error checking like status:', error);
+          setIsLiked(false);
+        }
+      } else {
+        setIsLiked(false);
+      }
+    };
+    checkLikeStatus();
+  }, [currentSong, user]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -194,60 +272,106 @@ const PlayBar: React.FC<PlayBarProps> = ({
     },
     modalContent: {
       flex: 1,
-      alignItems: 'center',
-      paddingHorizontal: 30,
+      justifyContent: 'space-between',
+      paddingHorizontal: 32,
       paddingTop: 40,
+      paddingBottom: 50,
+    },
+    modalTopSection: {
+      alignItems: 'center',
     },
     modalAlbumCover: {
-      width: screenWidth - 80,
-      height: screenWidth - 80,
+      width: screenWidth * 0.75,
+      height: screenWidth * 0.75,
       borderRadius: 20,
-      marginBottom: 40,
+      marginBottom: 36,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.25,
+      shadowRadius: 20,
+      elevation: 20,
+    },
+    modalSongInfo: {
+      alignItems: 'center',
+      marginBottom: 24,
     },
     modalSongTitle: {
-      fontSize: 28,
-      fontWeight: 'bold',
+      fontSize: 22,
+      fontWeight: '700',
       color: themeColors.text,
-      marginBottom: 8,
+      marginBottom: 4,
       textAlign: 'center',
+      letterSpacing: -0.3,
     },
     modalArtistName: {
-      fontSize: 18,
+      fontSize: 16,
       color: themeColors.textSecondary,
-      marginBottom: 40,
       textAlign: 'center',
+      fontWeight: '500',
+    },
+    modalMiddleSection: {
+      paddingHorizontal: 4,
+    },
+    modalSecondaryControls: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 32,
+      gap: 28,
+    },
+    modalSecondaryButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: themeColors.surface + '40',
+      borderWidth: 1,
+      borderColor: themeColors.border + '30',
+    },
+    modalSecondaryButtonActive: {
+      backgroundColor: themeColors.primary + '20',
+      borderColor: themeColors.primary + '40',
     },
     progressContainer: {
-      width: '100%',
-      marginBottom: 30,
+      marginBottom: 36,
     },
     progressSlider: {
       width: '100%',
       height: 40,
+      marginBottom: 12,
     },
     progressTimeContainer: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      marginTop: 5,
+      paddingHorizontal: 2,
     },
     progressTimeText: {
-      fontSize: 14,
+      fontSize: 12,
       color: themeColors.textSecondary,
+      fontWeight: '400',
+      opacity: 0.8,
+    },
+    modalBottomSection: {
+      alignItems: 'center',
     },
     modalControls: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      width: '100%',
-      marginBottom: 30,
+      justifyContent: 'center',
+      gap: 20,
     },
     modalControlButton: {
-      padding: 15,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     modalPlayButton: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       backgroundColor: themeColors.primary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -256,15 +380,6 @@ const PlayBar: React.FC<PlayBarProps> = ({
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 8,
-    },
-    modalSecondaryControls: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      width: '100%',
-      marginTop: 20,
-    },
-    modalSecondaryButton: {
-      padding: 15,
     },
   });
 
@@ -399,110 +514,145 @@ const PlayBar: React.FC<PlayBarProps> = ({
           </View>
 
           {/* Modal Content */}
-          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Album Cover */}
-            <Image 
-              source={{ uri: currentSong.coverUrl }} 
-              style={styles.modalAlbumCover}
-            />
-
-            {/* Song Info */}
-            <Text style={styles.modalSongTitle}>{currentSong.title}</Text>
-            <Text style={styles.modalArtistName}>{currentSong.artist}</Text>
-
-            {/* Progress Slider */}
-            <View style={styles.progressContainer}>
-              <Slider
-                style={styles.progressSlider}
-                minimumValue={0}
-                maximumValue={100}
-                value={progress}
-                onValueChange={handleProgressChange}
-                minimumTrackTintColor={themeColors.primary}
-                maximumTrackTintColor={themeColors.border}
-                thumbTintColor={themeColors.primary}
+          <View style={styles.modalContent}>
+            {/* Top Section - Album & Info */}
+            <View style={styles.modalTopSection}>
+              <Image 
+                source={{ uri: currentSong.coverUrl }} 
+                style={styles.modalAlbumCover}
               />
-              <View style={styles.progressTimeContainer}>
-                <Text style={styles.progressTimeText}>{formatTime(currentTime)}</Text>
-                <Text style={styles.progressTimeText}>{currentSong.duration}</Text>
+              <View style={styles.modalSongInfo}>
+                <Text style={styles.modalSongTitle}>{currentSong.title}</Text>
+                <Text style={styles.modalArtistName}>{currentSong.artist}</Text>
               </View>
             </View>
 
-            {/* Main Controls */}
-            <View style={styles.modalControls}>
-              <TouchableOpacity 
-                style={styles.modalControlButton}
-                onPress={() => setShuffle(!shuffle)}
-              >
-                <Ionicons 
-                  name="shuffle" 
-                  size={24} 
-                  color={shuffle ? themeColors.primary : themeColors.textSecondary} 
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.modalControlButton}
-                onPress={onPrevious}
-              >
-                <Ionicons name="play-skip-back" size={32} color={themeColors.text} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.modalPlayButton}
-                onPress={onPlayPause}
-              >
-                <Ionicons 
-                  name={isPlaying ? 'pause' : 'play'} 
-                  size={32} 
-                  color="white"
-                  style={{ marginLeft: isPlaying ? 0 : 3 }}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.modalControlButton}
-                onPress={onNext}
-              >
-                <Ionicons name="play-skip-forward" size={32} color={themeColors.text} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.modalControlButton}
-                onPress={() => setRepeatMode((repeatMode + 1) % 3)}
-              >
-                <Ionicons 
-                  name={getRepeatIcon()} 
-                  size={24} 
-                  color={repeatMode > 0 ? themeColors.primary : themeColors.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Secondary Controls */}
+          {/* Middle Section - Progress & Secondary */}
+          <View style={styles.modalMiddleSection}>
             <View style={styles.modalSecondaryControls}>
-              <TouchableOpacity style={styles.modalSecondaryButton}>
-                <Ionicons name="share-outline" size={24} color={themeColors.textSecondary} />
+              <TouchableOpacity 
+                style={styles.modalSecondaryButton}
+                onPress={handleShare}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-outline" size={22} color={themeColors.textSecondary} />
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.modalSecondaryButton}
-                onPress={() => setIsLiked(!isLiked)}
+                style={[
+                  styles.modalSecondaryButton,
+                  isLiked && styles.modalSecondaryButtonActive
+                ]}
+                onPress={handleLike}
+                activeOpacity={0.7}
               >
                 <Ionicons 
                   name={isLiked ? 'heart' : 'heart-outline'} 
-                  size={24} 
+                  size={22} 
                   color={isLiked ? themeColors.primary : themeColors.textSecondary} 
                 />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.modalSecondaryButton}>
-                <Ionicons name="list-outline" size={24} color={themeColors.textSecondary} />
+              <TouchableOpacity 
+                style={styles.modalSecondaryButton}
+                onPress={handleAddToPlaylist}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="list-outline" size={22} color={themeColors.textSecondary} />
               </TouchableOpacity>
             </View>
-          </ScrollView>
+
+              <View style={styles.progressContainer}>
+                <Slider
+                  style={styles.progressSlider}
+                  minimumValue={0}
+                  maximumValue={100}
+                  value={progress}
+                  onValueChange={handleProgressChange}
+                  minimumTrackTintColor={themeColors.primary}
+                  maximumTrackTintColor={themeColors.border + '40'}
+                  thumbTintColor={themeColors.primary}
+                />
+                <View style={styles.progressTimeContainer}>
+                  <Text style={styles.progressTimeText}>{formatTime(currentTime)}</Text>
+                  <Text style={styles.progressTimeText}>{formatTime(currentSong.duration)}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Bottom Section - Main Controls */}
+            <View style={styles.modalBottomSection}>
+              <View style={styles.modalControls}>
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
+                  onPress={() => setShuffle(!shuffle)}
+                >
+                  <Ionicons 
+                    name="shuffle" 
+                    size={22} 
+                    color={shuffle ? themeColors.primary : themeColors.textSecondary} 
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
+                  onPress={onPrevious}
+                >
+                  <Ionicons name="play-skip-back" size={26} color={themeColors.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalPlayButton}
+                  onPress={onPlayPause}
+                >
+                  <Ionicons 
+                    name={isPlaying ? 'pause' : 'play'} 
+                    size={28} 
+                    color="white"
+                    style={{ marginLeft: isPlaying ? 0 : 2 }}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
+                  onPress={onNext}
+                >
+                  <Ionicons name="play-skip-forward" size={26} color={themeColors.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
+                  onPress={() => setRepeatMode((repeatMode + 1) % 3)}
+                >
+                  <Ionicons 
+                    name={getRepeatIcon()} 
+                    size={22} 
+                    color={repeatMode > 0 ? themeColors.primary : themeColors.textSecondary} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </SafeAreaView>
       </Modal>
+      
+      {/* Auth Modal */}
+      <AuthModal
+        isVisible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
+      
+      {/* Add to Playlist Modal */}
+      {currentSong && (
+        <AddToPlaylistModal
+          isVisible={showAddToPlaylistModal}
+          onClose={() => setShowAddToPlaylistModal(false)}
+          songId={currentSong.id}
+          songTitle={currentSong.title}
+          songArtist={currentSong.artist}
+          songCover={currentSong.coverUrl}
+        />
+      )}
     </>
   );
 };

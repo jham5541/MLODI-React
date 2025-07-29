@@ -34,7 +34,7 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, loading, error } = useAuthStore();
+  const { signInWithEmail, signUpWithEmail, loading, error } = useAuthStore();
 
   const styles = StyleSheet.create({
     modalContainer: {
@@ -318,14 +318,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    try {
-      await signInWithGoogle();
-      onClose();
-    } catch (err) {
-      Alert.alert('Authentication Error', 'Google sign-in failed');
-    }
-  };
 
 
   const resetForm = () => {
@@ -464,17 +456,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
                 )}
               </TouchableOpacity>
 
-              {/* Social Authentication */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleAuth}>
-                <Ionicons name="logo-google" size={20} color={themeColors.text} />
-                <Text style={styles.socialButtonText}>Continue with Google</Text>
-              </TouchableOpacity>
             </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}

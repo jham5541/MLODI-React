@@ -19,7 +19,10 @@ export default function LibraryScreen() {
 
   useEffect(() => {
     if (user?.id) {
-      loadLibrary();
+      loadLibrary().catch((error) => {
+        console.log('Library loading failed:', error.message);
+        // Fail silently for unauthenticated users
+      });
     }
   }, [user?.id, loadLibrary]);
 

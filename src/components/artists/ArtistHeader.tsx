@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,10 @@ import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import ArtistDropdownMenu from './ArtistDropdownMenu';
+import ArtistSubscriptionModal from './ArtistSubscriptionModal';
+import { followService } from '../../services/followService';
+import { subscriptionService } from '../../services/subscriptionService';
 
 interface ArtistHeaderProps {
   artist: {
@@ -50,6 +54,18 @@ export default function ArtistHeader({
   const themeColors = colors[activeTheme];
   const navigation = useNavigation();
   const screenWidth = Dimensions.get('window').width;
+  
+  // State for modals and follow/subscription status
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isUserSubscribed, setIsUserSubscribed] = useState(false);
+  
+  // Load initial follow and subscription status
+  useEffect(() => {
+    setIsFollowing(followService.isFollowing(artistId));
+    setIsUserSubscribed(subscriptionService.isSubscribedTo(artistId));
+  }, [artistId]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -77,15 +93,45 @@ export default function ArtistHeader({
     const lowerUrl = url.toLowerCase();
     return videoExtensions.some(ext => lowerUrl.includes(ext)) ? 'video' : 'image';
   };
+  
+  // Handler for subscribe button
+  const handleSubscribePress = () => {
+    if (isUserSubscribed) {
+      // If already subscribed, show subscription details
+      setSubscriptionModalVisible(true);
+    } else {
+      // If not subscribed, show subscription modal
+      setSubscriptionModalVisible(true);
+    }
+  };
+  
+  // Handler for dropdown menu
+  const handleDropdownPress = () => {
+    setDropdownVisible(true);
+  };
+  
+  // Handler for follow toggle from dropdown
+  const handleFollowToggle = (newFollowStatus: boolean) => {
+    setIsFollowing(newFollowStatus);
+  };
+  
+  // Handler for subscription change from modal
+  const handleSubscriptionChange = (newSubscriptionStatus: boolean) => {
+    setIsUserSubscribed(newSubscriptionStatus);
+    onSubscribe?.(); // Call the optional callback
+  };
 
   const styles = StyleSheet.create({
     container: {
       backgroundColor: themeColors.background,
     },
     bannerContainer: {
-      height: 280,
+      height: 320,
       width: '100%',
       position: 'relative',
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
+      overflow: 'hidden',
     },
     bannerImage: {
       width: '100%',
@@ -98,53 +144,73 @@ export default function ArtistHeader({
       left: 0,
       right: 0,
       height: 120,
-      backgroundColor: 'linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent)',
+      background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)',
       zIndex: 2,
     },
     headerControls: {
       position: 'absolute',
-      top: 50,
-      left: 20,
-      right: 20,
+      top: 60,
+      left: 24,
+      right: 24,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       zIndex: 20,
     },
     controlButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
       justifyContent: 'center',
       alignItems: 'center',
-      backdropFilter: 'blur(10px)',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
     },
     profileSection: {
       backgroundColor: themeColors.background,
-      paddingTop: 32,
-      paddingHorizontal: 24,
-      paddingBottom: 32,
+      paddingTop: 0,
+      paddingHorizontal: 20,
+      paddingBottom: 24,
+    },
+    profileCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 20,
+      padding: 24,
+      paddingTop: 60,
+      marginTop: -40,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: themeColors.border,
     },
     profileImageContainer: {
       alignItems: 'center',
-      marginTop: -80,
-      marginBottom: 24,
+      position: 'absolute',
+      top: -55,
+      left: 0,
+      right: 0,
       zIndex: 30,
     },
     profileImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      borderWidth: 4,
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      borderWidth: 5,
       borderColor: themeColors.background,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 8,
+      shadowOpacity: 0.25,
+      shadowRadius: 15,
+      elevation: 12,
     },
     contentContainer: {
       alignItems: 'center',
@@ -160,95 +226,99 @@ export default function ArtistHeader({
       fontWeight: '800',
       color: themeColors.text,
       textAlign: 'center',
+      marginBottom: 0,
+      letterSpacing: -0.5,
     },
     verifiedIcon: {
-      marginLeft: 8,
+      marginLeft: 6,
     },
     statsContainer: {
-      backgroundColor: themeColors.surface,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 25,
+      backgroundColor: 'transparent',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
       marginBottom: 16,
-      shadowColor: themeColors.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      borderWidth: 1,
+      borderColor: themeColors.border,
     },
     statsRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
     },
     listenerCount: {
-      fontSize: 16,
-      fontWeight: '700',
+      fontSize: 18,
+      fontWeight: '800',
       color: themeColors.primary,
     },
     listenerLabel: {
-      fontSize: 14,
+      fontSize: 13,
       color: themeColors.textSecondary,
       marginLeft: 4,
       fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     bio: {
       fontSize: 15,
       lineHeight: 22,
       color: themeColors.textSecondary,
       textAlign: 'center',
-      marginBottom: 32,
-      paddingHorizontal: 16,
-      maxWidth: '90%',
+      marginBottom: 28,
+      paddingHorizontal: 8,
+      maxWidth: '100%',
+      fontWeight: '400',
     },
     actionButtons: {
       flexDirection: 'row',
       width: '100%',
-      gap: 12,
-      paddingHorizontal: 8,
+      gap: 16,
+      paddingHorizontal: 0,
+      marginTop: 8,
     },
     subscribeButton: {
       flex: 1,
       backgroundColor: themeColors.primary,
-      borderRadius: 12,
-      paddingVertical: 14,
+      borderRadius: 16,
+      paddingVertical: 16,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
+      gap: 8,
       shadowColor: themeColors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 6,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+      transform: [{ scale: 1 }],
     },
     subscribedButton: {
       backgroundColor: themeColors.success,
+      shadowColor: themeColors.success,
     },
     subscribeButtonText: {
       color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '600',
+      fontSize: 16,
+      fontWeight: '700',
+      letterSpacing: 0.5,
     },
     priceText: {
       fontSize: 11,
       color: '#FFFFFF',
       opacity: 0.9,
       fontWeight: '500',
+      marginTop: 2,
     },
     secondaryButton: {
-      backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderWidth: 1,
+      backgroundColor: 'transparent',
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      borderWidth: 2,
       borderColor: themeColors.border,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: themeColors.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
+      shadowColor: 'transparent',
     },
   });
 
@@ -297,61 +367,89 @@ export default function ArtistHeader({
 
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <View style={styles.profileImageContainer}>
-          <Image 
-            source={{ uri: coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' }} 
-            style={styles.profileImage} 
-          />
-        </View>
-
-        <View style={styles.contentContainer}>
-          <View style={styles.nameContainer}>
-            <Text style={styles.artistName}>{name}</Text>
-            {isVerified && (
-              <Ionicons
-                name="checkmark-circle"
-                size={22}
-                color={themeColors.primary}
-                style={styles.verifiedIcon}
-              />
-            )}
+        <View style={styles.profileCard}>
+          <View style={styles.profileImageContainer}>
+            <Image 
+              source={{ uri: coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' }} 
+              style={styles.profileImage} 
+            />
           </View>
 
-          <View style={styles.statsContainer}>
-            <View style={styles.statsRow}>
-              <Text style={styles.listenerCount}>{formatNumber(monthlyListeners)}</Text>
-              <Text style={styles.listenerLabel}>monthly listeners</Text>
+          <View style={styles.contentContainer}>
+            <View style={styles.nameContainer}>
+              <Text style={styles.artistName}>{name}</Text>
+              {isVerified && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color={themeColors.primary}
+                  style={styles.verifiedIcon}
+                />
+              )}
             </View>
-          </View>
 
-          <Text style={styles.bio}>{bio}</Text>
-
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.subscribeButton, isSubscribed && styles.subscribedButton]}
-              onPress={() => onSubscribe?.()}
-            >
-              <Ionicons
-                name={isSubscribed ? "checkmark" : "add"}
-                size={18}
-                color="#FFFFFF"
-              />
-              <View>
-                <Text style={styles.subscribeButtonText}>
-                  {isSubscribed ? 'Subscribed' : 'Subscribe'}
-                </Text>
-                {!isSubscribed && subscriptionPrice > 0 && (
-                  <Text style={styles.priceText}>${subscriptionPrice}/month</Text>
-                )}
+            <View style={styles.statsContainer}>
+              <View style={styles.statsRow}>
+                <Text style={styles.listenerCount}>{formatNumber(monthlyListeners)}</Text>
+                <Text style={styles.listenerLabel}>monthly listeners</Text>
               </View>
-            </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={themeColors.text} />
-            </TouchableOpacity>
+            <Text style={styles.bio}>{bio}</Text>
+
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.subscribeButton, isUserSubscribed && styles.subscribedButton]}
+                onPress={handleSubscribePress}
+              >
+                <Ionicons
+                  name={isUserSubscribed ? "checkmark" : "add"}
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <View>
+                  <Text style={styles.subscribeButtonText}>
+                    {isUserSubscribed ? 'Subscribed' : 'Subscribe'}
+                  </Text>
+                  {!isUserSubscribed && subscriptionPrice > 0 && (
+                    <Text style={styles.priceText}>${subscriptionPrice}/month</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleDropdownPress}>
+                <Ionicons name="ellipsis-horizontal" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
+      
+      {/* Dropdown Menu */}
+      <ArtistDropdownMenu
+        visible={dropdownVisible}
+        onClose={() => setDropdownVisible(false)}
+        artist={{
+          id: artistId,
+          name,
+          coverUrl,
+        }}
+        isFollowing={isFollowing}
+        onFollowToggle={handleFollowToggle}
+      />
+      
+      {/* Subscription Modal */}
+      <ArtistSubscriptionModal
+        visible={subscriptionModalVisible}
+        onClose={() => setSubscriptionModalVisible(false)}
+        artist={{
+          id: artistId,
+          name,
+          coverUrl,
+        }}
+        isSubscribed={isUserSubscribed}
+        onSubscriptionChange={handleSubscriptionChange}
+      />
     </View>
   );
 }

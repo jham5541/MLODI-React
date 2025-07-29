@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Song, Artist } from '../../types/music';
 import { formatDuration } from '../../utils/uiHelpers';
+import { usePlay } from '../../context/PlayContext';
+import { likesService } from '../../services/likesService';
+import { supabase } from '../../lib/supabase/client';
+import PurchaseModal from '../purchase/PurchaseModal';
+import { purchaseService } from '../../services/purchaseService';
 
 interface TrendingListProps {
   songs: Song[];
@@ -12,6 +17,8 @@ interface TrendingListProps {
   onSongPress?: (song: Song) => void;
   onArtistPress?: (artist: Artist) => void;
   showType?: 'songs' | 'artists' | 'both';
+  onSeeAllSongs?: () => void;
+  onSeeAllArtists?: () => void;
 }
 
 export default function TrendingList({ 
@@ -19,16 +26,113 @@ export default function TrendingList({
   artists, 
   onSongPress, 
   onArtistPress,
-  showType = 'both'
+  showType = 'both',
+  onSeeAllSongs,
+  onSeeAllArtists
 }: TrendingListProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const navigation = useNavigation();
+  const { playSong, currentSong, isPlaying } = usePlay();
+  
+  const [likeStatuses, setLikeStatuses] = useState<Record<string, boolean>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (songs.length > 0) {
+      loadLikeData();
+    }
+
+    // Add Supabase authentication fallback
+    const checkSupabaseUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        console.warn('Supabase user check failed:', error);
+      }
+      if (!user) {
+        console.warn('No Supabase user found, ensure Supabase auth is properly configured.');
+      }
+    };
+
+    checkSupabaseUser();
+  }, [songs]);
+
+  const loadLikeData = async () => {
+    try {
+      const songIds = songs.map(song => song.id);
+      const [statuses, counts] = await Promise.all([
+        likesService.getLikeStatuses(songIds, 'song'),
+        likesService.getLikeCounts(songIds, 'song')
+      ]);
+      setLikeStatuses(statuses);
+      setLikeCounts(counts);
+    } catch (error) {
+          console.warn('Failed to load like data from Supabase:', error);
+          // Fallback to local storage
+          const statuses = await likesService.getLikeStatuses(songs.map(song => song.id), 'song');
+          const counts = await likesService.getLikeCounts(songs.map(song => song.id), 'song');
+          setLikeStatuses(statuses);
+          setLikeCounts(counts);
+    }
+  };
 
   const handleSongArtistPress = (artistName: string) => {
     // Navigate to artist profile using artist name as ID
     // In a real app, you'd have the actual artist ID
     navigation.navigate('ArtistProfile', { artistId: artistName });
+  };
+
+  const handlePlayPress = (song: Song, index: number) => {
+    if (currentSong?.id === song.id && isPlaying) {
+      // Song is already playing, call the existing onSongPress if available
+      onSongPress?.(song);
+    } else {
+      // Play the song with the current song list as playlist
+      playSong(song, songs);
+      onSongPress?.(song);
+    }
+  };
+
+  const handleLikePress = async (songId: string) => {
+    console.log('Like button pressed for song:', songId);
+    try {
+      const newLikeStatus = await likesService.toggleLike(songId, 'song');
+      console.log('New like status:', newLikeStatus);
+      
+      // Update like status
+      setLikeStatuses(prev => {
+        const updated = {
+          ...prev,
+          [songId]: newLikeStatus
+        };
+        console.log('Updated like statuses:', updated);
+        return updated;
+      });
+      
+      // Update like count
+      setLikeCounts(prev => {
+        const updated = {
+          ...prev,
+          [songId]: (prev[songId] || 0) + (newLikeStatus ? 1 : -1)
+        };
+        console.log('Updated like counts:', updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+    }
+  };
+
+  const handleBuyPress = (song: Song) => {
+    setSelectedSongForPurchase(song);
+    setPurchaseModalVisible(true);
+  };
+
+  const handlePurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
   const styles = StyleSheet.create({
@@ -154,6 +258,49 @@ export default function TrendingList({
     verifiedIcon: {
       marginLeft: 4,
     },
+    likeCount: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      marginLeft: 4,
+      minWidth: 20,
+    },
+    buyButton: {
+      backgroundColor: themeColors.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginLeft: 8,
+      minWidth: 40,
+      alignItems: 'center',
+    },
+    buyButtonText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    songItemPurchased: {
+      backgroundColor: themeColors.primary + '20', // Transparent purple
+      borderWidth: 1,
+      borderColor: themeColors.primary + '40',
+    },
+    purchaseCount: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: themeColors.primary,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+    },
+    purchaseCountText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '700',
+    },
   });
 
   const formatFollowers = (count: number): string => {
@@ -165,46 +312,83 @@ export default function TrendingList({
     return count.toString();
   };
 
-  const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
-    <TouchableOpacity style={styles.songItem} onPress={() => onSongPress?.(item)}>
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>{index + 1}</Text>
-      </View>
-      
-      <Image source={{ uri: item.coverUrl }} style={styles.songCover} />
-      
-      <View style={styles.songInfo}>
-        <Text style={styles.songTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <TouchableOpacity onPress={() => handleSongArtistPress(item.artist)}>
-          <Text style={styles.songArtist} numberOfLines={1}>
-            {item.artist}
+  const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
+    const isCurrentSong = currentSong?.id === item.id;
+    const isLiked = likeStatuses[item.id] || false;
+    const likeCount = likeCounts[item.id] || 0;
+    const isPurchased = purchaseService.isPurchased(item.id);
+    const purchaseCount = purchaseService.getPurchaseCount(item.id);
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.songItem,
+          isPurchased && styles.songItemPurchased
+        ]} 
+        onPress={() => onSongPress?.(item)}
+      >
+        <View style={styles.rankBadge}>
+          <Text style={styles.rankText}>{index + 1}</Text>
+        </View>
+        
+        <Image source={{ uri: item.coverUrl }} style={styles.songCover} />
+        
+        <View style={styles.songInfo}>
+          <Text style={styles.songTitle} numberOfLines={1}>
+            {item.title}
           </Text>
+          <TouchableOpacity onPress={() => handleSongArtistPress(item.artist)}>
+            <Text style={styles.songArtist} numberOfLines={1}>
+              {item.artist}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.songMeta}>
+            <Text style={styles.songDuration}>
+              {formatDuration(item.duration)}
+            </Text>
+            {item.popularity && (
+              <View style={styles.popularityBadge}>
+                <Ionicons name="trending-up" size={10} color={themeColors.primary} />
+                <Text style={styles.popularityText}>{item.popularity}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        
+        <TouchableOpacity 
+          style={{ marginLeft: 8 }} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handlePlayPress(item, index);
+          }}
+        >
+          <Ionicons 
+            name={isCurrentSong && isPlaying ? "pause" : "play"} 
+            size={20} 
+            color={themeColors.primary} 
+          />
         </TouchableOpacity>
-        <View style={styles.songMeta}>
-          <Text style={styles.songDuration}>
-            {formatDuration(item.duration)}
-          </Text>
-          {item.popularity && (
-            <View style={styles.popularityBadge}>
-              <Ionicons name="trending-up" size={10} color={themeColors.primary} />
-              <Text style={styles.popularityText}>{item.popularity}</Text>
+
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity 
+            style={styles.buyButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleBuyPress(item);
+            }}
+          >
+            <Text style={styles.buyButtonText}>BUY</Text>
+          </TouchableOpacity>
+          
+          {purchaseCount > 0 && (
+            <View style={styles.purchaseCount}>
+              <Text style={styles.purchaseCountText}>{purchaseCount}</Text>
             </View>
           )}
         </View>
-      </View>
-      
-      <View style={styles.songActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="play-circle" size={24} color={themeColors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="heart-outline" size={20} color={themeColors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderArtistItem = ({ item }: { item: Artist }) => (
     <TouchableOpacity style={styles.artistItem} onPress={() => onArtistPress?.(item)}>
@@ -234,7 +418,7 @@ export default function TrendingList({
         <>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Songs</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onSeeAllSongs}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -253,7 +437,7 @@ export default function TrendingList({
         <>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Artists</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onSeeAllArtists}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -270,6 +454,20 @@ export default function TrendingList({
             ))}
           </ScrollView>
         </>
+      )}
+      
+      {selectedSongForPurchase && (
+        <PurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedSongForPurchase(null);
+          }}
+          songId={selectedSongForPurchase.id}
+          songTitle={selectedSongForPurchase.title}
+          artist={selectedSongForPurchase.artist}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
       )}
     </View>
   );

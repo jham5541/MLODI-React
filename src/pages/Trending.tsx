@@ -150,8 +150,7 @@ export default function TrendingScreen() {
   };
 
   const handleGenrePress = (genre: string) => {
-    setSelectedGenre(genre);
-    setViewMode('genre');
+    navigation.navigate('GenreDetail', { genre });
   };
 
   const handleBackPress = () => {
@@ -173,6 +172,18 @@ export default function TrendingScreen() {
   const handlePollVoteComplete = (updatedPoll: PollWithOptions) => {
     setFeaturedPoll(updatedPoll);
     console.log('Poll vote completed:', updatedPoll.title);
+  };
+
+  const handleSeeAllSongs = () => {
+    navigation.navigate('TrendingAllSongs');
+  };
+
+  const handleSeeAllArtists = () => {
+    navigation.navigate('TrendingAllArtists');
+  };
+
+  const handleSeeAllGenres = () => {
+    navigation.navigate('GenresAll');
   };
 
   const getFilteredSongs = (): Song[] => {
@@ -288,6 +299,8 @@ export default function TrendingScreen() {
             onSongPress={handleSongPress}
             onArtistPress={handleArtistPress}
             showType="both"
+            onSeeAllSongs={handleSeeAllSongs}
+            onSeeAllArtists={handleSeeAllArtists}
           />
 
           <View style={{ paddingHorizontal: 16 }}>
@@ -311,6 +324,7 @@ export default function TrendingScreen() {
           <GenreGrid
             genres={allGenres}
             onGenrePress={handleGenrePress}
+            onSeeAllPress={handleSeeAllGenres}
           />
         </ScrollView>
       )}

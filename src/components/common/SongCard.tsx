@@ -6,6 +6,7 @@ import { useTheme, colors } from '../../context/ThemeContext';
 import { usePlay } from '../../context/PlayContext';
 import { Song } from '../../types/music';
 import { formatDuration } from '../../utils/uiHelpers';
+import { likesService } from '../../services/likesService';
 
 interface SongCardProps {
   song: Song;
@@ -19,13 +20,35 @@ export default function SongCard({ song, onPress, showArtwork = true }: SongCard
   const { playSong, currentSong, isPlaying } = usePlay();
   const navigation = useNavigation();
 
+  const [isLiked, setIsLiked] = React.useState(false);
   const isCurrentSong = currentSong?.id === song.id;
+
+  React.useEffect(() => {
+    const checkLikeStatus = async () => {
+      try {
+        const liked = await likesService.isLiked(song.id, 'song');
+        setIsLiked(liked);
+      } catch (error) {
+        console.error('Failed to check like status:', error);
+      }
+    };
+    checkLikeStatus();
+  }, [song.id]);
 
   const handlePlay = () => {
     try {
       playSong(song, [song]);
     } catch (error) {
       console.error('Error playing song:', error);
+    }
+  };
+
+  const handleLikePress = async () => {
+    try {
+      const newLikeStatus = await likesService.toggleLike(song.id, 'song');
+      setIsLiked(newLikeStatus);
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
     }
   };
 
@@ -138,6 +161,14 @@ export default function SongCard({ song, onPress, showArtwork = true }: SongCard
             name={isCurrentSong && isPlaying ? 'pause' : 'play'}
             size={18}
             color="white"
+          />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.menuButton} onPress={handleLikePress}>
+          <Ionicons
+            name={isLiked ? 'heart' : 'heart-outline'}
+            size={16}
+            color={isLiked ? '#FF3B30' : themeColors.textSecondary}
           />
         </TouchableOpacity>
         

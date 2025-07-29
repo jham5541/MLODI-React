@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MLODI",
-    "slug": "mlodi-mobile",
+    "slug": "m3lodi-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,8 +21,7 @@
         ],
         "NSCameraUsageDescription": "This app uses the camera to take photos for profile pictures and content sharing.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for profile pictures and content sharing."
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      }
     },
     "android": {
       "package": "com.heftydon.mlodi",
@@ -48,12 +47,6 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you select images for your profile and content sharing."
-        }
-      ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.594703687162-shqsh2ca0htait8j6fl024urfmbpmbhl.apps.googleusercontent.com"
         }
       ]
     ],

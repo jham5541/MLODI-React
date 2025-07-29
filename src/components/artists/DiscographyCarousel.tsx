@@ -11,6 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 
 interface Album {
@@ -37,12 +40,15 @@ interface DiscographyCarouselProps {
   artistName?: string;
 }
 
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 export default function DiscographyCarousel({
   artistId,
   artistName = 'Artist',
 }: DiscographyCarouselProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const navigation = useNavigation<NavigationProp>();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -114,8 +120,7 @@ export default function DiscographyCarousel({
   };
 
   const handleAlbumPress = (album: Album) => {
-    setSelectedAlbum(album);
-    setModalVisible(true);
+    navigation.navigate('AlbumPage', { albumId: album.id });
   };
 
   const handlePlayAlbum = (album: Album) => {
@@ -150,6 +155,13 @@ export default function DiscographyCarousel({
         ]
       );
     }
+  };
+
+  const handleViewAll = () => {
+    navigation.navigate('Discography', {
+      artistId,
+      artistName,
+    });
   };
 
   const renderAlbumCard = (album: Album) => (
@@ -480,7 +492,7 @@ export default function DiscographyCarousel({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Discography</Text>
-        <TouchableOpacity style={styles.viewAllButton}>
+        <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAll}>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
