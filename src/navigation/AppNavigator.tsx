@@ -28,6 +28,7 @@ import RadioScreen from '../pages/Radio';
 import RadioAllScreen from '../pages/RadioAll';
 import ChartsAllScreen from '../pages/ChartsAll';
 import SettingsScreen from '../pages/Settings';
+import AccountSettingsScreen from '../pages/AccountSettings';
 import FavoritesScreen from '../pages/Favorites';
 import AlbumPage from '../pages/AlbumPage';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
@@ -52,6 +53,7 @@ export type RootStackParamList = {
   RadioAll: undefined;
   ChartsAll: undefined;
   Settings: undefined;
+  AccountSettings: undefined;
   Subscription: undefined;
   SubscriptionManagement: undefined;
   Discography: { artistId: string; artistName: string };
@@ -61,6 +63,13 @@ export type RootStackParamList = {
   GenresAll: undefined;
   GenreDetail: { genre: string };
 };
+
+// Add navigation prop types
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+
+export type RootStackNavigationProp<T extends keyof RootStackParamList> = StackNavigationProp<RootStackParamList, T>;
+export type RootStackRouteProp<T extends keyof RootStackParamList> = RouteProp<RootStackParamList, T>;
 
 export type TabParamList = {
   Home: undefined;
@@ -286,6 +295,11 @@ function AppContent() {
           name="Settings" 
           component={SettingsScreen}
           options={{ title: 'Settings' }}
+        />
+        <Stack.Screen 
+          name="AccountSettings" 
+          component={AccountSettingsScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen 
           name="Subscription" 

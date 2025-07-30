@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initializeApp } from './src/utils/supabaseInit';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SearchProvider } from './src/context/SearchContext';
@@ -44,8 +45,12 @@ function AppContent() {
   const { checkSession } = useAuthStore();
 
   useEffect(() => {
-    // Initialize auth state on app load
-    checkSession();
+    // Initialize app and database
+    const init = async () => {
+      await initializeApp();
+      await checkSession();
+    };
+    init();
   }, [checkSession]);
 
   return (

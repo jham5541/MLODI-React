@@ -9,6 +9,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { purchaseService } from '../services/purchaseService';
 import PurchaseModal from '../components/purchase/PurchaseModal';
+import TrendingArtistService from '../services/TrendingArtistService';
 
 type DiscoverFilter = 'albums' | 'artists' | 'songs' | 'genres';
 type GenreFilter = 'all' | 'pop' | 'rock' | 'hip-hop' | 'electronic' | 'jazz' | 'classical' | 'country' | 'r&b' | 'indie';
@@ -31,6 +32,14 @@ interface Artist {
   imageUrl: string;
   albumCount: number;
   followers: string;
+}
+
+interface TrendingArtist {
+  artistId: string;
+  name: string;
+  score: number;
+  imageUrl?: string;
+  genre?: string;
 }
 
 interface Song {
@@ -123,6 +132,8 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [trendingArtists, setTrendingArtists] = useState<TrendingArtist[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
 
   // Filter data based on selected genre and search query
   const getFilteredData = () => {
@@ -201,7 +212,33 @@ export default function DiscoverScreen({ navigation }: Props) {
     console.log('Refreshing discover data...');
     // In a real app, this would refresh data from API
     // For now, we'll just log that a refresh occurred
+    fetchTrendingArtists();
   };
+
+  const fetchTrendingArtists = async () => {
+    try {
+      setLoadingTrending(true);
+      const artists = await TrendingArtistService.getTrendingArtists(10);
+      
+      // Map trending artists to include dummy images and genres
+      const mappedArtists = artists.map((artist, index) => ({
+        ...artist,
+        imageUrl: `https://picsum.photos/200/200?random=${100 + index}`,
+        genre: ['pop', 'rock', 'hip-hop', 'electronic', 'jazz'][Math.floor(Math.random() * 5)]
+      }));
+      
+      setTrendingArtists(mappedArtists);
+    } catch (error) {
+      console.error('Error fetching trending artists:', error);
+    } finally {
+      setLoadingTrending(false);
+    }
+  };
+
+  // Fetch trending artists on mount
+  useEffect(() => {
+    fetchTrendingArtists();
+  }, []);
 
   // Auto-refresh every 24 hours
   useEffect(() => {
@@ -589,6 +626,76 @@ export default function DiscoverScreen({ navigation }: Props) {
       fontSize: 12,
       fontWeight: '700',
     },
+    // Trending Artists Carousel styles
+    trendingSection: {
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    seeAllButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    seeAllText: {
+      fontSize: 14,
+      color: themeColors.primary,
+      marginRight: 4,
+    },
+    trendingCarousel: {
+      paddingLeft: 16,
+    },
+    trendingArtistCard: {
+      marginRight: 12,
+      alignItems: 'center',
+      width: 120,
+    },
+    trendingArtistImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      marginBottom: 8,
+      borderWidth: 2,
+      borderColor: themeColors.primary,
+    },
+    trendingArtistName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.text,
+      textAlign: 'center',
+      marginBottom: 2,
+    },
+    trendingArtistGenre: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+    },
+    trendingBadge: {
+      position: 'absolute',
+      top: 0,
+      right: 10,
+      backgroundColor: themeColors.primary,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+    },
+    trendingBadgeText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '700',
+    },
   });
 
   // Render functions for different view types
@@ -702,6 +809,22 @@ export default function DiscoverScreen({ navigation }: Props) {
       </TouchableOpacity>
     );
   };
+
+  const renderTrendingArtistCard = ({ item }: { item: TrendingArtist }) => (
+    <TouchableOpacity 
+      style={styles.trendingArtistCard}
+      onPress={() => navigation?.navigate('ArtistProfile', { artistId: item.artistId })}
+    >
+      <View style={{ position: 'relative' }}>
+        <Image source={{ uri: item.imageUrl }} style={styles.trendingArtistImage} />
+        <View style={styles.trendingBadge}>
+          <Text style={styles.trendingBadgeText}>TRENDING</Text>
+        </View>
+      </View>
+      <Text style={styles.trendingArtistName} numberOfLines={1}>{item.name}</Text>
+      <Text style={styles.trendingArtistGenre}>{item.genre}</Text>
+    </TouchableOpacity>
+  );
 
   const renderContent = () => {
     if (filteredData.length === 0) {
@@ -840,6 +963,27 @@ export default function DiscoverScreen({ navigation }: Props) {
           ))}
         </ScrollView>
       </View>
+
+      {/* Trending Artists Carousel */}
+      {!loadingTrending && trendingArtists.length > 0 && (
+        <View style={styles.trendingSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Trending Artists</Text>
+            <TouchableOpacity style={styles.seeAllButton}>
+              <Text style={styles.seeAllText}>See All</Text>
+              <Ionicons name="arrow-forward-outline" size={16} color={themeColors.primary} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={trendingArtists}
+            horizontal
+            renderItem={renderTrendingArtistCard}
+            keyExtractor={(item) => item.artistId}
+            contentContainerStyle={styles.trendingCarousel}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      )}
 
       <View style={styles.content}>
         {renderContent()}

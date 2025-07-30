@@ -49,6 +49,10 @@ export default function PurchaseModal({
         success = await purchaseService.purchaseWithApplePay(songId);
       } else if (method.type === 'web3_wallet') {
         success = await purchaseService.purchaseWithWeb3Wallet(songId);
+      } else if (method.type === 'credit_card') {
+        // For credit card, we'll use the same method as Apple Pay for now
+        // In a real app, this would use Stripe or similar payment processor
+        success = await purchaseService.purchaseWithApplePay(songId);
       }
 
       if (success) {
@@ -162,7 +166,7 @@ export default function PurchaseModal({
       color: themeColors.text,
       marginBottom: 2,
     },
-    paymentMethodPrice: {
+    paymentMethodDescription: {
       fontSize: 14,
       color: themeColors.textSecondary,
     },
@@ -202,7 +206,6 @@ export default function PurchaseModal({
 
           {paymentMethods.map((method) => {
             const isProcessingThis = processingMethod === method.type;
-            const price = method.type === 'apple_pay' ? '$1.99' : '0.001 ETH';
 
             return (
               <TouchableOpacity
@@ -224,8 +227,8 @@ export default function PurchaseModal({
                   <Text style={styles.paymentMethodLabel}>
                     {method.label}
                   </Text>
-                  <Text style={styles.paymentMethodPrice}>
-                    {price}
+                  <Text style={styles.paymentMethodDescription}>
+                    {method.description}
                   </Text>
                 </View>
                 {isProcessingThis && (

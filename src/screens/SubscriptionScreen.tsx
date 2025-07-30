@@ -340,7 +340,13 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigati
       Alert.alert(
         'Success!',
         `You've successfully subscribed to ${selectedPlan.name}!`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            // Navigate to subscription management to see the new subscription
+            navigation.navigate('SubscriptionManagement');
+          }
+        }]
       );
     } else {
       Alert.alert('Error', error || 'Failed to process subscription');

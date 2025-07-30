@@ -136,14 +136,9 @@ class PlaylistService {
     mood?: string;
     genre?: string;
   }) {
-    let selectClause = '*';
-    if (options?.include_owner) {
-      selectClause += ', user_profiles:owner_id(id, username, display_name, avatar_url)';
-    }
-
     let query = supabase
       .from('playlists')
-      .select(selectClause);
+      .select('*');
 
     // Public playlists or user's own playlists
     const { data: { user } } = await supabase.auth.getUser();
@@ -187,22 +182,48 @@ class PlaylistService {
 
     const { data, error } = await query;
     if (error) throw error;
+    
+    // Fetch owner information if requested
+    if (options?.include_owner && data && data.length > 0) {
+      const ownerIds = [...new Set(data.map(p => p.owner_id))];
+      const { data: owners } = await supabase
+        .from('user_profiles')
+        .select('id, username, display_name, avatar_url')
+        .in('id', ownerIds);
+      
+      if (owners) {
+        const ownerMap = new Map(owners.map(o => [o.id, o]));
+        data.forEach(playlist => {
+          playlist.owner = ownerMap.get(playlist.owner_id);
+        });
+      }
+    }
+    
     return data as Playlist[];
   }
 
   async getPlaylist(id: string, includeDetails = true) {
-    let selectClause = '*';
-    if (includeDetails) {
-      selectClause += ', user_profiles:owner_id(id, username, display_name, avatar_url)';
-    }
-
     const { data, error } = await supabase
       .from('playlists')
-      .select(selectClause)
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
+    
+    // Fetch owner details if requested
+    if (includeDetails && data) {
+      const { data: owner } = await supabase
+        .from('user_profiles')
+        .select('id, username, display_name, avatar_url')
+        .eq('id', data.owner_id)
+        .single();
+      
+      if (owner) {
+        data.owner = owner;
+      }
+    }
+    
     return data as Playlist;
   }
 

@@ -10,7 +10,8 @@ import {
   Share,
   Alert,
 } from 'react-native';
-import { Video } from 'expo-av';
+// Audio import removed - using audioService instead
+import { Video } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
@@ -144,7 +145,7 @@ export default function ArtistHeader({
       left: 0,
       right: 0,
       height: 120,
-      background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
       zIndex: 2,
     },
     headerControls: {
@@ -272,7 +273,6 @@ export default function ArtistHeader({
     actionButtons: {
       flexDirection: 'row',
       width: '100%',
-      gap: 16,
       paddingHorizontal: 0,
       marginTop: 8,
     },
@@ -284,13 +284,13 @@ export default function ArtistHeader({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
       shadowColor: themeColors.primary,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.3,
       shadowRadius: 12,
       elevation: 8,
       transform: [{ scale: 1 }],
+      marginRight: 8,
     },
     subscribedButton: {
       backgroundColor: themeColors.success,
@@ -319,6 +319,7 @@ export default function ArtistHeader({
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: 'transparent',
+      marginLeft: 8,
     },
   });
 

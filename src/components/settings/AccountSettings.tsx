@@ -9,11 +9,13 @@ import {
   Switch,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import { useNavigation } from '@react-navigation/native';
 
 interface AccountSettingsProps {
   onSave?: (data: any) => void;
@@ -27,6 +29,36 @@ export default function AccountSettings({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { user, updateProfile } = useAuthStore();
+  const navigation = useNavigation();
+  
+  // Mock data for demonstration
+  const [walletBalance] = useState(1250); // Wallet points
+  const [activeSubscription] = useState({
+    plan: 'Premium',
+    nextBillingDate: '2024-02-01',
+    price: '$9.99/month'
+  });
+
+  // Level system data
+  const levels = [
+    { level: 1, minPoints: 0, maxPoints: 1000, name: 'Bronze', benefits: ['Access to 10 exclusive songs', 'Basic profile badges'] },
+    { level: 2, minPoints: 1000, maxPoints: 2500, name: 'Silver', benefits: ['Access to 25 exclusive songs', '5 music videos', 'Silver profile badge'] },
+    { level: 3, minPoints: 2500, maxPoints: 5000, name: 'Gold', benefits: ['Access to 50 exclusive songs', '15 music videos', '10% merch discount', 'Gold profile badge'] },
+    { level: 4, minPoints: 5000, maxPoints: 10000, name: 'Platinum', benefits: ['Access to all exclusive content', 'Unlimited videos', '20% merch discount', 'Platinum badge', 'Early access to new releases'] },
+    { level: 5, minPoints: 10000, maxPoints: Infinity, name: 'Diamond', benefits: ['VIP access to all content', 'Free merch items monthly', 'Meet & greet opportunities', 'Diamond badge', 'Exclusive artist interactions'] }
+  ];
+
+  // Calculate current level and progress
+  const getCurrentLevel = () => {
+    return levels.find(level => walletBalance >= level.minPoints && walletBalance < level.maxPoints) || levels[0];
+  };
+
+  const currentLevel = getCurrentLevel();
+  const nextLevel = levels[levels.indexOf(currentLevel) + 1];
+  const pointsToNextLevel = nextLevel ? nextLevel.minPoints - walletBalance : 0;
+  const progressPercentage = nextLevel 
+    ? ((walletBalance - currentLevel.minPoints) / (nextLevel.minPoints - currentLevel.minPoints)) * 100
+    : 100;
 
   const [formData, setFormData] = useState({
     displayName: user?.displayName || '',
@@ -38,6 +70,7 @@ export default function AccountSettings({
     isPublicProfile: user?.isPublicProfile ?? true,
     allowMessages: user?.allowMessages ?? true,
     showActivity: user?.showActivity ?? true,
+    country: user?.country || 'United States',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -262,6 +295,209 @@ export default function AccountSettings({
       color: themeColors.success,
       fontWeight: '600',
     },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
+    },
+    menuItemLast: {
+      borderBottomWidth: 0,
+    },
+    menuItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    menuItemIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: themeColors.primary + '20',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    menuItemText: {
+      flex: 1,
+    },
+    menuItemTitle: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: themeColors.text,
+      marginBottom: 2,
+    },
+    menuItemSubtitle: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+    },
+    menuItemValue: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      marginRight: 8,
+    },
+walletBalanceSection: {
+      backgroundColor: themeColors.primary,
+      borderRadius: 15,
+      padding: 10,
+      marginBottom: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-evenly',
+      shadowColor: 'black',
+      shadowOpacity: 0.1,
+      shadowOffset: { width: 0, height: 1 },
+      shadowRadius: 2,
+      elevation: 3,
+    },
+walletBalanceContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+walletBalanceLabel: {
+      fontSize: 16,
+      color: 'rgba(255, 255, 255, 0.85)',
+      fontWeight: '600',
+      marginBottom: 10,
+    },
+walletBalanceAmount: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: 'white',
+    },
+walletBalancePoints: {
+      fontSize: 14,
+      color: 'rgba(255, 255, 255, 0.75)',
+      marginLeft: 4,
+    },
+addPointsButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 25,
+    },
+addPointsText: {
+      color: 'white',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    subscriptionBadge: {
+      backgroundColor: themeColors.success + '20',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    subscriptionBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: themeColors.success,
+    },
+    countryPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: themeColors.background,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    countryText: {
+      fontSize: 16,
+      color: themeColors.text,
+    },
+    levelText: {
+      fontSize: 14,
+      color: 'rgba(255, 255, 255, 0.9)',
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    levelProgressSection: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      marginTop: -8,
+    },
+    progressBar: {
+      height: 8,
+      backgroundColor: themeColors.border,
+      borderRadius: 4,
+      overflow: 'hidden',
+      marginBottom: 12,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: themeColors.primary,
+      borderRadius: 4,
+    },
+    levelBenefitsPreview: {
+      marginTop: 8,
+    },
+    levelBenefitsTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.text,
+      marginBottom: 6,
+    },
+    levelBenefit: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+      marginBottom: 4,
+      marginLeft: 8,
+    },
+    levelInfo: {
+      alignItems: 'flex-end',
+    },
+    nextLevelText: {
+      fontSize: 12,
+      color: 'rgba(255, 255, 255, 0.7)',
+      marginTop: 2,
+    },
+    miniProgressBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderBottomLeftRadius: 15,
+      borderBottomRightRadius: 15,
+      overflow: 'hidden',
+    },
+    miniProgressFill: {
+      height: '100%',
+      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    },
+    levelBadge: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    levelBadgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    levelProgressBar: {
+      height: 4,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderRadius: 2,
+      marginTop: 12,
+      overflow: 'hidden',
+    },
+    levelProgressFill: {
+      height: '100%',
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      borderRadius: 2,
+    },
   });
 
   return (
@@ -349,6 +585,111 @@ export default function AccountSettings({
               keyboardType="url"
               autoCapitalize="none"
             />
+          </View>
+        </View>
+
+        {/* Wallet Points */}
+        <View style={styles.walletBalanceSection}>
+          <View style={styles.walletBalanceContent}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.walletBalanceAmount}>{walletBalance.toLocaleString()}</Text>
+                <Text style={styles.walletBalanceLabel}>points</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelBadgeText}>{currentLevel.name}</Text>
+                </View>
+                {nextLevel && (
+                  <Text style={styles.nextLevelText}>
+                    {pointsToNextLevel} to next
+                  </Text>
+                )}
+              </View>
+            </View>
+            {/* Progress Bar */}
+            {nextLevel && (
+              <View style={styles.levelProgressBar}>
+                <View 
+                  style={[
+                    styles.levelProgressFill,
+                    { width: `${progressPercentage}%` }
+                  ]} 
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Account Management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account Management</Text>
+          
+{/* Subscription */}
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('SubscriptionManagement')}>
+            <View style={styles.menuItemContent}>
+              <View style={styles.menuItemIcon}>
+                <Ionicons name="star" size={20} color={themeColors.primary} />
+              </View>
+              <View style={styles.menuItemText}>
+                <Text style={styles.menuItemTitle}>Subscription</Text>
+                <Text style={styles.menuItemSubtitle}>
+                  {activeSubscription.plan} • {activeSubscription.price}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={styles.subscriptionBadge}>
+                <Text style={styles.subscriptionBadgeText}>Active</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} style={{ marginLeft: 8 }} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Payment Methods */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemContent}>
+              <View style={styles.menuItemIcon}>
+                <Ionicons name="card" size={20} color={themeColors.primary} />
+              </View>
+              <View style={styles.menuItemText}>
+                <Text style={styles.menuItemTitle}>Payment Methods</Text>
+                <Text style={styles.menuItemSubtitle}>Manage your payment methods</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Purchase History */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemContent}>
+              <View style={styles.menuItemIcon}>
+                <Ionicons name="receipt" size={20} color={themeColors.primary} />
+              </View>
+              <View style={styles.menuItemText}>
+                <Text style={styles.menuItemTitle}>Purchase History</Text>
+                <Text style={styles.menuItemSubtitle}>View your past purchases</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Country/Region */}
+          <View style={[styles.menuItem, styles.menuItemLast]}>
+            <View style={styles.menuItemContent}>
+              <View style={styles.menuItemIcon}>
+                <Ionicons name="globe" size={20} color={themeColors.primary} />
+              </View>
+              <View style={styles.menuItemText}>
+                <Text style={styles.menuItemTitle}>Country/Region</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.countryPicker}>
+              <Text style={styles.countryText}>{formData.country}</Text>
+              <Ionicons name="chevron-down" size={16} color={themeColors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
 

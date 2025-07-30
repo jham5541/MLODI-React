@@ -45,10 +45,10 @@ interface SubscriptionState {
   getSubscriptionPlans: () => SubscriptionPlan[];
 }
 
-// Default subscription plans
+// Default subscription plans with proper UUIDs
 const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
-    id: 'free',
+    id: '00000000-0000-0000-0000-000000000001', // Fixed UUID for free plan
     name: 'Free',
     tier: 'free',
     price: { usd: 0, eth: 0 },
@@ -62,7 +62,7 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ]
   },
   {
-    id: 'fan',
+    id: '00000000-0000-0000-0000-000000000002', // Fixed UUID for fan plan
     name: 'Fan',
     tier: 'fan',
     price: { usd: 9.99, eth: 0.005 },
@@ -79,7 +79,7 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     isPopular: true
   },
   {
-    id: 'enterprise',
+    id: '00000000-0000-0000-0000-000000000003', // Fixed UUID for enterprise plan
     name: 'Enterprise',
     tier: 'enterprise',
     price: { usd: 29.99, eth: 0.015 },
@@ -177,7 +177,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
       const subscriptionData = {
         user_id: user.id,
-        plan_id: selectedPlan.id,
+        plan_id: selectedPlan.id, // Now using the UUID from the plan
         tier: selectedPlan.tier,
         status: 'active' as const,
         start_date: startDate.toISOString(),

@@ -37,9 +37,10 @@ export interface PurchasedTicket {
 }
 
 export interface PaymentMethod {
-  type: 'apple_pay' | 'web3_wallet';
+  type: 'apple_pay' | 'web3_wallet' | 'credit_card';
   label: string;
   icon: string;
+  description?: string;
 }
 
 class PurchaseService {
@@ -364,12 +365,20 @@ class PurchaseService {
       {
         type: 'apple_pay',
         label: 'Apple Pay',
-        icon: 'card-outline'
+        icon: 'logo-apple',
+        description: 'Fast and secure'
+      },
+      {
+        type: 'credit_card',
+        label: 'Credit/Debit Card',
+        icon: 'card-outline',
+        description: 'Visa, Mastercard, Amex'
       },
       {
         type: 'web3_wallet',
         label: 'Web3 Wallet',
-        icon: 'wallet-outline'
+        icon: 'wallet-outline',
+        description: 'Connect your crypto wallet'
       }
     ];
   }

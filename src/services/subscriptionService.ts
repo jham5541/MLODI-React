@@ -6,6 +6,9 @@ export interface ArtistSubscription {
   expiresAt: Date;
   isActive: boolean;
   benefits: string[];
+  autoRenew: boolean;
+  paymentMethod: 'apple_pay' | 'web3_wallet' | 'credit_card';
+  renewalDate?: Date;
 }
 
 export interface SubscriptionPlan {
@@ -65,6 +68,9 @@ class SubscriptionService {
         subscribedAt: now,
         expiresAt,
         isActive: true,
+        autoRenew: true, // Enable auto-renewal by default
+        paymentMethod,
+        renewalDate: expiresAt, // Next renewal date
         benefits: [
           'Unlimited access to all content',
           'Early access to new releases',
@@ -182,6 +188,127 @@ class SubscriptionService {
       subscription: subscription || undefined,
       plan,
     };
+  }
+
+  // Toggle auto-renewal for an artist subscription
+  async toggleAutoRenew(artistId: string): Promise<boolean> {
+    try {
+      const subscription = this.subscriptions.get(artistId);
+      if (!subscription) return false;
+      
+      subscription.autoRenew = !subscription.autoRenew;
+      this.subscriptions.set(artistId, subscription);
+      
+      console.log(`Auto-renewal ${subscription.autoRenew ? 'enabled' : 'disabled'} for artist: ${artistId}`);
+      
+      // In a real app, update backend
+      if (subscription.autoRenew) {
+        await this.scheduleAutoRenewal(subscription);
+      } else {
+        await this.cancelAutoRenewal(artistId);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to toggle auto-renewal:', error);
+      return false;
+    }
+  }
+
+  // Schedule auto-renewal for a subscription
+  private async scheduleAutoRenewal(subscription: ArtistSubscription): Promise<void> {
+    // In a real app, this would schedule a job on the backend
+    console.log(`Scheduling auto-renewal for ${subscription.artistName} on ${subscription.renewalDate}`);
+    
+    // Store renewal information
+    const renewalInfo = {
+      artistId: subscription.artistId,
+      renewalDate: subscription.renewalDate,
+      amount: subscription.price,
+      paymentMethod: subscription.paymentMethod,
+    };
+    
+    // In production, this would be handled by a backend job scheduler
+    // For now, we'll simulate with a timeout (not recommended for production)
+    const timeUntilRenewal = subscription.renewalDate!.getTime() - Date.now();
+    if (timeUntilRenewal > 0) {
+      setTimeout(() => this.processAutoRenewal(subscription.artistId), timeUntilRenewal);
+    }
+  }
+
+  // Cancel auto-renewal
+  private async cancelAutoRenewal(artistId: string): Promise<void> {
+    // In a real app, this would cancel the scheduled job on the backend
+    console.log(`Cancelling auto-renewal for artist: ${artistId}`);
+  }
+
+  // Process auto-renewal when the time comes
+  private async processAutoRenewal(artistId: string): Promise<void> {
+    try {
+      const subscription = this.subscriptions.get(artistId);
+      if (!subscription || !subscription.autoRenew || !subscription.isActive) {
+        return;
+      }
+
+      console.log(`Processing auto-renewal for ${subscription.artistName}`);
+      
+      // Process payment
+      await this.processPayment(subscription.price, subscription.paymentMethod);
+      
+      // Update subscription dates
+      const now = new Date();
+      subscription.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      subscription.renewalDate = subscription.expiresAt;
+      
+      this.subscriptions.set(artistId, subscription);
+      
+      // Schedule next renewal
+      await this.scheduleAutoRenewal(subscription);
+      
+      // Notify user of successful renewal
+      console.log(`Successfully renewed subscription for ${subscription.artistName}`);
+      
+    } catch (error) {
+      console.error(`Failed to auto-renew subscription for artist ${artistId}:`, error);
+      
+      // In a real app, notify user of failed payment and retry logic
+      const subscription = this.subscriptions.get(artistId);
+      if (subscription) {
+        subscription.autoRenew = false;
+        this.subscriptions.set(artistId, subscription);
+      }
+    }
+  }
+
+  // Get all subscriptions that need renewal
+  async getSubscriptionsForRenewal(): Promise<ArtistSubscription[]> {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    
+    return Array.from(this.subscriptions.values()).filter(
+      sub => sub.isActive && 
+             sub.autoRenew && 
+             sub.renewalDate && 
+             sub.renewalDate <= tomorrow &&
+             sub.renewalDate >= now
+    );
+  }
+
+  // Process all pending renewals (called by backend job)
+  async processPendingRenewals(): Promise<void> {
+    const subscriptionsToRenew = await this.getSubscriptionsForRenewal();
+    
+    for (const subscription of subscriptionsToRenew) {
+      await this.processAutoRenewal(subscription.artistId);
+    }
+  }
+
+  // Get total monthly billing amount
+  async getTotalMonthlyBilling(): Promise<number> {
+    const activeSubscriptions = await this.getActiveSubscriptions();
+    return activeSubscriptions
+      .filter(sub => sub.autoRenew)
+      .reduce((total, sub) => total + sub.price, 0);
   }
 }
 

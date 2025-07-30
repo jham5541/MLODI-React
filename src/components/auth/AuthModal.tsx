@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 
@@ -33,8 +34,18 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
   
-  const { signInWithEmail, signUpWithEmail, loading, error } = useAuthStore();
+  const { signInWithEmail, signUpWithEmail, signInWithApple, loading, error } = useAuthStore();
+
+  useEffect(() => {
+    checkAppleAuthAvailability();
+  }, []);
+
+  const checkAppleAuthAvailability = async () => {
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    setIsAppleAuthAvailable(isAvailable);
+  };
 
   const styles = StyleSheet.create({
     modalContainer: {
@@ -318,6 +329,29 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      // Call your auth store method with the credential
+      const success = await signInWithApple(credential);
+      if (success) {
+        onClose();
+      }
+    } catch (e: any) {
+      if (e.code === 'ERR_CANCELED') {
+        // User canceled the sign-in flow
+      } else {
+        Alert.alert('Sign In Error', 'Unable to sign in with Apple. Please try again.');
+      }
+    }
+  };
+
 
 
   const resetForm = () => {
@@ -459,6 +493,45 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
             </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Sign In */}
+          {isAppleAuthAvailable && (
+            <>
+              {/* Native Apple Sign In Button */}
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={authMode === 'signin' ? 
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN :
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                }
+                buttonStyle={activeTheme === 'dark' ?
+                  AppleAuthentication.AppleAuthenticationButtonStyle.WHITE :
+                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={16}
+                style={{
+                  width: '100%',
+                  height: 52,
+                  marginTop: 16,
+                }}
+                onPress={handleAppleSignIn}
+              />
+              
+              {/* Alternative custom button (commented out but available) */}
+              {/* <TouchableOpacity style={styles.socialButton} onPress={handleAppleSignIn}>
+                <Ionicons name="logo-apple" size={20} color={themeColors.text} />
+                <Text style={styles.socialButtonText}>
+                  {authMode === 'signin' ? 'Sign in' : 'Sign up'} with Apple
+                </Text>
+              </TouchableOpacity> */}
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>

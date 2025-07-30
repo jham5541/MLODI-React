@@ -121,12 +121,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Wait a moment for auth to fully process
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            await get().updateUserProfile({
+            // Only include fields that exist in the users table
+            const profileData: any = {
               id: data.user.id,
               subscription_tier: 'free',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            });
+            };
+            
+            // Add optional fields with safe defaults
+            const optionalFields = {
+              username: null,
+              display_name: null,
+              bio: null,
+              avatar_url: null,
+              location: null,
+              website_url: null,
+              social_links: {},
+              preferences: {},
+              total_listening_time_ms: 0
+            };
+            
+            // Only add fields that might exist
+            Object.assign(profileData, optionalFields);
+            
+            await get().updateUserProfile(profileData);
             console.log('✅ User profile created successfully');
           } catch (profileError: any) {
             console.error('❌ Failed to create user profile:', profileError);
@@ -152,23 +171,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   
   
-  signInWithApple: async () => {
+  signInWithApple: async (credential?: any) => {
     set({ loading: true, error: null });
     try {
-      const redirectUrl = Linking.createURL('/auth/callback');
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      if (!credential) {
+        throw new Error('No Apple credential provided');
+      }
+
+      // Sign in with Apple ID token
+      const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
-        options: {
-          redirectTo: redirectUrl,
-        }
+        token: credential.identityToken,
+        nonce: credential.nonce || 'nonce', // You might need to generate a proper nonce
       });
       
       if (error) throw error;
       
-      set({ loading: false });
-      return false;
+      set({ 
+        user: data?.user || null, 
+        session: data?.session || null, 
+        loading: false 
+      });
+
+      // Get or create profile
+      await get().getProfile();
+      
+      // If no profile exists, create one with Apple data
+      if (!get().profile && data?.user) {
+        const fullName = credential.fullName;
+        const displayName = fullName ? 
+          `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() : 
+          credential.email?.split('@')[0] || 'User';
+
+        await get().updateUserProfile({
+          id: data.user.id,
+          display_name: displayName,
+          email: credential.email || data.user.email,
+          subscription_tier: 'free',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+      
+      return true;
     } catch (error: any) {
+      console.error('Apple Sign In error:', error);
       set({ error: error.message, loading: false });
       return false;
     }

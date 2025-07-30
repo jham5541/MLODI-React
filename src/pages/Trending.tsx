@@ -12,6 +12,7 @@ import GenreSongsView from '../components/trending/GenreSongsView';
 import { Song, Artist } from '../types/music';
 import { sampleArtists, trendingSongs } from '../data/sampleData';
 import votingService, { PollWithOptions } from '../services/votingService';
+import TrendingArtistService from '../services/TrendingArtistService';
 
 type ViewMode = 'trending' | 'genre';
 
@@ -32,6 +33,8 @@ export default function TrendingScreen() {
   const [featuredPoll, setFeaturedPoll] = useState<PollWithOptions | null>(null);
   const [pollLoading, setPollLoading] = useState(true);
   const [pollError, setPollError] = useState(false);
+  const [trendingArtists, setTrendingArtists] = useState<Artist[]>([]);
+  const [loadingArtists, setLoadingArtists] = useState(true);
 
   // Extract genres from sample data
   const allGenres = Array.from(
@@ -49,6 +52,7 @@ export default function TrendingScreen() {
       await Promise.all([
         loadTrendingSongs(),
         loadFeaturedPoll(),
+        loadTrendingArtists(),
       ]);
     } catch (error) {
       console.error('Failed to load trending data:', error);
@@ -74,6 +78,33 @@ export default function TrendingScreen() {
       setFeaturedPoll(createSamplePoll());
     } finally {
       setPollLoading(false);
+    }
+  };
+
+  const loadTrendingArtists = async () => {
+    try {
+      setLoadingArtists(true);
+      const artists = await TrendingArtistService.getTrendingArtists(10);
+      
+      // Map trending artists to the Artist type expected by TrendingList
+      const mappedArtists: Artist[] = artists.map((artist, index) => ({
+        id: artist.artistId,
+        name: artist.name,
+        genres: ['pop', 'rock', 'hip-hop', 'electronic', 'jazz'][Math.floor(Math.random() * 5)].split(','),
+        coverUrl: `https://picsum.photos/200/200?random=${100 + index}`,
+        followers: Math.floor(Math.random() * 900000) + 100000,
+        isVerified: Math.random() > 0.5,
+        monthlyListeners: Math.floor(Math.random() * 1000000) + 50000,
+        popularity: artist.score,
+      }));
+      
+      setTrendingArtists(mappedArtists);
+    } catch (error) {
+      console.error('Error fetching trending artists:', error);
+      // Fallback to sample artists if the service fails
+      setTrendingArtists(sampleArtists.slice(0, 10));
+    } finally {
+      setLoadingArtists(false);
     }
   };
 
@@ -201,11 +232,13 @@ export default function TrendingScreen() {
   };
 
   const getFilteredArtists = (): Artist[] => {
+    const artistsToFilter = trendingArtists.length > 0 ? trendingArtists : sampleArtists;
+    
     if (!selectedGenre) {
-      return sampleArtists;
+      return artistsToFilter;
     }
     
-    return sampleArtists.filter(artist => 
+    return artistsToFilter.filter(artist => 
       artist.genres.includes(selectedGenre)
     );
   };

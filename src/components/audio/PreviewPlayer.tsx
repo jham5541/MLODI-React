@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import WaveformVisualizer from './WaveformVisualizer';
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 
 interface Track {
   id: string;

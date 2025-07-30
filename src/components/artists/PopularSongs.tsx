@@ -191,7 +191,7 @@ export default function PopularSongs({
     songItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: 14,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
     },
@@ -222,20 +222,23 @@ export default function PopularSongs({
       fontSize: 16,
       fontWeight: '600',
       color: themeColors.text,
-      marginBottom: 2,
+      marginBottom: 4,
+      lineHeight: 20,
     },
     songDetails: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
     },
     albumName: {
-      fontSize: 12,
+      fontSize: 13,
       color: themeColors.textSecondary,
+      lineHeight: 16,
     },
     playCount: {
-      fontSize: 12,
+      fontSize: 13,
       color: themeColors.textSecondary,
+      lineHeight: 16,
     },
     separator: {
       width: 2,
@@ -244,14 +247,15 @@ export default function PopularSongs({
       backgroundColor: themeColors.textSecondary,
     },
     duration: {
-      fontSize: 12,
+      fontSize: 13,
       color: themeColors.textSecondary,
-      marginRight: 12,
+      marginRight: 16,
+      fontWeight: '500',
     },
     controls: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
     },
     playButton: {
       width: 36,
@@ -272,15 +276,18 @@ export default function PopularSongs({
       borderColor: themeColors.border,
     },
     priceButton: {
-      backgroundColor: themeColors.success + '20',
-      borderColor: themeColors.success,
+      backgroundColor: themeColors.primary,
       paddingHorizontal: 8,
-      borderRadius: 12,
+      paddingVertical: 4,
+      borderRadius: 8,
+      minWidth: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     priceText: {
+      color: 'white',
       fontSize: 10,
       fontWeight: '600',
-      color: themeColors.success,
     },
     emptyState: {
       alignItems: 'center',
@@ -339,7 +346,7 @@ export default function PopularSongs({
               style={[styles.actionButton, styles.priceButton]}
               onPress={() => handlePurchase(item)}
             >
-              <Text style={styles.priceText}>${item.price}</Text>
+              <Text style={styles.priceText}>BUY</Text>
             </TouchableOpacity>
           )}
 

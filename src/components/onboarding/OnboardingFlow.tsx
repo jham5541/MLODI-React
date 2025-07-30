@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useTheme, colors } from '../../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
@@ -16,9 +20,11 @@ const { width, height } = Dimensions.get('window');
 interface OnboardingStep {
   id: string;
   title: string;
+  subtitle: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  backgroundColor: string;
+  gradientColors: string[];
+  features?: string[];
 }
 
 interface OnboardingFlowProps {
@@ -28,38 +34,68 @@ interface OnboardingFlowProps {
 const onboardingSteps: OnboardingStep[] = [
   {
     id: '1',
-    title: 'Welcome to MLODI',
-    description: 'Your ultimate music platform for discovering and enjoying amazing tracks.',
+    title: 'Welcome to M3lodi',
+    subtitle: 'The Future of Music',
+    description: 'Experience music like never before with blockchain-powered ownership and exclusive artist content.',
     icon: 'musical-notes',
-    backgroundColor: '#6366f1',
+    gradientColors: ['#667eea', '#764ba2'],
+    features: [
+      'Stream millions of songs',
+      'Own your favorite tracks',
+      'Support artists directly'
+    ]
   },
   {
     id: '2',
-    title: 'Discover Music',
-    description: 'Explore trending songs, discover new artists, and find your next favorite track.',
-    icon: 'compass',
-    backgroundColor: '#8b5cf6',
+    title: 'Discover & Stream',
+    subtitle: 'Unlimited Music',
+    description: 'Explore curated playlists, trending tracks, and personalized recommendations tailored just for you.',
+    icon: 'headset',
+    gradientColors: ['#f093fb', '#f5576c'],
+    features: [
+      'AI-powered recommendations',
+      'Curated playlists daily',
+      'High-quality audio streaming'
+    ]
   },
   {
     id: '3',
-    title: 'Support Artists',
-    description: 'Directly support your favorite artists by purchasing their music NFTs.',
-    icon: 'heart',
-    backgroundColor: '#ec4899',
+    title: 'Own Your Music',
+    subtitle: 'Digital Collectibles',
+    description: 'Purchase exclusive NFTs from your favorite artists and build your unique music collection.',
+    icon: 'diamond',
+    gradientColors: ['#4facfe', '#00f2fe'],
+    features: [
+      'Limited edition releases',
+      'Exclusive content access',
+      'Trade with collectors'
+    ]
   },
   {
     id: '4',
-    title: 'Build Your Collection',
-    description: 'Create and manage your personal music library with exclusive content.',
-    icon: 'library',
-    backgroundColor: '#06b6d4',
+    title: 'Support Artists',
+    subtitle: 'Direct Connection',
+    description: 'Connect directly with artists, access exclusive content, and help them grow their careers.',
+    icon: 'heart',
+    gradientColors: ['#fa709a', '#fee140'],
+    features: [
+      'Direct artist support',
+      'Exclusive fan experiences',
+      'Early access to releases'
+    ]
   },
   {
     id: '5',
-    title: 'Join the Community',
-    description: 'Connect with other music lovers and participate in community challenges.',
-    icon: 'people',
-    backgroundColor: '#10b981',
+    title: 'Join the Revolution',
+    subtitle: 'Start Your Journey',
+    description: 'Be part of the music revolution. Your collection, your rules, your community.',
+    icon: 'rocket',
+    gradientColors: ['#a8edea', '#fed6e3'],
+    features: [
+      'Global music community',
+      'Earn rewards & badges',
+      'Shape the future of music'
+    ]
   },
 ];
 

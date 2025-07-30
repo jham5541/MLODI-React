@@ -16,7 +16,6 @@ export class MarketplaceService {
       .from('products')
       .select(`
         *,
-        artists(id, name, avatar_url, is_verified),
         product_categories(id, name, slug),
         product_variants(*)
       `)
@@ -50,8 +49,7 @@ export class MarketplaceService {
     if (filters?.search) {
       query = query.or(`
         title.ilike.%${filters.search}%,
-        description.ilike.%${filters.search}%,
-        artists.name.ilike.%${filters.search}%
+        description.ilike.%${filters.search}%
       `);
     }
 
@@ -93,7 +91,29 @@ export class MarketplaceService {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data as Product[];
+    
+    // Fetch artists separately
+    const products = data as Product[];
+    if (products && products.length > 0) {
+      const artistIds = [...new Set(products.map(p => p.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name, avatar_url, is_verified')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          products.forEach(product => {
+            if (product.artist_id) {
+              product.artist = artistMap.get(product.artist_id);
+            }
+          });
+        }
+      }
+    }
+    
+    return products;
   }
 
   async getProduct(id: string): Promise<Product> {
@@ -101,7 +121,6 @@ export class MarketplaceService {
       .from('products')
       .select(`
         *,
-        artists(id, name, avatar_url, is_verified),
         product_categories(id, name, slug),
         product_variants(*),
         songs(id, title, duration_ms),
@@ -112,7 +131,23 @@ export class MarketplaceService {
       .single();
 
     if (error) throw error;
-    return data as Product;
+    
+    const product = data as Product;
+    
+    // Fetch artist separately
+    if (product.artist_id) {
+      const { data: artist } = await supabase
+        .from('artists')
+        .select('id, name, avatar_url, is_verified')
+        .eq('id', product.artist_id)
+        .single();
+      
+      if (artist) {
+        product.artist = artist;
+      }
+    }
+    
+    return product;
   }
 
   async getFeaturedProducts(limit = 10): Promise<Product[]> {
@@ -120,7 +155,6 @@ export class MarketplaceService {
       .from('products')
       .select(`
         *,
-        artists(id, name, avatar_url, is_verified)
       `)
       .eq('is_active', true)
       .eq('is_featured', true)
@@ -134,17 +168,36 @@ export class MarketplaceService {
   async getProductsByType(type: ProductType, limit = 20): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
-      .select(`
-        *,
-        artists(id, name, avatar_url, is_verified)
-      `)
+      .select('*')
       .eq('is_active', true)
       .eq('type', type)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data as Product[];
+    
+    // Fetch artists separately
+    const products = data as Product[];
+    if (products && products.length > 0) {
+      const artistIds = [...new Set(products.map(p => p.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name, avatar_url, is_verified')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          products.forEach(product => {
+            if (product.artist_id) {
+              product.artist = artistMap.get(product.artist_id);
+            }
+          });
+        }
+      }
+    }
+    
+    return products;
   }
 
   // Cart Management
@@ -177,20 +230,55 @@ export class MarketplaceService {
     }
 
     // Get cart items
-    const { data: cartItems, error: itemsError } = await supabase
+    const { data: cartItemsData, error: itemsError } = await supabase
       .from('cart_items')
-      .select(`
-        *,
-        products(*),
-        product_variants(*)
-      `)
+      .select('*')
       .eq('cart_id', cart.id);
 
     if (itemsError) throw itemsError;
 
+    if (!cartItemsData || cartItemsData.length === 0) {
+      return {
+        ...cart,
+        items: []
+      } as Cart;
+    }
+    
+    // Manually fetch products for cart items since the relationship is broken
+    const productIds = [...new Set(cartItemsData.map(item => item.product_id).filter(Boolean))];
+    let productsMap = new Map();
+    if (productIds.length > 0) {
+        const { data: products, error: productsError } = await supabase
+            .from('products')
+            .select('*')
+            .in('id', productIds);
+
+        if (productsError) throw productsError;
+        productsMap = new Map(products.map(p => [p.id, p]));
+    }
+    
+    // Manually fetch product variants for cart items since the relationship is broken
+    const variantIds = [...new Set(cartItemsData.map(item => item.variant_id).filter(Boolean))];
+    let variantsMap = new Map();
+    if (variantIds.length > 0) {
+        const { data: variants, error: variantsError } = await supabase
+            .from('product_variants')
+            .select('*')
+            .in('id', variantIds);
+
+        if (variantsError) throw variantsError;
+        variantsMap = new Map(variants.map(v => [v.id, v]));
+    }
+
+    const populatedCartItems = cartItemsData.map(item => ({
+      ...item,
+      products: productsMap.get(item.product_id),
+      product_variants: variantsMap.get(item.variant_id),
+    }));
+
     return {
       ...cart,
-      items: cartItems as CartItem[]
+      items: populatedCartItems as CartItem[]
     } as Cart;
   }
 
@@ -452,7 +540,6 @@ export class MarketplaceService {
       .select(`
         products(
           *,
-          artists(id, name, avatar_url, is_verified)
         )
       `)
       .eq('user_id', user.id)

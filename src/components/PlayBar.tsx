@@ -10,8 +10,11 @@ import {
   Modal,
   SafeAreaView,
   StatusBar,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
+import MLService from '../services/ml/MLService';
+import { AnomalyType } from '../services/ml/types';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
@@ -61,6 +64,7 @@ const PlayBar: React.FC<PlayBarProps> = ({
   const [volume, setVolume] = useState(75);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
+  const [anomalyDetected, setAnomalyDetected] = useState(false);
 
   const handleLike = async () => {
     console.log('👤 Like button pressed - User:', !!user, 'Current song:', !!currentSong, 'Is liked:', isLiked);
@@ -126,6 +130,66 @@ const PlayBar: React.FC<PlayBarProps> = ({
     }
   }, [isVisible, currentSong]);
 
+// Detect stream anomalies for current song
+  useEffect(() => {
+    const detectAnomalies = async () => {
+      if (currentSong && user) {
+        try {
+          const anomalies = await MLService.detectStreamAnomalies(currentSong.id);
+          if (anomalies.length > 0) {
+            console.log('🔍 Anomalies detected:', anomalies);
+            setAnomalyDetected(true);
+            
+            // Notify backend about detected anomalies
+            await notifyBackendAnomalies(anomalies);
+            
+            // Handle specific anomaly types
+            const criticalAnomalies = anomalies.filter(
+              a => a.anomalyType === AnomalyType.BOT_BEHAVIOR || 
+                   a.anomalyType === AnomalyType.STREAM_FARMING
+            );
+            
+            if (criticalAnomalies.length > 0) {
+              // Show alert for critical anomalies
+              Alert.alert(
+                'Unusual Activity Detected',
+                'We\'ve detected unusual streaming patterns. Your account activity is being reviewed.',
+                [
+                  { text: 'OK', onPress: () => console.log('Anomaly alert acknowledged') }
+                ]
+              );
+            }
+          } else {
+            setAnomalyDetected(false);
+          }
+        } catch (error) {
+          console.log('Error detecting anomalies:', error);
+        }
+      }
+    };
+    detectAnomalies();
+  }, [currentSong, user]);
+  
+  // Notify backend about detected anomalies
+  const notifyBackendAnomalies = async (anomalies: any[]) => {
+    try {
+      // Send anomaly data to backend for further processing
+      await musicService.reportAnomalies({
+        userId: user?.id,
+        trackId: currentSong?.id,
+        anomalies: anomalies.map(a => ({
+          type: a.anomalyType,
+          confidence: a.confidence,
+          timestamp: a.timestamp,
+          metadata: a.metadata
+        }))
+      });
+      console.log('✅ Anomalies reported to backend');
+    } catch (error) {
+      console.error('Failed to report anomalies:', error);
+    }
+  };
+
   // Simulate progress (in a real app, this would come from audio player)
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -164,6 +228,24 @@ const PlayBar: React.FC<PlayBarProps> = ({
     checkLikeStatus();
   }, [currentSong, user]);
 
+  // Reset modal states when playbar is hidden
+  useEffect(() => {
+    if (!isVisible) {
+      setExpanded(false);
+      setShowAddToPlaylistModal(false);
+      setShowAuthModal(false);
+    }
+  }, [isVisible]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setExpanded(false);
+      setShowAddToPlaylistModal(false);
+      setShowAuthModal(false);
+    };
+  }, []);
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -198,6 +280,22 @@ const PlayBar: React.FC<PlayBarProps> = ({
       backgroundColor: themeColors.primary,
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
+    },
+    anomalyIndicator: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      backgroundColor: '#FF3B30',
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#FF3B30',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
     },
     content: {
       flexDirection: 'row',
@@ -408,6 +506,12 @@ const PlayBar: React.FC<PlayBarProps> = ({
           },
         ]}
       >
+        {/* Anomaly Indicator */}
+        {anomalyDetected && (
+          <View style={styles.anomalyIndicator}>
+            <Ionicons name="warning" size={10} color="white" />
+          </View>
+        )}
         {/* Progress Bar */}
         <View style={styles.progressBar}>
           <View 
@@ -421,7 +525,10 @@ const PlayBar: React.FC<PlayBarProps> = ({
         {/* Main Content */}
         <TouchableOpacity 
           style={styles.content}
-          onPress={() => setExpanded(true)}
+          onPress={() => {
+            setExpanded(true);
+            onExpand();
+          }}
           activeOpacity={0.8}
         >
           <View style={styles.songInfo}>
@@ -491,8 +598,18 @@ const PlayBar: React.FC<PlayBarProps> = ({
         animationType="slide"
         transparent={false}
         visible={expanded}
-        onRequestClose={() => setExpanded(false)}
+        onRequestClose={() => {
+          setExpanded(false);
+          setShowAddToPlaylistModal(false);
+          setShowAuthModal(false);
+        }}
         statusBarTranslucent={true}
+        presentationStyle="pageSheet"
+        onDismiss={() => {
+          setExpanded(false);
+          setShowAddToPlaylistModal(false);
+          setShowAuthModal(false);
+        }}
       >
         <SafeAreaView style={styles.modalContainer}>
           <StatusBar barStyle={activeTheme === 'dark' ? 'light-content' : 'dark-content'} />
@@ -501,7 +618,11 @@ const PlayBar: React.FC<PlayBarProps> = ({
           <View style={styles.modalHeader}>
             <TouchableOpacity 
               style={styles.modalHeaderButton}
-              onPress={() => setExpanded(false)}
+              onPress={() => {
+                setExpanded(false);
+                setShowAddToPlaylistModal(false);
+                setShowAuthModal(false);
+              }}
             >
               <Ionicons name="chevron-down" size={28} color={themeColors.text} />
             </TouchableOpacity>

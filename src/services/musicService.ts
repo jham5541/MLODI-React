@@ -1,3 +1,19 @@
+export const reportAnomalies = async ({ userId, trackId, anomalies }: { userId: string | undefined; trackId: string | undefined; anomalies: Array<{ type: string; confidence: number; timestamp: Date; metadata: any }> }) => {
+  try {
+    const { error } = await supabase
+      .from('anomaly_reports')
+      .insert({
+        user_id: userId,
+        track_id: trackId,
+        anomalies
+      });
+    if (error) throw error;
+    console.log('Anomalies reported successfully');
+  } catch (error) {
+    console.error('Error reporting anomalies:', error);
+  }
+};
+
 import { supabase } from '../lib/supabase/client';
 
 export interface Artist {
@@ -161,17 +177,26 @@ class MusicService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
+    const { data: followData, error: followError } = await supabase
       .from('user_follows')
-      .select(`
-        followed_id,
-        artists:followed_id (*)
-      `)
+      .select('followed_id')
       .eq('user_id', user.id)
       .eq('followed_type', 'artist');
 
-    if (error) throw error;
-    return data.map(item => item.artists) as Artist[];
+    if (followError) throw followError;
+    
+    if (!followData || followData.length === 0) {
+      return [];
+    }
+
+    const artistIds = followData.map(f => f.followed_id);
+    const { data: artists, error: artistError } = await supabase
+      .from('artists')
+      .select('*')
+      .in('id', artistIds);
+
+    if (artistError) throw artistError;
+    return artists as Artist[];
   }
 
   // Songs
@@ -187,17 +212,9 @@ class MusicService {
     include_album?: boolean;
     sort?: 'popularity' | 'recent' | 'alphabetical';
   }) {
-    let selectClause = '*';
-    if (options?.include_artist) {
-      selectClause += ', artists(*)';
-    }
-    if (options?.include_album) {
-      selectClause += ', albums(*)';
-    }
-
     let query = supabase
       .from('songs')
-      .select(selectClause)
+      .select('*')
       .eq('is_public', true);
 
     if (options?.artist_id) {
@@ -245,23 +262,87 @@ class MusicService {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data as Song[];
+    
+    // If we need artist or album data, fetch separately
+    let songsWithRelations = data as Song[];
+    
+    if (options?.include_artist && songsWithRelations.length > 0) {
+      const artistIds = [...new Set(songsWithRelations.map(s => s.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          songsWithRelations = songsWithRelations.map(song => ({
+            ...song,
+            artist: artistMap.get(song.artist_id)
+          }));
+        }
+      }
+    }
+    
+    if (options?.include_album && songsWithRelations.length > 0) {
+      const albumIds = [...new Set(songsWithRelations.map(s => s.album_id).filter(Boolean))];
+      if (albumIds.length > 0) {
+        const { data: albums } = await supabase
+          .from('albums')
+          .select('*')
+          .in('id', albumIds);
+        
+        if (albums) {
+          const albumMap = new Map(albums.map(a => [a.id, a]));
+          songsWithRelations = songsWithRelations.map(song => ({
+            ...song,
+            album: song.album_id ? albumMap.get(song.album_id) : undefined
+          }));
+        }
+      }
+    }
+    
+    return songsWithRelations;
   }
 
   async getSong(id: string, includeRelated = true) {
-    let selectClause = '*';
-    if (includeRelated) {
-      selectClause += ', artists(*), albums(*)';
-    }
-
     const { data, error } = await supabase
       .from('songs')
-      .select(selectClause)
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
-    return data as Song;
+    
+    let song = data as Song;
+    
+    if (includeRelated) {
+      // Fetch artist separately
+      if (song.artist_id) {
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('*')
+          .eq('id', song.artist_id)
+          .single();
+        if (artist) {
+          song.artist = artist;
+        }
+      }
+      
+      // Fetch album separately
+      if (song.album_id) {
+        const { data: album } = await supabase
+          .from('albums')
+          .select('*')
+          .eq('id', song.album_id)
+          .single();
+        if (album) {
+          song.album = album;
+        }
+      }
+    }
+    
+    return song;
   }
 
   async getTrendingSongs(limit = 20) {
@@ -270,38 +351,98 @@ class MusicService {
 
     const { data, error } = await supabase
       .from('songs')
-      .select('*, artists(*)')
-      .eq('is_public', true)
+      .select('*')
       .gte('created_at', weekAgo.toISOString())
       .order('play_count', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data as Song[];
+    
+    // Fetch artists separately
+    const songs = data as Song[];
+    if (songs.length > 0) {
+      const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          return songs.map(song => ({
+            ...song,
+            artist: artistMap.get(song.artist_id)
+          }));
+        }
+      }
+    }
+    
+    return songs;
   }
 
   async getPopularSongs(limit = 20) {
     const { data, error } = await supabase
       .from('songs')
-      .select('*, artists(*)')
-      .eq('is_public', true)
+      .select('*')
       .order('play_count', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data as Song[];
+    
+    // Fetch artists separately
+    const songs = data as Song[];
+    if (songs.length > 0) {
+      const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          return songs.map(song => ({
+            ...song,
+            artist: artistMap.get(song.artist_id)
+          }));
+        }
+      }
+    }
+    
+    return songs;
   }
 
   async getRecentSongs(limit = 20) {
     const { data, error } = await supabase
       .from('songs')
-      .select('*, artists(*)')
-      .eq('is_public', true)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data as Song[];
+    
+    // Fetch artists separately
+    const songs = data as Song[];
+    if (songs.length > 0) {
+      const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          return songs.map(song => ({
+            ...song,
+            artist: artistMap.get(song.artist_id)
+          }));
+        }
+      }
+    }
+    
+    return songs;
   }
 
   async likeSong(songId: string) {
@@ -337,18 +478,47 @@ class MusicService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
+    const { data: likeData, error: likeError } = await supabase
       .from('user_likes')
-      .select(`
-        liked_id,
-        songs:liked_id (*, artists(*))
-      `)
+      .select('liked_id')
       .eq('user_id', user.id)
       .eq('liked_type', 'song')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data.map(item => item.songs) as Song[];
+    if (likeError) throw likeError;
+    
+    if (!likeData || likeData.length === 0) {
+      return [];
+    }
+
+    const songIds = likeData.map(l => l.liked_id);
+    const { data: songs, error: songError } = await supabase
+      .from('songs')
+      .select('*')
+      .in('id', songIds);
+
+    if (songError) throw songError;
+    
+    // Fetch artists for the songs
+    if (songs && songs.length > 0) {
+      const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          return songs.map(song => ({
+            ...song,
+            artist: artistMap.get(song.artist_id)
+          }));
+        }
+      }
+    }
+    
+    return songs as Song[];
   }
 
   async isLiked(songId: string) {
@@ -376,14 +546,9 @@ class MusicService {
     search?: string;
     include_artist?: boolean;
   }) {
-    let selectClause = '*';
-    if (options?.include_artist) {
-      selectClause += ', artists(*)';
-    }
-
     let query = supabase
       .from('albums')
-      .select(selectClause)
+      .select('*')
       .eq('is_public', true);
 
     if (options?.artist_id) {
@@ -410,18 +575,55 @@ class MusicService {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data as Album[];
+    
+    let albums = data as Album[];
+    
+    // Fetch artists separately if requested
+    if (options?.include_artist && albums.length > 0) {
+      const artistIds = [...new Set(albums.map(a => a.artist_id).filter(Boolean))];
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('*')
+          .in('id', artistIds);
+        
+        if (artists) {
+          const artistMap = new Map(artists.map(a => [a.id, a]));
+          albums = albums.map(album => ({
+            ...album,
+            artist: artistMap.get(album.artist_id)
+          }));
+        }
+      }
+    }
+    
+    return albums;
   }
 
   async getAlbum(id: string) {
     const { data, error } = await supabase
       .from('albums')
-      .select('*, artists(*)')
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
-    return data as Album;
+    
+    let album = data as Album;
+    
+    // Fetch artist separately
+    if (album.artist_id) {
+      const { data: artist } = await supabase
+        .from('artists')
+        .select('*')
+        .eq('id', album.artist_id)
+        .single();
+      if (artist) {
+        album.artist = artist;
+      }
+    }
+    
+    return album;
   }
 
   // Play tracking
@@ -451,7 +653,7 @@ class MusicService {
 
     const { data, error } = await supabase
       .from('play_history')
-      .select('*, songs(*, artists(*))')
+      .select('*, songs(*)')
       .eq('user_id', user.id)
       .order('played_at', { ascending: false })
       .limit(limit);
@@ -529,7 +731,7 @@ class MusicService {
         let query = supabase
           .from('songs')
           .select('*, artists(*)')
-          .eq('is_public', true);
+          .eq('is_active', true);
 
         if (genres.length > 0) {
           query = query.in('genre', genres);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,17 +8,27 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Image,
+  Dimensions,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSubscriptionStore } from '../store/subscriptionStore';
-import { colors } from '../context/ThemeContext';
+import { useTheme, colors } from '../context/ThemeContext';
+import { subscriptionService, ArtistSubscription } from '../services/subscriptionService';
+
+const { width } = Dimensions.get('window');
 
 interface SubscriptionManagementScreenProps {
   navigation: any;
 }
 
 export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreenProps> = ({ navigation }) => {
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
   const {
     subscription,
     isLoading,
@@ -29,9 +39,25 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
     hasActiveSubscription,
   } = useSubscriptionStore();
 
+  const [artistSubscriptions, setArtistSubscriptions] = useState<ArtistSubscription[]>([]);
+  const [loadingArtists, setLoadingArtists] = useState(true);
+
   useEffect(() => {
     fetchSubscription();
+    loadArtistSubscriptions();
   }, []);
+
+  const loadArtistSubscriptions = async () => {
+    try {
+      setLoadingArtists(true);
+      const subscriptions = await subscriptionService.getActiveSubscriptions();
+      setArtistSubscriptions(subscriptions);
+    } catch (error) {
+      console.error('Error loading artist subscriptions:', error);
+    } finally {
+      setLoadingArtists(false);
+    }
+  };
 
   const handleCancelSubscription = () => {
     Alert.alert(
@@ -72,6 +98,29 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
     );
   };
 
+  const handleCancelArtistSubscription = (artistId: string, artistName: string) => {
+    Alert.alert(
+      'Cancel Artist Subscription',
+      `Are you sure you want to unsubscribe from ${artistName}?`,
+      [
+        { text: 'Keep Subscription', style: 'cancel' },
+        {
+          text: 'Unsubscribe',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await subscriptionService.unsubscribeFromArtist(artistId);
+            if (success) {
+              Alert.alert('Success', `You have unsubscribed from ${artistName}.`);
+              loadArtistSubscriptions();
+            } else {
+              Alert.alert('Error', 'Failed to cancel subscription. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -98,7 +147,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
     if (!subscription) {
       return (
         <View style={styles.noSubscriptionContainer}>
-          <Ionicons name="diamond-outline" size={64} color={colors.textSecondary} />
+          <Ionicons name="diamond-outline" size={64} color={themeColors.textSecondary} />
           <Text style={styles.noSubscriptionTitle}>No Active Subscription</Text>
           <Text style={styles.noSubscriptionText}>
             You don't have an active subscription. Upgrade to access premium features.
@@ -231,11 +280,292 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
     );
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    errorContainer: {
+      backgroundColor: themeColors.error || '#F44336',
+      padding: 12,
+      borderRadius: 8,
+      marginVertical: 16,
+    },
+    errorText: {
+      color: 'white',
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    noSubscriptionContainer: {
+      alignItems: 'center',
+      paddingVertical: 60,
+      paddingHorizontal: 20,
+    },
+    noSubscriptionTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    noSubscriptionText: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 24,
+    },
+    subscriptionContainer: {
+      marginVertical: 20,
+    },
+    subscriptionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 24,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+    },
+    subscriptionIcon: {
+      marginRight: 16,
+    },
+    subscriptionInfo: {
+      flex: 1,
+    },
+    subscriptionTier: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: 'white',
+      marginBottom: 4,
+    },
+    statusContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 8,
+    },
+    subscriptionStatus: {
+      fontSize: 14,
+      color: 'white',
+      fontWeight: '500',
+    },
+    detailsContainer: {
+      backgroundColor: themeColors.surface,
+      padding: 20,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border,
+    },
+    detailLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    detailLabel: {
+      fontSize: 16,
+      color: themeColors.text,
+      marginLeft: 12,
+    },
+    detailValue: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    autoRenewToggle: {
+      backgroundColor: themeColors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 16,
+      minWidth: 50,
+      alignItems: 'center',
+    },
+    autoRenewActive: {
+      backgroundColor: themeColors.primary,
+    },
+    toggleText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
+    },
+    toggleTextActive: {
+      color: 'white',
+    },
+    actionButtonsContainer: {
+      marginVertical: 20,
+      gap: 12,
+    },
+    upgradeButton: {
+      backgroundColor: themeColors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      borderRadius: 12,
+      gap: 8,
+    },
+    upgradeButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    cancelButton: {
+      borderWidth: 1,
+      borderColor: themeColors.error || '#F44336',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      borderRadius: 12,
+      gap: 8,
+    },
+    cancelButtonText: {
+      color: themeColors.error || '#F44336',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    helpContainer: {
+      marginVertical: 20,
+      padding: 20,
+      backgroundColor: themeColors.surface,
+      borderRadius: 16,
+    },
+    helpTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themeColors.text,
+      marginBottom: 8,
+    },
+    helpText: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    helpButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    helpButtonText: {
+      fontSize: 16,
+      color: themeColors.primary,
+      fontWeight: '500',
+    },
+    artistSubscriptionsSection: {
+      marginVertical: 20,
+    },
+    artistSubscriptionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginBottom: 16,
+    },
+    loadingContainer: {
+      paddingVertical: 40,
+      alignItems: 'center',
+    },
+    noArtistSubscriptions: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    noArtistSubscriptionsText: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      marginTop: 12,
+      textAlign: 'center',
+    },
+    artistList: {
+      gap: 12,
+    },
+    artistItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: themeColors.surface,
+      padding: 16,
+      borderRadius: 12,
+    },
+    artistInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    artistAvatar: {
+      marginRight: 12,
+    },
+    artistDetails: {
+      flex: 1,
+    },
+    artistName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: themeColors.text,
+      marginBottom: 4,
+    },
+    artistSubscriptionPrice: {
+      fontSize: 14,
+      color: themeColors.primary,
+      marginBottom: 2,
+    },
+    artistSubscriptionExpiry: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+    },
+    artistUnsubscribeButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: themeColors.error || '#F44336',
+    },
+    artistUnsubscribeText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.error || '#F44336',
+    },
+    artistAutoRenewContainer: {
+      marginTop: 2,
+    },
+    artistAutoRenewText: {
+      fontSize: 12,
+      color: themeColors.success || '#4CAF50',
+      fontWeight: '500',
+    },
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Subscription</Text>
         <View style={{ width: 24 }} />
@@ -250,6 +580,56 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
 
         {renderSubscriptionDetails()}
         {renderActionButtons()}
+
+        {/* Artist Subscriptions Section */}
+        <View style={styles.artistSubscriptionsSection}>
+          <Text style={styles.artistSubscriptionTitle}>Artist Subscriptions</Text>
+          
+          {loadingArtists ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : artistSubscriptions.length === 0 ? (
+            <View style={styles.noArtistSubscriptions}>
+              <Ionicons name="musical-notes-outline" size={48} color={colors.textSecondary} />
+              <Text style={styles.noArtistSubscriptionsText}>
+                You're not subscribed to any artists yet
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.artistList}>
+              {artistSubscriptions.map((artist) => (
+                <View key={artist.artistId} style={styles.artistItem}>
+                  <View style={styles.artistInfo}>
+                    <View style={styles.artistAvatar}>
+                      <Ionicons name="person-circle" size={40} color={colors.primary} />
+                    </View>
+                    <View style={styles.artistDetails}>
+                      <Text style={styles.artistName}>{artist.artistName}</Text>
+                      <Text style={styles.artistSubscriptionPrice}>
+                        ${artist.price}/month
+                      </Text>
+                      <Text style={styles.artistSubscriptionExpiry}>
+                        Expires: {formatDate(artist.expiresAt.toString())}
+                      </Text>
+                      <View style={styles.artistAutoRenewContainer}>
+                        <Text style={styles.artistAutoRenewText}>
+                          Auto-renew: {artist.autoRenew ? 'On' : 'Off'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.artistUnsubscribeButton}
+                    onPress={() => handleCancelArtistSubscription(artist.artistId, artist.artistName)}
+                  >
+                    <Text style={styles.artistUnsubscribeText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
         <View style={styles.helpContainer}>
           <Text style={styles.helpTitle}>Need Help?</Text>
@@ -464,5 +844,77 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.primary,
     fontWeight: '500',
+  },
+  artistSubscriptionsSection: {
+    marginVertical: 20,
+  },
+  artistSubscriptionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  noArtistSubscriptions: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noArtistSubscriptionsText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  artistList: {
+    gap: 12,
+  },
+  artistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 12,
+  },
+  artistInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  artistAvatar: {
+    marginRight: 12,
+  },
+  artistDetails: {
+    flex: 1,
+  },
+  artistName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  artistSubscriptionPrice: {
+    fontSize: 14,
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  artistSubscriptionExpiry: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  artistUnsubscribeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.error || '#F44336',
+  },
+  artistUnsubscribeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.error || '#F44336',
   },
 });

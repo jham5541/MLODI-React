@@ -136,11 +136,17 @@ const TopFansLeaderboard = () => {
           </Text>
           <View style={[
             styles.positionChange,
-            styles[`${positionChange.type}Change`]
+            positionChange.type === 'up' ? styles.upChange :
+            positionChange.type === 'down' ? styles.downChange :
+            positionChange.type === 'new' ? styles.newChange :
+            styles.sameChange
           ]}>
             <Text style={[
               styles.positionChangeText,
-              styles[`${positionChange.type}Text`]
+              positionChange.type === 'up' ? styles.upText :
+              positionChange.type === 'down' ? styles.downText :
+              positionChange.type === 'new' ? styles.newText :
+              styles.sameText
             ]}>
               {positionChange.text}
             </Text>

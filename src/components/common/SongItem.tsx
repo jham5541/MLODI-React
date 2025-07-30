@@ -198,7 +198,9 @@ export default function SongItem({
 
       <PurchaseModal
         visible={purchaseModalVisible}
-        song={song}
+        songId={song.id}
+        songTitle={song.title}
+        artist={song.artist}
         onClose={() => setPurchaseModalVisible(false)}
         onPurchaseComplete={handlePurchaseModalComplete}
       />

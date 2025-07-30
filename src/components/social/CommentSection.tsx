@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,38 +8,22 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-
-interface Comment {
-  id: string;
-  userId: string;
-  username: string;
-  avatarUrl?: string;
-  content: string;
-  timestamp: number;
-  likes: number;
-  isLiked: boolean;
-  replies?: Comment[];
-}
+import commentService, { Comment } from '../../services/commentService';
 
 interface CommentSectionProps {
-  comments?: Comment[];
-  onAddComment?: (content: string, parentId?: string) => void;
-  onLikeComment?: (commentId: string) => void;
-  onDeleteComment?: (commentId: string) => void;
+  artistId: string;
   placeholder?: string;
   maxLength?: number;
-  artistId?: string;
 }
 
 export default function CommentSection({
-  comments,
-  onAddComment,
-  onLikeComment,
-  onDeleteComment,
+  artistId,
   placeholder = "Add a comment...",
   maxLength = 500,
 }: CommentSectionProps) {
@@ -47,47 +31,54 @@ export default function CommentSection({
   const themeColors = colors[activeTheme];
   const { isConnected, user } = useAuthStore();
   
-  // Default comments with sample data
-  const defaultComments: Comment[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      username: 'MusicFan23',
-      content: 'Amazing artist! Love the new tracks 🔥',
-      timestamp: Date.now() - 1000 * 60 * 30, // 30 minutes ago
-      likes: 12,
-      isLiked: false,
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      username: 'VinylCollector',
-      content: 'Been following since the early days. Still killing it!',
-      timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-      likes: 8,
-      isLiked: true,
-      replies: [
-        {
-          id: '2-1',
-          userId: 'user3',
-          username: 'RetroVibes',
-          content: 'Same here! The evolution has been incredible.',
-          timestamp: Date.now() - 1000 * 60 * 45, // 45 minutes ago
-          likes: 3,
-          isLiked: false,
-        },
-      ],
-    },
-  ];
-  
-  const commentsData = comments || defaultComments;
-  
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadComments = async () => {
+      setLoading(true);
+      const fetchedComments = await commentService.fetchComments(artistId, user?.id);
+      setComments(fetchedComments);
+      setLoading(false);
+    };
+    loadComments();
+  }, [artistId, user?.id]);
+
+  const handleAddComment = async (content: string, parentId?: string) => {
+    if (!isConnected || !user) return;
+
+    const newComment = await commentService.addComment(artistId, user.id, content, parentId);
+    if (newComment) {
+      setComments(prev => parentId ?
+        prev.map(comment => comment.id === parentId
+          ? { ...comment, replies: [...(comment.replies || []), newComment] }
+          : comment)
+        : [newComment, ...prev]
+      );
+    }
+  };
+
+  const handleToggleLike = async (commentId: string) => {
+    if (!isConnected || !user) return;
+
+    const success = await commentService.toggleCommentLike(commentId, user.id);
+    if (success) {
+      setComments(prev => {
+        const updateCommentLike = (comments: Comment[]): Comment[] => {
+          return comments.map(comment => comment.id === commentId
+            ? { ...comment, isLiked: !comment.isLiked, likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1 }
+            : { ...comment, replies: comment.replies ? updateCommentLike(comment.replies) : [] });
+        };
+        return updateCommentLike(prev);
+      });
+    }
+  };
   const [replyContent, setReplyContent] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  const handleSubmitComment = () => {
+  const handleSubmitComment = async () => {
     if (!isConnected) {
       Alert.alert('Authentication Required', 'Please connect your wallet to comment');
       return;
@@ -95,11 +86,11 @@ export default function CommentSection({
 
     if (!newComment.trim()) return;
 
-    onAddComment(newComment.trim());
+    await handleAddComment(newComment.trim());
     setNewComment('');
   };
 
-  const handleSubmitReply = (parentId: string) => {
+  const handleSubmitReply = async (parentId: string) => {
     if (!isConnected) {
       Alert.alert('Authentication Required', 'Please connect your wallet to comment');
       return;
@@ -107,9 +98,31 @@ export default function CommentSection({
 
     if (!replyContent.trim()) return;
 
-    onAddComment(replyContent.trim(), parentId);
+    await handleAddComment(replyContent.trim(), parentId);
     setReplyContent('');
     setReplyingTo(null);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    Alert.alert(
+      'Delete Comment',
+      'Are you sure you want to delete this comment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await commentService.deleteComment(commentId, user.id);
+            if (success) {
+              setComments(prev => prev.filter(c => c.id !== commentId));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatTimestamp = (timestamp: number) => {
@@ -145,9 +158,9 @@ export default function CommentSection({
           </View>
         </View>
         
-        {onDeleteComment && user?.address === comment.userId && (
+        {user?.id === comment.userId && (
           <TouchableOpacity
-            onPress={() => onDeleteComment(comment.id)}
+            onPress={() => handleDeleteComment(comment.id)}
             style={styles.deleteButton}
           >
             <Ionicons name="trash-outline" size={16} color={themeColors.error} />
@@ -160,7 +173,7 @@ export default function CommentSection({
       <View style={styles.commentActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => onLikeComment?.(comment.id)}
+          onPress={() => handleToggleLike(comment.id)}
         >
           <Ionicons
             name={comment.isLiked ? 'heart' : 'heart-outline'}
@@ -430,14 +443,19 @@ export default function CommentSection({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          Comments ({commentsData.reduce((total, comment) => 
+          Comments ({comments.reduce((total, comment) => 
             total + 1 + (comment.replies?.length || 0), 0
           )})
         </Text>
       </View>
 
       <ScrollView style={styles.commentsContainer} showsVerticalScrollIndicator={false}>
-        {commentsData.length === 0 ? (
+        {loading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={themeColors.primary} />
+            <Text style={[styles.emptyStateText, { marginTop: 16 }]}>Loading comments...</Text>
+          </View>
+        ) : comments.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbubbles-outline" size={48} color={themeColors.textSecondary} />
             <Text style={styles.emptyStateText}>
@@ -445,7 +463,7 @@ export default function CommentSection({
             </Text>
           </View>
         ) : (
-          commentsData.map(comment => renderComment(comment))
+          comments.map(comment => renderComment(comment))
         )}
       </ScrollView>
 
