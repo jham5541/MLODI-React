@@ -174,29 +174,45 @@ class MusicService {
   }
 
   async getFollowedArtists() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('Not authenticated, returning empty followed artists list.');
+        return [];
+      }
 
-    const { data: followData, error: followError } = await supabase
-      .from('user_follows')
-      .select('followed_id')
-      .eq('user_id', user.id)
-      .eq('followed_type', 'artist');
+      const { data: followData, error: followError } = await supabase
+        .from('user_follows')
+        .select('followed_id')
+        .eq('user_id', user.id)
+        .eq('followed_type', 'artist');
 
-    if (followError) throw followError;
-    
-    if (!followData || followData.length === 0) {
+      if (followError) {
+        console.error('Failed to load followed artists:', followError);
+        // Return empty array on error to prevent app crash
+        return []; 
+      }
+      
+      if (!followData || followData.length === 0) {
+        return [];
+      }
+
+      const artistIds = followData.map(f => f.followed_id);
+      const { data: artists, error: artistError } = await supabase
+        .from('artists')
+        .select('*')
+        .in('id', artistIds);
+
+      if (artistError) {
+        console.error('Failed to load artist details for followed artists:', artistError);
+        return [];
+      }
+
+      return artists as Artist[];
+    } catch (error) {
+      console.error('An unexpected error occurred in getFollowedArtists:', error);
       return [];
     }
-
-    const artistIds = followData.map(f => f.followed_id);
-    const { data: artists, error: artistError } = await supabase
-      .from('artists')
-      .select('*')
-      .in('id', artistIds);
-
-    if (artistError) throw artistError;
-    return artists as Artist[];
   }
 
   // Songs
