@@ -82,17 +82,17 @@ export default function ProductCard({
   const getSubtitle = () => {
     switch (product.type) {
       case 'song':
-        const duration = product.duration_ms ? Math.floor(product.duration_ms / 1000) : 0;
+        const duration = product.duration_ms ? Math.floor(product.duration_ms / 1000) : (product.duration || 0);
         return `${formatDuration(duration)} • ${product.genre || 'Music'}`;
       case 'album':
-        const trackCount = product.albums?.total_tracks || 0;
+        const trackCount = product.albums?.total_tracks || product.trackCount || 0;
         return `${trackCount} tracks • ${product.genre || 'Music'}`;
       case 'video':
-        const videoDuration = product.duration_ms ? Math.floor(product.duration_ms / 1000) : 0;
+        const videoDuration = product.duration_ms ? Math.floor(product.duration_ms / 1000) : (product.duration || 0);
         return `${formatDuration(videoDuration)} • ${product.quality || 'HD'}`;
       case 'merch':
-        const inStock = product.product_variants?.reduce((sum, v) => sum + v.stock_quantity, 0) || product.stock_quantity || 0;
-        return `${inStock} in stock • ${product.product_categories?.name || 'Merchandise'}`;
+        const inStock = product.product_variants?.reduce((sum, v) => sum + v.stock_quantity, 0) || product.variants?.reduce((sum, v) => sum + v.stock, 0) || product.stock_quantity || 0;
+        return `${inStock} in stock • ${product.product_categories?.name || product.category || 'Merchandise'}`;
       default:
         return '';
     }
@@ -243,7 +243,7 @@ export default function ProductCard({
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: product.cover_url }}
+          source={{ uri: product.cover_url || product.coverUrl }}
           style={styles.image}
           defaultSource={{ uri: 'https://via.placeholder.com/300x200?text=♪' }}
         />
@@ -253,7 +253,7 @@ export default function ProductCard({
           <Text style={styles.typeLabelText}>{getProductTypeLabel()}</Text>
         </View>
 
-        {product.is_on_sale && (
+        {(product.is_on_sale || product.onSale) && (
           <View style={styles.saleLabel}>
             <Text style={styles.saleLabelText}>SALE</Text>
           </View>
@@ -279,7 +279,7 @@ export default function ProductCard({
             {product.title}
           </Text>
           <Text style={styles.artist} numberOfLines={1}>
-            {product.artists?.name || 'Unknown Artist'}
+            {product.artists?.name || product.artist || 'Unknown Artist'}
           </Text>
           <Text style={styles.subtitle}>
             {getSubtitle()}
@@ -306,9 +306,9 @@ export default function ProductCard({
               <Text style={styles.price}>
                 ${product.price.toFixed(2)}
               </Text>
-              {product.is_on_sale && product.original_price && (
+              {(product.is_on_sale || product.onSale) && (product.original_price || product.originalPrice) && (
                 <Text style={styles.originalPrice}>
-                  ${product.original_price.toFixed(2)}
+                  ${(product.original_price || product.originalPrice).toFixed(2)}
                 </Text>
               )}
             </View>
