@@ -7,15 +7,17 @@ import {
   ScrollView,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { purchaseService } from '../../services/purchaseService';
 import { useCartStore } from '../../store/cartStore';
+import { tourService, Tour, Show } from '../../services/tourService';
 import TicketPurchaseModal from '../purchase/TicketPurchaseModal';
 import TicketViewModal from '../tickets/TicketViewModal';
 
-interface TourDate {
+interface TourDateDisplay {
   id: string;
   venue: string;
   city: string;
@@ -37,48 +39,74 @@ export default function TourDates({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { loadLibrary } = useCartStore();
-  const [tourDates, setTourDates] = useState<TourDate[]>([]);
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [tourDates, setTourDates] = useState<TourDateDisplay[]>([]);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
-  const [selectedTourDate, setSelectedTourDate] = useState<TourDate | null>(null);
+  const [selectedTourDate, setSelectedTourDate] = useState<TourDateDisplay | null>(null);
   const [ticketViewModalVisible, setTicketViewModalVisible] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockTourDates: TourDate[] = [
+    // Using sample data for development
+    const sampleTourDates: TourDateDisplay[] = [
       {
         id: '1',
         venue: 'Madison Square Garden',
         city: 'New York, NY',
-        date: '2023-10-15',
+        date: '2025-09-15',
         time: '8:00 PM',
         price: 89.99,
         availableTickets: 120,
       },
       {
         id: '2',
-        venue: 'Hollywood Bowl',
+        venue: 'The Forum',
         city: 'Los Angeles, CA',
-        date: '2023-10-20',
+        date: '2025-09-20',
         time: '7:30 PM',
         price: 79.99,
         availableTickets: 200,
       },
       {
         id: '3',
-        venue: 'The Fillmore',
-        city: 'San Francisco, CA',
-        date: '2023-11-05',
-        time: '9:00 PM',
-        price: 69.99,
+        venue: 'United Center',
+        city: 'Chicago, IL',
+        date: '2025-09-25',
+        time: '8:30 PM',
+        price: 74.99,
         availableTickets: 150,
       },
+      {
+        id: '4',
+        venue: 'State Farm Arena',
+        city: 'Atlanta, GA',
+        date: '2025-09-28',
+        time: '7:00 PM',
+        price: 69.99,
+        availableTickets: 180,
+      },
+      {
+        id: '5',
+        venue: 'TD Garden',
+        city: 'Boston, MA',
+        date: '2025-10-02',
+        time: '8:00 PM',
+        price: 84.99,
+        availableTickets: 140,
+      }
     ];
 
-    setTourDates(mockTourDates);
+    setLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setTourDates(sampleTourDates);
+      setLoading(false);
+    }, 1000);
   }, [artistId]);
 
-  const handleBuyTickets = (date: TourDate) => {
+  const handleBuyTickets = (date: TourDateDisplay) => {
     setSelectedTourDate(date);
     setPurchaseModalVisible(true);
   };
@@ -89,7 +117,7 @@ export default function TourDates({
     setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
-  const handleViewTickets = (date: TourDate) => {
+  const handleViewTickets = (date: TourDateDisplay) => {
     setSelectedTourDate(date);
     setTicketViewModalVisible(true);
   };
@@ -238,7 +266,77 @@ export default function TourDates({
       fontWeight: '600',
       textAlign: 'center',
     },
+    emptyTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: themeColors.text,
+      textAlign: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+    },
   });
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Tour Dates</Text>
+        </View>
+        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Tour Dates</Text>
+        </View>
+        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <Text style={{ fontSize: 16, color: themeColors.error, textAlign: 'center', marginBottom: 16 }}>
+            {error}
+          </Text>
+          <TouchableOpacity 
+            style={styles.buyButton}
+            onPress={() => {
+              setLoading(true);
+              setError(null);
+              tourService.getTours(artistId)
+                .then(toursData => {
+                  setTours(toursData);
+                  const tourDates = toursData.flatMap(tour => 
+                    tour.shows.map(show => ({
+                      id: show.id,
+                      venue: show.venue.name,
+                      city: `${show.venue.city}, ${show.venue.state || show.venue.country}`,
+                      date: show.date,
+                      time: show.start_time,
+                      price: show.ticket_price,
+                      availableTickets: show.venue.capacity - show.tickets_sold
+                    }))
+                  );
+                  setTourDates(tourDates);
+                })
+                .catch(err => {
+                  console.error('Error retrying tour load:', err);
+                  setError('Failed to load tour dates');
+                })
+                .finally(() => setLoading(false));
+            }}
+          >
+            <Ionicons name="refresh" size={16} color={themeColors.background} />
+            <Text style={styles.buyButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (tourDates.length === 0) {
     return (
@@ -247,8 +345,20 @@ export default function TourDates({
           <Text style={styles.title}>Tour Dates</Text>
         </View>
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <Text style={{ fontSize: 16, color: themeColors.textSecondary, textAlign: 'center' }}>
-            No tour dates available
+          <Ionicons 
+            name="musical-notes" 
+            size={48} 
+            color={themeColors.primary} 
+            style={{ marginBottom: 16 }} 
+          />
+          <Text style={[styles.emptyTitle, { marginBottom: 8 }]}>
+            Stay Tuned!
+          </Text>
+          <Text style={[styles.emptyText, { marginBottom: 4 }]}>
+            {artistName}'s tour dates are coming soon
+          </Text>
+          <Text style={styles.emptyText}>
+            🎵 The stage is being set 🎸
           </Text>
         </View>
       </View>

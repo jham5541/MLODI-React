@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
-import { purchaseService, PaymentMethod } from '../../services/purchaseService';
+import { ticketPurchaseService } from '../../services/ticketPurchaseService';
+import { useAuth } from '../../context/AuthContext';
 
 interface TicketPurchaseModalProps {
   visible: boolean;
@@ -38,11 +40,45 @@ export default function TicketPurchaseModal({
 }: TicketPurchaseModalProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMethod, setProcessingMethod] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [isApplePayAvailable, setIsApplePayAvailable] = useState(false);
+  const [isWeb3Connected, setIsWeb3Connected] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [showCardForm, setShowCardForm] = useState(false);
 
-  const paymentMethods = purchaseService.getPaymentMethods();
+  // Check Apple Pay availability and Web3 connection on mount
+  useEffect(() => {
+    async function checkPaymentMethods() {
+      const available = await ticketPurchaseService.isApplePayAvailable();
+      setIsApplePayAvailable(available);
+      // Add your Web3 connection check here
+      // setIsWeb3Connected(await checkWeb3Connection());
+    }
+    checkPaymentMethods();
+  }, []);
+
+  const paymentMethods = [
+    ...(isApplePayAvailable ? [{
+      type: 'apple_pay',
+      label: 'Apple Pay',
+      icon: 'logo-apple'
+    }] : []),
+    {
+      type: 'card',
+      label: 'Credit/Debit Card',
+      icon: 'card'
+    },
+    ...(isWeb3Connected ? [{
+      type: 'web3_wallet',
+      label: 'Crypto Wallet',
+      icon: 'wallet'
+    }] : [])
+  ];
 
   const handleQuantityChange = (change: number) => {
     const newQuantity = quantity + change;
@@ -55,21 +91,93 @@ export default function TicketPurchaseModal({
     return (price * quantity).toFixed(2);
   };
 
-  const handlePurchase = async (method: PaymentMethod) => {
+  const handleCardSubmit = async () => {
+    if (!cardNumber || !cardExpiry || !cardCvc) {
+      Alert.alert('Error', 'Please fill in all card details');
+      return;
+    }
+
+    const [expMonth, expYear] = cardExpiry.split('/');
+    if (!expMonth || !expYear) {
+      Alert.alert('Error', 'Invalid expiry date format');
+      return;
+    }
+
+    try {
+      const result = await ticketPurchaseService.purchaseTicketsWithCard({
+        showId: tourDateId,
+        quantity,
+        userId: user.id,
+        unitPrice: price,
+        cardDetails: {
+          number: cardNumber.replace(/\s/g, ''),
+          expMonth: parseInt(expMonth, 10),
+          expYear: parseInt('20' + expYear, 10),
+          cvc: cardCvc
+        }
+      });
+
+      Alert.alert(
+        'Purchase Successful!',
+        `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              onPurchaseComplete(quantity);
+              onClose();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Purchase Failed',
+        'There was an error processing your card. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
+      setProcessingMethod(null);
+    }
+  };
+
+  const handlePurchase = async (method: { type: string; label: string; icon: string }) => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to purchase tickets');
+      return;
+    }
+
     setIsProcessing(true);
     setProcessingMethod(method.type);
 
     try {
-      let success = false;
-      const totalPrice = price * quantity;
-      
-      if (method.type === 'apple_pay') {
-        success = await purchaseService.purchaseTicketWithApplePay(tourDateId, totalPrice, quantity);
-      } else if (method.type === 'web3_wallet') {
-        success = await purchaseService.purchaseTicketWithWeb3Wallet(tourDateId, totalPrice * 0.0004, quantity); // Mock ETH conversion
+      if (method.type === 'card') {
+        setShowCardForm(true);
+        return;
       }
 
-      if (success) {
+      if (method.type === 'web3_wallet') {
+        // Implement Web3 wallet connection and payment
+        // This is a placeholder - you should implement proper Web3 integration
+        const web3Provider = {
+          address: '0x...',
+          chainId: '1',
+          isConnected: true,
+          sendTransaction: async (params) => {
+            // Implement actual Web3 transaction
+            return { hash: 'mock_hash_' + Date.now() };
+          }
+        };
+
+        const result = await ticketPurchaseService.purchaseTicketsWithWeb3({
+          showId: tourDateId,
+          quantity,
+          userId: user.id,
+          unitPrice: price,
+          web3Provider
+        });
+
         Alert.alert(
           'Purchase Successful!',
           `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
@@ -83,13 +191,29 @@ export default function TicketPurchaseModal({
             },
           ]
         );
-      } else {
-        Alert.alert(
-          'Purchase Failed',
-          'There was an error processing your payment. Please try again.',
-          [{ text: 'OK' }]
-        );
+        return;
       }
+
+      const result = await ticketPurchaseService.purchaseTicketsWithApplePay({
+        showId: tourDateId,
+        quantity,
+        userId: user.id,
+        unitPrice: price
+      });
+
+      Alert.alert(
+        'Purchase Successful!',
+        `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              onPurchaseComplete(quantity);
+              onClose();
+            },
+          },
+        ]
+      );
     } catch (error) {
       Alert.alert(
         'Purchase Failed',
@@ -257,6 +381,60 @@ export default function TicketPurchaseModal({
       fontSize: 14,
       color: themeColors.textSecondary,
     },
+    cardForm: {
+      width: '100%',
+      marginTop: 16,
+    },
+    cardFormTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themeColors.text,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    cardInput: {
+      backgroundColor: themeColors.background,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 12,
+      fontSize: 16,
+      color: themeColors.text,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    cardFormRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    cardInputHalf: {
+      width: '48%',
+    },
+    payButton: {
+      backgroundColor: themeColors.primary,
+      borderRadius: 8,
+      padding: 16,
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    payButtonDisabled: {
+      opacity: 0.7,
+    },
+    payButtonText: {
+      color: themeColors.background,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    cardFormCancel: {
+      marginTop: 12,
+      padding: 12,
+      alignItems: 'center',
+    },
+    cardFormCancelText: {
+      color: themeColors.textSecondary,
+      fontSize: 16,
+    },
     processingIndicator: {
       marginLeft: 12,
     },
@@ -335,11 +513,61 @@ export default function TicketPurchaseModal({
 
           <Text style={styles.paymentMethodsTitle}>Choose Payment Method</Text>
 
-          {paymentMethods.map((method) => {
+          {showCardForm ? (
+            <View style={styles.cardForm}>
+              <Text style={styles.cardFormTitle}>Enter Card Details</Text>
+              <TextInput
+                style={styles.cardInput}
+                placeholder="Card Number"
+                value={cardNumber}
+                onChangeText={setCardNumber}
+                keyboardType="numeric"
+                maxLength={19}
+              />
+              <View style={styles.cardFormRow}>
+                <TextInput
+                  style={[styles.cardInput, styles.cardInputHalf]}
+                  placeholder="MM/YY"
+                  value={cardExpiry}
+                  onChangeText={setCardExpiry}
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+                <TextInput
+                  style={[styles.cardInput, styles.cardInputHalf]}
+                  placeholder="CVC"
+                  value={cardCvc}
+                  onChangeText={setCardCvc}
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.payButton, isProcessing && styles.payButtonDisabled]}
+                onPress={handleCardSubmit}
+                disabled={isProcessing}
+              >
+                <Text style={styles.payButtonText}>Pay ${getTotalPrice()}</Text>
+                {isProcessing && (
+                  <ActivityIndicator
+                    size="small"
+                    color={themeColors.background}
+                    style={styles.processingIndicator}
+                  />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cardFormCancel}
+                onPress={() => setShowCardForm(false)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.cardFormCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            paymentMethods.map((method) => {
             const isProcessingThis = processingMethod === method.type;
-            const displayPrice = method.type === 'apple_pay' 
-              ? `$${getTotalPrice()}` 
-              : `${(parseFloat(getTotalPrice()) * 0.0004).toFixed(6)} ETH`;
+            const displayPrice = `$${getTotalPrice()}`;
 
             return (
               <TouchableOpacity
@@ -374,7 +602,8 @@ export default function TicketPurchaseModal({
                 )}
               </TouchableOpacity>
             );
-          })}
+          }))
+          }
         </View>
       </View>
     </Modal>

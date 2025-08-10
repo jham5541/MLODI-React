@@ -1,0 +1,46 @@
+// Add this interface to the top after other interfaces
+interface MerchandiseCount {
+  available: number;
+  total: number;
+}
+
+// Update the Song interface merchandiseInventory property
+interface Song {
+  id: string;
+  title: string;
+  album: string;
+  duration: number;
+  coverUrl: string;
+  playCount: number;
+  price?: number;
+  isPlaying?: boolean;
+  merchandiseInventory?: MerchandiseCount;
+}
+
+// Update the mock data to include merchandiseInventory
+const mockSongs: Song[] = [
+  {
+    id: '1',
+    title: 'Summer Nights',
+    album: 'Golden Hour',
+    duration: 195,
+    coverUrl: 'https://picsum.photos/200/200?random=1',
+    playCount: 2500000,
+    price: 1.99,
+    merchandiseInventory: { available: 100, total: 380 },
+  },
+  // ... rest of the mock songs
+];
+
+// Update the BUY button to show available/total
+<TouchableOpacity
+  style={[styles.actionButton, styles.priceButton]}
+  onPress={() => handlePurchase(item)}
+>
+  <Text style={styles.priceText}>
+    {item.merchandiseInventory 
+      ? `${item.merchandiseInventory.available}/${item.merchandiseInventory.total}`
+      : 'BUY'
+    }
+  </Text>
+</TouchableOpacity>

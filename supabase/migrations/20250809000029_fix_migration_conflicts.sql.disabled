@@ -1,0 +1,139 @@
+-- Drop conflicting tables if they exist
+drop table if exists public.playlists cascade;
+drop table if exists public.user_settings cascade;
+drop table if exists public.profiles cascade;
+
+-- Drop triggers
+drop trigger if exists on_auth_user_created on auth.users;
+drop trigger if exists on_auth_user_deleted on auth.users;
+
+-- Re-run schema creation
+create schema if not exists auth;
+create schema if not exists public;
+
+-- Re-create profiles table with all constraints
+create table public.profiles (
+    id uuid references auth.users on delete cascade primary key,
+    username text unique,
+    display_name text,
+    email text,
+    avatar_url text,
+    onboarding_completed boolean default false,
+    onboarding_step text default 'welcome',
+    created_at timestamptz default now(),
+    updated_at timestamptz default now(),
+    constraint username_length check (char_length(username) >= 3)
+);
+
+-- Re-create user settings table
+create table public.user_settings (
+    user_id uuid references public.profiles(id) on delete cascade primary key,
+    notification_preferences jsonb default '{}'::jsonb,
+    audio_quality text default 'auto',
+    download_quality text default 'normal',
+    crossfade_enabled boolean default false,
+    crossfade_duration int default 0,
+    gapless_playback boolean default true,
+    volume_normalization boolean default true,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Re-create playlists table
+create table public.playlists (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.profiles(id) on delete cascade,
+    name text not null,
+    description text,
+    is_public boolean default false,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Re-enable RLS
+alter table public.profiles enable row level security;
+alter table public.user_settings enable row level security;
+alter table public.playlists enable row level security;
+
+-- Re-create policies
+create policy "Public profiles are viewable by everyone"
+    on public.profiles for select
+    using (true);
+
+create policy "Users can update their own profile"
+    on public.profiles for update
+    using (auth.uid() = id);
+
+create policy "Users can view their own settings"
+    on public.user_settings for select
+    using (auth.uid() = user_id);
+
+create policy "Users can update their own settings"
+    on public.user_settings for update
+    using (auth.uid() = user_id);
+
+create policy "Playlists are viewable by owner and if public"
+    on public.playlists for select
+    using (auth.uid() = user_id or is_public = true);
+
+create policy "Users can insert their own playlists"
+    on public.playlists for insert
+    with check (auth.uid() = user_id);
+
+create policy "Users can update their own playlists"
+    on public.playlists for update
+    using (auth.uid() = user_id);
+
+create policy "Users can delete their own playlists"
+    on public.playlists for delete
+    using (auth.uid() = user_id);
+
+-- Re-create user management functions
+create or replace function public.handle_new_user()
+returns trigger
+security definer set search_path = public
+language plpgsql
+as $$
+begin
+    -- Create profile
+    insert into public.profiles (id, email)
+    values (new.id, new.email);
+    
+    -- Create default settings
+    insert into public.user_settings (user_id)
+    values (new.id);
+    
+    -- Create default playlists
+    insert into public.playlists (user_id, name, is_public)
+    values
+        (new.id, 'Favorites', false),
+        (new.id, 'Recently Played', false);
+    
+    return new;
+end;
+$$;
+
+create or replace function public.handle_user_delete()
+returns trigger
+security definer set search_path = public
+language plpgsql
+as $$
+begin
+    -- Cleanup will happen automatically via ON DELETE CASCADE
+    return old;
+end;
+$$;
+
+-- Re-create triggers
+create trigger on_auth_user_created
+    after insert on auth.users
+    for each row execute function public.handle_new_user();
+
+create trigger on_auth_user_deleted
+    before delete on auth.users
+    for each row execute function public.handle_user_delete();
+
+-- Re-enable realtime
+alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.user_settings;
+alter publication supabase_realtime add table public.playlists;

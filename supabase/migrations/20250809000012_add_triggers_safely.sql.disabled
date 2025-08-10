@@ -1,0 +1,50 @@
+-- Remove all previous trigger management migrations and start fresh
+DO $$ 
+DECLARE
+    _tbl text;
+    _trigger text;
+BEGIN
+    -- Drop all existing updated_at triggers
+    FOR _tbl IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
+    LOOP
+        BEGIN
+            EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON %s', _tbl, _tbl);
+        EXCEPTION WHEN OTHERS THEN
+            -- Ignore errors for non-existent triggers
+            NULL;
+        END;
+    END LOOP;
+
+    -- Drop the update function if it exists
+    DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+
+    -- Create the update function
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    -- Create triggers for all tables that have an updated_at column
+    FOR _tbl IN (
+        SELECT DISTINCT table_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND column_name = 'updated_at'
+    )
+    LOOP
+        BEGIN
+            EXECUTE format(
+                'CREATE TRIGGER update_%s_updated_at 
+                BEFORE UPDATE ON %s 
+                FOR EACH ROW 
+                EXECUTE FUNCTION update_updated_at_column()',
+                _tbl, _tbl
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Could not create trigger for table %: %', _tbl, SQLERRM;
+        END;
+    END LOOP;
+END $$;

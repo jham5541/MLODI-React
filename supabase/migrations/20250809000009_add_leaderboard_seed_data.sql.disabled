@@ -1,0 +1,44 @@
+-- Add sample fan scores for testing
+INSERT INTO fan_scores (user_id, artist_id, total_score, engagementBreakdown, lastUpdated, consecutiveDays, fanSince)
+SELECT 
+    auth.uid(),  -- Replace with actual user ID
+    id as artist_id,
+    floor(random() * 10000 + 100)::integer as total_score,
+    jsonb_build_object(
+        'streaming', floor(random() * 1000)::integer,
+        'purchases', floor(random() * 500)::integer,
+        'social', floor(random() * 300)::integer,
+        'videos', floor(random() * 200)::integer,
+        'events', floor(random() * 100)::integer
+    ) as engagementBreakdown,
+    NOW() - (random() * interval '30 days') as lastUpdated,
+    floor(random() * 30 + 1)::integer as consecutiveDays,
+    NOW() - (random() * interval '365 days') as fanSince
+FROM artists
+WHERE EXISTS (SELECT 1 FROM auth.users LIMIT 1)  -- Only insert if there are users
+ON CONFLICT (user_id, artist_id) DO UPDATE
+SET 
+    total_score = EXCLUDED.total_score,
+    engagementBreakdown = EXCLUDED.engagementBreakdown,
+    lastUpdated = EXCLUDED.lastUpdated,
+    consecutiveDays = EXCLUDED.consecutiveDays;
+
+-- Add sample reactions
+INSERT INTO track_reactions (user_id, track_id, reaction_type)
+SELECT 
+    auth.uid(),  -- Replace with actual user ID
+    id as track_id,
+    (ARRAY['like', 'love', 'laugh', 'wow', 'sad', 'angry'])[floor(random() * 6 + 1)] as reaction_type
+FROM songs
+WHERE EXISTS (SELECT 1 FROM auth.users LIMIT 1)  -- Only insert if there are users
+ON CONFLICT (user_id, track_id, reaction_type) DO NOTHING;
+
+-- Add sample comments
+INSERT INTO track_comments (user_id, track_id, comment)
+SELECT 
+    auth.uid(),  -- Replace with actual user ID
+    id as track_id,
+    'Sample comment ' || floor(random() * 100 + 1)::text as comment
+FROM songs
+WHERE EXISTS (SELECT 1 FROM auth.users LIMIT 1)  -- Only insert if there are users
+LIMIT 50;  -- Add 50 sample comments

@@ -1,0 +1,161 @@
+-- Create enum for purchase status
+CREATE TYPE purchase_status AS ENUM ('pending', 'completed', 'failed');
+
+-- Create enum for ticket status
+CREATE TYPE ticket_status AS ENUM ('valid', 'used', 'cancelled');
+
+-- Create ticket purchases table
+CREATE TABLE ticket_purchases (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    show_id UUID NOT NULL REFERENCES shows(id),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount > 0),
+    status purchase_status NOT NULL DEFAULT 'pending',
+    payment_method TEXT NOT NULL,
+    payment_intent_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create tickets table
+CREATE TABLE tickets (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    purchase_id UUID NOT NULL REFERENCES ticket_purchases(id),
+    show_id UUID NOT NULL REFERENCES shows(id),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    qr_code TEXT NOT NULL UNIQUE,
+    status ticket_status NOT NULL DEFAULT 'valid',
+    seat_info JSONB,
+    used_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create indexes
+CREATE INDEX idx_ticket_purchases_user_id ON ticket_purchases(user_id);
+CREATE INDEX idx_ticket_purchases_show_id ON ticket_purchases(show_id);
+CREATE INDEX idx_tickets_purchase_id ON tickets(purchase_id);
+CREATE INDEX idx_tickets_user_id ON tickets(user_id);
+CREATE INDEX idx_tickets_show_id ON tickets(show_id);
+CREATE INDEX idx_tickets_qr_code ON tickets(qr_code);
+
+-- Create RLS policies
+ALTER TABLE ticket_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+
+-- Policies for ticket_purchases
+CREATE POLICY "Users can view their own purchases"
+    ON ticket_purchases FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own purchases"
+    ON ticket_purchases FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own pending purchases"
+    ON ticket_purchases FOR UPDATE
+    USING (auth.uid() = user_id AND status = 'pending');
+
+-- Policies for tickets
+CREATE POLICY "Users can view their own tickets"
+    ON tickets FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "System can create tickets during purchase"
+    ON tickets FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own valid tickets"
+    ON tickets FOR UPDATE
+    USING (auth.uid() = user_id AND status = 'valid');
+
+-- Create function to check ticket availability
+CREATE OR REPLACE FUNCTION check_ticket_availability(show_id UUID, requested_quantity INTEGER)
+RETURNS BOOLEAN AS $$
+DECLARE
+    venue_capacity INTEGER;
+    sold_tickets INTEGER;
+BEGIN
+    -- Get venue capacity
+    SELECT v.capacity INTO venue_capacity
+    FROM shows s
+    JOIN venues v ON s.venue_id = v.id
+    WHERE s.id = show_id;
+
+    -- Get number of sold tickets
+    SELECT COALESCE(SUM(quantity), 0) INTO sold_tickets
+    FROM ticket_purchases
+    WHERE show_id = show_id AND status = 'completed';
+
+    -- Check if enough tickets are available
+    RETURN (venue_capacity - sold_tickets) >= requested_quantity;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create function to process ticket purchase
+CREATE OR REPLACE FUNCTION process_ticket_purchase(
+    p_show_id UUID,
+    p_quantity INTEGER,
+    p_payment_method TEXT,
+    p_payment_intent_id TEXT DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    v_purchase_id UUID;
+    v_user_id UUID;
+    v_total_amount DECIMAL(10,2);
+    v_ticket_price DECIMAL(10,2);
+BEGIN
+    -- Get current user ID
+    v_user_id := auth.uid();
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    -- Get ticket price from show
+    SELECT ticket_price INTO v_ticket_price
+    FROM shows
+    WHERE id = p_show_id;
+
+    IF v_ticket_price IS NULL THEN
+        RAISE EXCEPTION 'Show not found';
+    END IF;
+
+    -- Calculate total amount
+    v_total_amount := v_ticket_price * p_quantity;
+
+    -- Check ticket availability
+    IF NOT check_ticket_availability(p_show_id, p_quantity) THEN
+        RAISE EXCEPTION 'Not enough tickets available';
+    END IF;
+
+    -- Create purchase record
+    INSERT INTO ticket_purchases (
+        user_id,
+        show_id,
+        quantity,
+        total_amount,
+        status,
+        payment_method,
+        payment_intent_id
+    )
+    VALUES (
+        v_user_id,
+        p_show_id,
+        p_quantity,
+        v_total_amount,
+        'completed',
+        p_payment_method,
+        p_payment_intent_id
+    )
+    RETURNING id INTO v_purchase_id;
+
+    -- Return purchase details
+    RETURN json_build_object(
+        'purchase_id', v_purchase_id,
+        'total_amount', v_total_amount,
+        'quantity', p_quantity
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

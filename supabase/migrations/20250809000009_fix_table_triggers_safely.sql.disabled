@@ -1,0 +1,80 @@
+DO $$ 
+BEGIN
+    -- Drop existing triggers if they exist
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_songs_updated_at') THEN
+        DROP TRIGGER update_songs_updated_at ON songs;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_likes_updated_at') THEN
+        DROP TRIGGER update_user_likes_updated_at ON user_likes;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_play_history_updated_at') THEN
+        DROP TRIGGER update_play_history_updated_at ON play_history;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_engagements_updated_at') THEN
+        DROP TRIGGER update_engagements_updated_at ON engagements;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_products_updated_at') THEN
+        DROP TRIGGER update_products_updated_at ON products;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_carts_updated_at') THEN
+        DROP TRIGGER update_carts_updated_at ON carts;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_cart_items_updated_at') THEN
+        DROP TRIGGER update_cart_items_updated_at ON cart_items;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_orders_updated_at') THEN
+        DROP TRIGGER update_orders_updated_at ON orders;
+    END IF;
+
+    -- Create triggers
+    EXECUTE 'CREATE TRIGGER update_songs_updated_at
+        BEFORE UPDATE ON songs
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_user_likes_updated_at
+        BEFORE UPDATE ON user_likes
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_play_history_updated_at
+        BEFORE UPDATE ON play_history
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_engagements_updated_at
+        BEFORE UPDATE ON engagements
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_products_updated_at
+        BEFORE UPDATE ON products
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_carts_updated_at
+        BEFORE UPDATE ON carts
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_cart_items_updated_at
+        BEFORE UPDATE ON cart_items
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+    EXECUTE 'CREATE TRIGGER update_orders_updated_at
+        BEFORE UPDATE ON orders
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column()';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error creating triggers: %', SQLERRM;
+END $$;

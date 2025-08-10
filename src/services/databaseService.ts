@@ -12,6 +12,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database service class for fan scoring operations
 class DatabaseService {
+  private supabaseClient = supabase;
+  
+  get supabase() {
+    return this.supabaseClient;
+  }
+
   
   /**
    * Save engagement to Supabase
@@ -44,7 +50,7 @@ class DatabaseService {
       .upsert({
         user_id: fanScore.userId,
         artist_id: fanScore.artistId,
-        total_score: fanScore.totalScore,
+        points: fanScore.totalScore,
         streaming_points: fanScore.engagementBreakdown.streaming,
         purchase_points: fanScore.engagementBreakdown.purchases,
         social_points: fanScore.engagementBreakdown.social,
@@ -150,7 +156,7 @@ class DatabaseService {
     return (data || []).map(row => ({
       userId: row.user_id,
       artistId: row.artist_id,
-      totalScore: row.total_score,
+      totalScore: row.points,
       engagementBreakdown: {
         streaming: row.streaming_points,
         purchases: row.purchase_points,
@@ -172,10 +178,10 @@ class DatabaseService {
       .from('fan_scores')
       .select(`
         *,
-        users(username, profile_picture)
+        users(username, avatar_url)
       `)
       .eq('artist_id', artistId)
-      .order('total_score', { ascending: false })
+      .order('points', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -187,8 +193,8 @@ class DatabaseService {
       userId: row.user_id,
       artistId: row.artist_id,
       username: row.users?.username || `User${row.user_id.slice(0, 8)}`,
-      profilePicture: row.users?.profile_picture,
-      fanScore: row.total_score,
+      profilePicture: row.users?.avatar_url,
+      fanScore: row.points,
       rank: offset + index + 1,
       badges: [], // Will be calculated separately
       percentile: 0, // Will be calculated separately
@@ -208,7 +214,7 @@ class DatabaseService {
       .from('fan_scores')
       .select('*', { count: 'exact', head: true })
       .eq('artist_id', artistId)
-      .gt('total_score', userScore.totalScore);
+      .gt('points', userScore.totalScore);
 
     if (rankError) {
       console.error('Error calculating rank:', rankError);
@@ -333,6 +339,26 @@ class DatabaseService {
       monthlyListeners: data?.monthly_listeners,
       verified: data?.verified
     };
+  }
+
+  /**
+   * Subscribe to leaderboard updates for a specific artist
+   */
+  subscribeToArtistLeaderboard(artistId: string, callback: () => void) {
+    const subscription = supabase
+      .channel(`public:fan_scores:artist_id=eq.${artistId}`)
+      .on('postgres_changes', 
+        { 
+          event: '*',
+          schema: 'public',
+          table: 'fan_scores',
+          filter: `artist_id=eq.${artistId}`
+        }, 
+        () => callback()
+      )
+      .subscribe();
+
+    return subscription;
   }
 }
 

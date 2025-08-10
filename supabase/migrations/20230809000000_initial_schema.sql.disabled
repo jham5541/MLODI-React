@@ -1,0 +1,170 @@
+-- First, clean up any existing objects
+drop publication if exists supabase_realtime;
+drop table if exists public.playlists cascade;
+drop table if exists public.user_settings cascade;
+drop table if exists public.profiles cascade;
+drop function if exists public.handle_new_user cascade;
+
+-- Create publication for realtime
+create publication supabase_realtime;
+
+-- Ensure public schema exists and has proper grants
+create schema if not exists public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all tables in schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all functions in schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all sequences in schema public to postgres, anon, authenticated, service_role;
+
+-- Create profiles table
+create table public.profiles (
+    id uuid references auth.users on delete cascade primary key,
+    username text unique,
+    display_name text,
+    email text,
+    avatar_url text,
+    onboarding_completed boolean default false,
+    onboarding_step text default 'welcome',
+    created_at timestamptz default now(),
+    updated_at timestamptz default now(),
+    constraint username_length check (char_length(username) >= 3)
+);
+
+-- Create user settings table
+create table public.user_settings (
+    user_id uuid references public.profiles(id) on delete cascade primary key,
+    notification_preferences jsonb default '{}'::jsonb,
+    audio_quality text default 'auto',
+    download_quality text default 'normal',
+    crossfade_enabled boolean default false,
+    crossfade_duration int default 0,
+    gapless_playback boolean default true,
+    volume_normalization boolean default true,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Create playlists table
+create table public.playlists (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.profiles(id) on delete cascade,
+    name text not null,
+    description text,
+    is_public boolean default false,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+
+-- Grant rights on tables
+grant all on public.profiles to authenticated;
+grant all on public.user_settings to authenticated;
+grant all on public.playlists to authenticated;
+
+-- Enable Row Level Security
+alter table public.profiles enable row level security;
+alter table public.user_settings enable row level security;
+alter table public.playlists enable row level security;
+
+-- Profiles policies
+create policy "Users can view any profile"
+    on public.profiles for select
+    to authenticated, anon
+    using (true);
+
+create policy "Users can update own profile"
+    on public.profiles for update
+    to authenticated
+    using (auth.uid() = id);
+
+create policy "Users can delete own profile"
+    on public.profiles for delete
+    to authenticated
+    using (auth.uid() = id);
+
+create policy "Users can insert own profile"
+    on public.profiles for insert
+    to authenticated
+    with check (auth.uid() = id);
+
+-- Settings policies
+create policy "Users can view own settings"
+    on public.user_settings for select
+    to authenticated
+    using (auth.uid() = user_id);
+
+create policy "Users can update own settings"
+    on public.user_settings for update
+    to authenticated
+    using (auth.uid() = user_id);
+
+create policy "Users can insert own settings"
+    on public.user_settings for insert
+    to authenticated
+    with check (auth.uid() = user_id);
+
+-- Playlists policies
+create policy "Users can view public playlists"
+    on public.playlists for select
+    to authenticated, anon
+    using (is_public or auth.uid() = user_id);
+
+create policy "Users can insert own playlists"
+    on public.playlists for insert
+    to authenticated
+    with check (auth.uid() = user_id);
+
+create policy "Users can update own playlists"
+    on public.playlists for update
+    to authenticated
+    using (auth.uid() = user_id);
+
+create policy "Users can delete own playlists"
+    on public.playlists for delete
+    to authenticated
+    using (auth.uid() = user_id);
+
+-- Function to handle new user creation
+create or replace function public.handle_new_user()
+returns trigger
+security definer set search_path = public
+language plpgsql as $$
+begin
+    -- Create initial profile
+    insert into public.profiles (id, email)
+    values (new.id, new.email);
+
+    -- Create default settings
+    insert into public.user_settings (user_id)
+    values (new.id);
+
+    -- Create default playlists
+    insert into public.playlists (user_id, name, is_public)
+    values
+        (new.id, 'Favorites', false),
+        (new.id, 'Recently Played', false);
+
+    return new;
+end;
+$$;
+
+-- Revoke execute from public
+revoke execute on function public.handle_new_user() from public;
+
+-- Grant execute to postgres and service_role only
+grant execute on function public.handle_new_user() to postgres, service_role;
+
+-- Create trigger for new user creation
+create trigger on_auth_user_created
+    after insert on auth.users
+    for each row execute function public.handle_new_user();
+
+-- Enable realtime for required tables
+alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.user_settings;
+alter publication supabase_realtime add table public.playlists;
+
+-- Additional grants that might be needed
+grant usage on schema auth to anon, authenticated;
+grant select on auth.users to anon, authenticated;
+grant execute on function auth.role() to anon, authenticated;
+grant execute on function auth.uid() to anon, authenticated;
+grant select on auth.users to postgres, service_role;

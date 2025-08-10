@@ -1,0 +1,140 @@
+-- Drop existing triggers first
+DROP TRIGGER IF EXISTS update_songs_updated_at ON songs;
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+DROP TRIGGER IF EXISTS update_carts_updated_at ON carts;
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+DROP TRIGGER IF EXISTS update_merchandise_updated_at ON merchandise;
+
+-- Create the missing function for fan scoring
+CREATE OR REPLACE FUNCTION getFanLeaderboard(artist_id UUID, period text DEFAULT 'all_time'::text)
+RETURNS TABLE (
+    user_id UUID,
+    total_score INTEGER,
+    rank INTEGER,
+    level TEXT,
+    avatar TEXT,
+    username TEXT,
+    total_fans BIGINT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH ranked_fans AS (
+        SELECT 
+            fs.user_id,
+            fs.total_score,
+            up.avatar_url as avatar,
+            up.username,
+            ROW_NUMBER() OVER (ORDER BY fs.total_score DESC) as rank,
+            CASE
+                WHEN fs.total_score >= 10000 THEN 'Diamond'
+                WHEN fs.total_score >= 5000 THEN 'Platinum'
+                WHEN fs.total_score >= 2500 THEN 'Gold'
+                WHEN fs.total_score >= 1000 THEN 'Silver'
+                WHEN fs.total_score >= 500 THEN 'Bronze'
+                ELSE 'New Fan'
+            END as level,
+            COUNT(*) OVER () as total_fans
+        FROM fan_scores fs
+        LEFT JOIN user_profiles up ON fs.user_id = up.id
+        WHERE fs.artist_id = $1
+        AND CASE 
+            WHEN period = 'weekly' THEN fs.updated_at >= NOW() - INTERVAL '7 days'
+            WHEN period = 'monthly' THEN fs.updated_at >= NOW() - INTERVAL '30 days'
+            ELSE TRUE
+        END
+    )
+    SELECT * FROM ranked_fans
+    ORDER BY rank ASC;
+END;
+$$;
+
+-- Create function to get trending songs
+CREATE OR REPLACE FUNCTION get_trending_songs(
+    limit_val INTEGER DEFAULT 50,
+    time_window INTERVAL DEFAULT INTERVAL '7 days'
+)
+RETURNS TABLE (
+    song_id UUID,
+    title TEXT,
+    artist_id UUID,
+    artist_name TEXT,
+    play_count BIGINT,
+    like_count BIGINT,
+    share_count BIGINT,
+    trending_score NUMERIC
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH song_stats AS (
+        SELECT 
+            s.id as song_id,
+            s.title,
+            s.artist_id,
+            a.name as artist_name,
+            COUNT(DISTINCT ph.id) as play_count,
+            COUNT(DISTINCT ul.id) FILTER (WHERE ul.liked_type = 'song') as like_count,
+            s.share_count,
+            (COUNT(DISTINCT ph.id) * 1.0 + 
+             COUNT(DISTINCT ul.id) * 2.0 + 
+             s.share_count * 3.0) as base_score,
+            EXTRACT(EPOCH FROM (NOW() - s.created_at))/3600 as hours_since_release
+        FROM songs s
+        JOIN artists a ON s.artist_id = a.id
+        LEFT JOIN play_history ph ON s.id = ph.song_id 
+            AND ph.played_at >= NOW() - time_window
+        LEFT JOIN user_likes ul ON s.id = ul.liked_id 
+            AND ul.liked_type = 'song'
+            AND ul.created_at >= NOW() - time_window
+        WHERE s.created_at >= NOW() - time_window
+        GROUP BY s.id, s.title, s.artist_id, a.name, s.share_count, s.created_at
+    )
+    SELECT 
+        song_id,
+        title,
+        artist_id,
+        artist_name,
+        play_count,
+        like_count,
+        share_count,
+        CASE 
+            WHEN hours_since_release > 0 THEN
+                base_score / POW((hours_since_release + 2), 1.8)
+            ELSE base_score
+        END as trending_score
+    FROM song_stats
+    ORDER BY trending_score DESC
+    LIMIT limit_val;
+END;
+$$;
+
+-- Update triggers
+CREATE TRIGGER update_songs_updated_at
+    BEFORE UPDATE ON songs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_products_updated_at
+    BEFORE UPDATE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_carts_updated_at
+    BEFORE UPDATE ON carts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_orders_updated_at
+    BEFORE UPDATE ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_merchandise_updated_at
+    BEFORE UPDATE ON merchandise
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

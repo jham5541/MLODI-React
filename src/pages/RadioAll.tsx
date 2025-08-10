@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
 import { usePlay } from '../context/PlayContext';
+import { useRadio } from '../context/RadioContext';
 
 interface RadioStation {
   id: string;
@@ -20,7 +21,17 @@ export default function RadioAllScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { playSong } = usePlay();
+  const { getListenerCount, stationListeners, addListener } = useRadio();
   const navigation = useNavigation();
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  console.log('RadioAll: Component rendered with stationListeners:', stationListeners);
+
+  // Force re-render when stationListeners changes
+  useEffect(() => {
+    console.log('RadioAll: stationListeners changed, forcing update');
+    setForceUpdate(prev => prev + 1);
+  }, [stationListeners]);
 
   // Create a mock song for radio station playback
   const createRadioSong = (station: RadioStation) => ({
@@ -334,89 +345,112 @@ export default function RadioAllScreen() {
     },
   });
 
-  const renderFeaturedStation = ({ item }: { item: RadioStation }) => (
-    <TouchableOpacity style={styles.featuredCard}>
-      <Image
-        source={{ uri: item.coverUrl }}
-        style={styles.featuredImage}
-        defaultSource={{ uri: 'https://via.placeholder.com/280x160?text=📻' }}
-      />
-      <View style={styles.featuredContent}>
-        <View style={styles.featuredHeader}>
-          {item.isLive && (
-            <View style={styles.liveIndicator}>
-              <Text style={styles.liveText}>LIVE</Text>
+  const renderFeaturedStation = ({ item }: { item: RadioStation }) => {
+    const listenerCount = stationListeners[item.id] || 0;
+    console.log('RadioAll: Rendering featured station', item.id, 'with listener count:', listenerCount);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.featuredCard}
+        onPress={() => handlePlayStation(item)}
+      >
+        <Image
+          source={{ uri: item.coverUrl }}
+          style={styles.featuredImage}
+          defaultSource={{ uri: 'https://via.placeholder.com/280x160?text=📻' }}
+        />
+        <View style={styles.featuredContent}>
+          <View style={styles.featuredHeader}>
+            {item.isLive && (
+              <View style={styles.liveIndicator}>
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            )}
+            <Text style={styles.featuredName} numberOfLines={1}>
+              {item.name}
+            </Text>
+          </View>
+          
+          <Text style={styles.featuredGenre}>{item.genre}</Text>
+          <Text style={styles.featuredDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+          
+          <View style={styles.featuredFooter}>
+            <View style={styles.listeners}>
+              <Ionicons name="people" size={14} color={themeColors.textSecondary} />
+              <Text style={styles.listenersText}>
+                {listenerCount}
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.playButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handlePlayStation(item);
+              }}
+            >
+              <Ionicons name="play" size={16} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderGridStation = (station: RadioStation) => {
+    const listenerCount = stationListeners[station.id] || 0;
+    console.log('RadioAll: Rendering grid station', station.id, 'with listener count:', listenerCount);
+    
+    return (
+      <TouchableOpacity 
+        key={station.id} 
+        style={styles.gridItem}
+        onPress={() => handlePlayStation(station)}
+      >
+        <Image
+          source={{ uri: station.coverUrl }}
+          style={styles.gridImage}
+          defaultSource={{ uri: 'https://via.placeholder.com/80x80?text=📻' }}
+        />
+        
+        <View style={styles.gridHeader}>
+          {station.isLive && (
+            <View style={styles.gridLiveIndicator}>
+              <Text style={styles.gridLiveText}>LIVE</Text>
             </View>
           )}
-          <Text style={styles.featuredName} numberOfLines={1}>
-            {item.name}
+          <Text style={styles.gridName} numberOfLines={1}>
+            {station.name}
           </Text>
         </View>
         
-        <Text style={styles.featuredGenre}>{item.genre}</Text>
-        <Text style={styles.featuredDescription} numberOfLines={2}>
-          {item.description}
+        <Text style={styles.gridGenre} numberOfLines={1}>
+          {station.genre}
         </Text>
         
-        <View style={styles.featuredFooter}>
-          <View style={styles.listeners}>
-            <Ionicons name="people" size={14} color={themeColors.textSecondary} />
-            <Text style={styles.listenersText}>
-              {item.listeners ? `${item.listeners}` : '0'}
+        <View style={styles.gridFooter}>
+          <View style={styles.gridListeners}>
+            <Ionicons name="people" size={10} color={themeColors.textSecondary} />
+            <Text style={styles.gridListenersText}>
+              {listenerCount}
             </Text>
           </View>
           
           <TouchableOpacity 
-            style={styles.playButton}
-            onPress={() => handlePlayStation(item)}
+            style={styles.gridPlayButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handlePlayStation(station);
+            }}
           >
-            <Ionicons name="play" size={16} color="white" />
+            <Ionicons name="play" size={10} color="white" />
           </TouchableOpacity>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderGridStation = (station: RadioStation) => (
-    <TouchableOpacity key={station.id} style={styles.gridItem}>
-      <Image
-        source={{ uri: station.coverUrl }}
-        style={styles.gridImage}
-        defaultSource={{ uri: 'https://via.placeholder.com/80x80?text=📻' }}
-      />
-      
-      <View style={styles.gridHeader}>
-        {station.isLive && (
-          <View style={styles.gridLiveIndicator}>
-            <Text style={styles.gridLiveText}>LIVE</Text>
-          </View>
-        )}
-        <Text style={styles.gridName} numberOfLines={1}>
-          {station.name}
-        </Text>
-      </View>
-      
-      <Text style={styles.gridGenre} numberOfLines={1}>
-        {station.genre}
-      </Text>
-      
-      <View style={styles.gridFooter}>
-        <View style={styles.gridListeners}>
-          <Ionicons name="people" size={10} color={themeColors.textSecondary} />
-          <Text style={styles.gridListenersText}>
-            {station.listeners || 0}
-          </Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.gridPlayButton}
-          onPress={() => handlePlayStation(station)}
-        >
-          <Ionicons name="play" size={10} color="white" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -439,6 +473,7 @@ export default function RadioAllScreen() {
             data={featuredStations}
             renderItem={renderFeaturedStation}
             keyExtractor={(item) => `featured-${item.id}`}
+            extraData={stationListeners}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.carouselContainer}

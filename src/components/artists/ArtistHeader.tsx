@@ -205,13 +205,14 @@ export default function ArtistHeader({
       width: 110,
       height: 110,
       borderRadius: 55,
-      borderWidth: 5,
-      borderColor: themeColors.background,
+      borderWidth: 4,
+      borderColor: '#FFFFFF',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.25,
-      shadowRadius: 15,
-      elevation: 12,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+      elevation: 15,
+      backgroundColor: '#FFFFFF', // Ensures proper contrast
     },
     contentContainer: {
       alignItems: 'center',
@@ -339,21 +340,16 @@ export default function ArtistHeader({
                 isMuted
                 useNativeControls={false}
               />
-              <View style={styles.gradientOverlay} />
             </>
           ) : (
-            <ImageBackground source={{ uri: bannerUrl }} style={styles.bannerImage}>
-              <View style={styles.gradientOverlay} />
-            </ImageBackground>
+            <ImageBackground source={{ uri: bannerUrl }} style={styles.bannerImage} />
           )
         ) : (
           // Demo banner image
           <ImageBackground 
             source={{ uri: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80' }} 
             style={styles.bannerImage}
-          >
-            <View style={styles.gradientOverlay} />
-          </ImageBackground>
+          />
         )}
         
         <View style={styles.headerControls}>
@@ -371,8 +367,15 @@ export default function ArtistHeader({
         <View style={styles.profileCard}>
           <View style={styles.profileImageContainer}>
             <Image 
-              source={{ uri: coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' }} 
-              style={styles.profileImage} 
+              source={{ 
+                uri: coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80',
+                cache: 'force-cache'
+              }} 
+              style={styles.profileImage}
+              resizeMode="cover"
+              onError={(error) => {
+                console.log('Artist image failed to load:', error);
+              }}
             />
           </View>
 

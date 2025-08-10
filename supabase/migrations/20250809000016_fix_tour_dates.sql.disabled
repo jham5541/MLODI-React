@@ -1,0 +1,237 @@
+-- Create the tour_dates table
+CREATE TABLE IF NOT EXISTS public.tour_dates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  artist_id UUID REFERENCES auth.users(id) NOT NULL,
+  venue TEXT NOT NULL,
+  city TEXT NOT NULL,
+  date DATE NOT NULL,
+  event_time TIME NOT NULL,
+  price NUMERIC(10,2) NOT NULL,
+  total_tickets INTEGER NOT NULL,
+  available_tickets INTEGER NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create the ticket_purchases table
+CREATE TABLE IF NOT EXISTS public.ticket_purchases (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  tour_date_id UUID REFERENCES public.tour_dates(id) NOT NULL,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  price_per_ticket NUMERIC(10,2) NOT NULL,
+  total_price NUMERIC(10,2) NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'cancelled')),
+  confirmation_code TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create the tickets table for individual tickets
+CREATE TABLE IF NOT EXISTS public.tickets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  purchase_id UUID REFERENCES public.ticket_purchases(id) NOT NULL,
+  tour_date_id UUID REFERENCES public.tour_dates(id) NOT NULL,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  qr_code TEXT UNIQUE NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('valid', 'used', 'cancelled')),
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create RLS policies
+ALTER TABLE public.tour_dates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+
+-- Policies for tour_dates
+CREATE POLICY "Tour dates are viewable by everyone"
+  ON public.tour_dates FOR SELECT
+  USING (true);
+
+CREATE POLICY "Artists can create their own tour dates"
+  ON public.tour_dates FOR INSERT
+  WITH CHECK (artist_id = auth.uid());
+
+CREATE POLICY "Artists can update their own tour dates"
+  ON public.tour_dates FOR UPDATE
+  USING (artist_id = auth.uid());
+
+-- Policies for ticket_purchases
+CREATE POLICY "Users can view their own ticket purchases"
+  ON public.ticket_purchases FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can create ticket purchases"
+  ON public.ticket_purchases FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own ticket purchases"
+  ON public.ticket_purchases FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- Policies for tickets
+CREATE POLICY "Users can view their own tickets"
+  ON public.tickets FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "System can create tickets for users"
+  ON public.tickets FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Functions
+CREATE OR REPLACE FUNCTION get_artist_tour_dates(artist_id_param UUID)
+RETURNS TABLE (
+  id UUID,
+  venue TEXT,
+  city TEXT,
+  date DATE,
+  event_time TIME,
+  price NUMERIC,
+  available_tickets INTEGER,
+  total_tickets INTEGER,
+  description TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    td.id,
+    td.venue,
+    td.city,
+    td.date,
+    td.event_time,
+    td.price,
+    td.available_tickets,
+    td.total_tickets,
+    td.description
+  FROM tour_dates td
+  WHERE td.artist_id = artist_id_param
+  AND td.date >= CURRENT_DATE
+  ORDER BY td.date ASC, td.event_time ASC;
+END;
+$$;
+
+-- Trigger to update available_tickets
+CREATE OR REPLACE FUNCTION update_available_tickets()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE tour_dates
+    SET available_tickets = available_tickets - NEW.quantity
+    WHERE id = NEW.tour_date_id;
+  ELSIF (TG_OP = 'UPDATE' AND OLD.status != 'cancelled' AND NEW.status = 'cancelled') THEN
+    UPDATE tour_dates
+    SET available_tickets = available_tickets + OLD.quantity
+    WHERE id = NEW.tour_date_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ticket_purchase_trigger
+AFTER INSERT OR UPDATE ON ticket_purchases
+FOR EACH ROW
+EXECUTE FUNCTION update_available_tickets();
+
+-- Function to purchase tickets
+CREATE OR REPLACE FUNCTION purchase_tickets(
+  p_tour_date_id UUID,
+  p_quantity INTEGER
+)
+RETURNS TABLE (
+  purchase_id UUID,
+  confirmation_code TEXT,
+  tickets JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_price NUMERIC;
+  v_purchase_id UUID;
+  v_confirmation_code TEXT;
+  v_available_tickets INTEGER;
+  v_tickets JSONB := '[]'::jsonb;
+BEGIN
+  -- Get current user ID
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Check tour date exists and has enough tickets
+  SELECT price, available_tickets
+  INTO v_price, v_available_tickets
+  FROM tour_dates
+  WHERE id = p_tour_date_id;
+
+  IF v_price IS NULL THEN
+    RAISE EXCEPTION 'Tour date not found';
+  END IF;
+
+  IF v_available_tickets < p_quantity THEN
+    RAISE EXCEPTION 'Not enough tickets available';
+  END IF;
+
+  -- Generate confirmation code
+  v_confirmation_code := upper(substring(md5(random()::text) FROM 1 FOR 8));
+
+  -- Create purchase record
+  INSERT INTO ticket_purchases (
+    tour_date_id,
+    user_id,
+    quantity,
+    price_per_ticket,
+    total_price,
+    status,
+    confirmation_code
+  )
+  VALUES (
+    p_tour_date_id,
+    v_user_id,
+    p_quantity,
+    v_price,
+    v_price * p_quantity,
+    'completed',
+    v_confirmation_code
+  )
+  RETURNING id INTO v_purchase_id;
+
+  -- Create individual tickets
+  FOR i IN 1..p_quantity LOOP
+    INSERT INTO tickets (
+      purchase_id,
+      tour_date_id,
+      user_id,
+      qr_code,
+      status
+    )
+    VALUES (
+      v_purchase_id,
+      p_tour_date_id,
+      v_user_id,
+      upper(substring(md5(random()::text) FROM 1 FOR 16)),
+      'valid'
+    );
+    
+    SELECT jsonb_agg(t.*)
+    INTO v_tickets
+    FROM tickets t
+    WHERE t.purchase_id = v_purchase_id;
+  END LOOP;
+
+  RETURN QUERY
+  SELECT 
+    v_purchase_id,
+    v_confirmation_code,
+    v_tickets;
+END;
+$$;

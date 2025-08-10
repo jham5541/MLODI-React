@@ -1,0 +1,43 @@
+-- Drop any existing incorrect indexes
+DROP INDEX IF EXISTS idx_engagements_user_artist;
+
+-- Fix tables if they exist but have wrong structure
+DO $$
+BEGIN
+    -- Rename the old engagements table if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'engagements') THEN
+        ALTER TABLE IF EXISTS engagements RENAME TO engagements_old;
+    END IF;
+END
+$$;
+
+-- Create the fan_engagements table with correct schema
+CREATE TABLE IF NOT EXISTS fan_engagements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    metadata JSONB DEFAULT '{}'::jsonb NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+-- Recreate indexes with correct names and columns
+DROP INDEX IF EXISTS idx_fan_engagements_user_artist;
+CREATE INDEX IF NOT EXISTS idx_fan_engagements_user_artist ON fan_engagements(user_id, artist_id);
+
+-- Enable RLS on fan_engagements
+ALTER TABLE fan_engagements ENABLE ROW LEVEL SECURITY;
+
+-- Grant permissions on fan_engagements
+GRANT ALL ON TABLE fan_engagements TO anon, authenticated, service_role;
+
+-- Create policies on fan_engagements
+CREATE POLICY "Users can view their own engagements" ON fan_engagements
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own engagements" ON fan_engagements
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all engagements" ON fan_engagements
+    FOR ALL USING (auth.role() = 'service_role');

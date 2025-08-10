@@ -1,0 +1,74 @@
+-- Create or replace the function for getting featured playlists
+create or replace function get_featured_playlists(
+  p_limit int default 10,
+  p_offset int default 0,
+  p_time_window interval default interval '7 days'
+)
+returns table (
+  id uuid,
+  name text,
+  description text,
+  cover_url text,
+  owner_id uuid,
+  is_private boolean,
+  is_collaborative boolean,
+  tags text[],
+  mood text,
+  genre text,
+  total_tracks int,
+  total_duration_ms bigint,
+  play_count int,
+  like_count int,
+  share_count int,
+  created_at timestamptz,
+  updated_at timestamptz,
+  feature_score float
+) 
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  with playlist_metrics as (
+    select 
+      p.*,
+      -- Calculate feature score based on multiple factors
+      (
+        -- Base weight from likes (0-40 points)
+        least(p.like_count::float / 10, 40) +
+        
+        -- Play count weight (0-30 points)
+        least(p.play_count::float / 20, 30) +
+        
+        -- Recency weight (0-15 points)
+        case 
+          when p.updated_at > now() - interval '1 day' then 15
+          when p.updated_at > now() - interval '3 days' then 10
+          when p.updated_at > now() - interval '7 days' then 5
+          else 0
+        end +
+        
+        -- Content weight based on track count (0-10 points)
+        case
+          when p.total_tracks between 10 and 50 then 10
+          when p.total_tracks between 5 and 9 then 7
+          when p.total_tracks > 50 then 5
+          else 3
+        end +
+        
+        -- Collaborative bonus (0 or 5 points)
+        case when p.is_collaborative then 5 else 0 end
+      ) as feature_score
+    from playlists p
+    where 
+      not p.is_private
+      and p.updated_at >= now() - p_time_window
+  )
+  select *
+  from playlist_metrics
+  order by feature_score desc, updated_at desc
+  limit p_limit
+  offset p_offset;
+end;
+$$;

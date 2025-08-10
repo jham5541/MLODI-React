@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,20 +10,20 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import trackReactionService from '../../services/trackReactionService';
+import { ReactionType } from '../../types/reactions';
 
 interface Reaction {
-  type: 'like' | 'love' | 'fire' | 'wow' | 'sad' | 'angry';
+  type: ReactionType;
   count: number;
   isActive: boolean;
 }
 
 interface ReactionBarProps {
-  reactions?: Reaction[];
-  onReaction?: (type: Reaction['type']) => void;
+  trackId: string;
   showLabels?: boolean;
   size?: 'small' | 'medium' | 'large';
   orientation?: 'horizontal' | 'vertical';
-  artistId?: string;
 }
 
 const reactionConfig = {
@@ -36,35 +36,55 @@ const reactionConfig = {
 };
 
 export default function ReactionBar({
-  reactions,
-  onReaction,
+  trackId,
   showLabels = false,
   size = 'medium',
   orientation = 'horizontal',
-  artistId,
 }: ReactionBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected } = useAuthStore();
+  const { isConnected, user } = useAuthStore();
+  const [reactionData, setReactionData] = useState<Reaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadReactions();
+    const subscription = trackReactionService.subscribeToReactions(trackId, loadReactions);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [trackId]);
+
+  const loadReactions = async () => {
+    try {
+      const [reactions, userReactions] = await Promise.all([
+        trackReactionService.getReactions(trackId),
+        user ? trackReactionService.getUserReactions(trackId, user.id) : Promise.resolve([])
+      ]);
+
+      setReactionData(reactions.map(r => ({
+        type: r.reaction_type,
+        count: r.count,
+        isActive: userReactions.includes(r.reaction_type)
+      })));
+    } catch (error) {
+      console.error('Error loading reactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  // Default reactions with sample data
-  const defaultReactions: Reaction[] = [
-    { type: 'like', count: 42, isActive: false },
-    { type: 'love', count: 28, isActive: false },
-    { type: 'fire', count: 15, isActive: true },
-    { type: 'wow', count: 8, isActive: false },
-    { type: 'sad', count: 2, isActive: false },
-    { type: 'angry', count: 1, isActive: false },
-  ];
-  
-  const reactionData = reactions || defaultReactions;
-  
-  const [animatedValues] = useState(() => 
-    reactionData.reduce((acc, reaction) => {
-      acc[reaction.type] = new Animated.Value(1);
-      return acc;
-    }, {} as Record<Reaction['type'], Animated.Value>)
-  );
+  const [animatedValues] = useState(() => {
+    const initialValues: Record<Reaction['type'], Animated.Value> = {
+      like: new Animated.Value(1),
+      love: new Animated.Value(1),
+      fire: new Animated.Value(1),
+      wow: new Animated.Value(1),
+      sad: new Animated.Value(1),
+      angry: new Animated.Value(1)
+    };
+    return initialValues;
+  });
 
   const iconSizes = {
     small: 16,
@@ -72,30 +92,42 @@ export default function ReactionBar({
     large: 24,
   };
 
-  const handleReaction = (type: Reaction['type']) => {
-    if (!isConnected) {
+  const handleReaction = async (type: Reaction['type']) => {
+    if (!isConnected || !user) {
       Alert.alert('Authentication Required', 'Please connect your wallet to react');
       return;
     }
 
-    // Animate the reaction
-    const animatedValue = animatedValues[type];
-    if (animatedValue) {
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1.3,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
+    try {
+      const reaction = reactionData.find(r => r.type === type);
+      if (!reaction) return;
 
-    onReaction?.(type);
+      // Animate the reaction
+      const animatedValue = animatedValues[type];
+      if (animatedValue) {
+        Animated.sequence([
+          Animated.timing(animatedValue, {
+            toValue: 1.3,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+
+      if (reaction.isActive) {
+        await trackReactionService.removeReaction(trackId, user.id, type);
+      } else {
+        await trackReactionService.addReaction(trackId, user.id, type);
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+      Alert.alert('Error', 'Failed to update reaction. Please try again.');
+    }
   };
 
   const getTotalReactions = () => {
@@ -103,6 +135,9 @@ export default function ReactionBar({
   };
 
   const getMostPopularReaction = () => {
+    if (reactionData.length === 0) {
+      return { type: 'like' as const, count: 0, isActive: false };
+    }
     return reactionData.reduce((max, reaction) => 
       reaction.count > max.count ? reaction : max
     );

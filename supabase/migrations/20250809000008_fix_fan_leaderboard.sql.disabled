@@ -1,0 +1,154 @@
+-- Fix fan leaderboard function
+CREATE OR REPLACE FUNCTION subscribeToArtistLeaderboard(artist_id UUID, callback text)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM pg_notify(
+        'fan_scores_changes',
+        json_build_object(
+            'artist_id', artist_id,
+            'callback', callback
+        )::text
+    );
+END;
+$$;
+
+-- Create a function to get fan score for a user and artist
+CREATE OR REPLACE FUNCTION get_fan_score(user_id UUID, artist_id UUID)
+RETURNS TABLE (
+    total_score INTEGER,
+    level TEXT,
+    rank INTEGER,
+    total_fans BIGINT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH user_rank AS (
+        SELECT 
+            fs.total_score,
+            CASE
+                WHEN fs.total_score >= 10000 THEN 'Diamond'
+                WHEN fs.total_score >= 5000 THEN 'Platinum'
+                WHEN fs.total_score >= 2500 THEN 'Gold'
+                WHEN fs.total_score >= 1000 THEN 'Silver'
+                WHEN fs.total_score >= 500 THEN 'Bronze'
+                ELSE 'New Fan'
+            END as level,
+            ROW_NUMBER() OVER (ORDER BY fs.total_score DESC) as rank,
+            COUNT(*) OVER () as total_fans
+        FROM fan_scores fs
+        WHERE fs.artist_id = $2
+    )
+    SELECT * FROM user_rank
+    WHERE EXISTS (
+        SELECT 1 FROM fan_scores 
+        WHERE user_id = $1 
+        AND artist_id = $2
+    );
+END;
+$$;
+
+-- Create function to get popular songs
+CREATE OR REPLACE FUNCTION get_popular_songs(
+    limit_val INTEGER DEFAULT 50,
+    time_window INTERVAL DEFAULT INTERVAL '30 days'
+)
+RETURNS TABLE (
+    song_id UUID,
+    title TEXT,
+    artist_id UUID,
+    artist_name TEXT,
+    cover_url TEXT,
+    play_count BIGINT,
+    like_count BIGINT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        s.id as song_id,
+        s.title,
+        s.artist_id,
+        a.name as artist_name,
+        s.cover_url,
+        COUNT(DISTINCT ph.id) as play_count,
+        COUNT(DISTINCT ul.id) FILTER (WHERE ul.liked_type = 'song') as like_count
+    FROM songs s
+    JOIN artists a ON s.artist_id = a.id
+    LEFT JOIN play_history ph ON s.id = ph.song_id 
+        AND ph.played_at >= NOW() - time_window
+    LEFT JOIN user_likes ul ON s.id = ul.liked_id 
+        AND ul.liked_type = 'song'
+        AND ul.created_at >= NOW() - time_window
+    GROUP BY s.id, s.title, s.artist_id, a.name, s.cover_url
+    ORDER BY play_count DESC, like_count DESC
+    LIMIT limit_val;
+END;
+$$;
+
+-- Create recommendation function
+CREATE OR REPLACE FUNCTION get_recommendations(user_id UUID, limit_val INTEGER DEFAULT 20)
+RETURNS TABLE (
+    song_id UUID,
+    title TEXT,
+    artist_id UUID,
+    artist_name TEXT,
+    cover_url TEXT,
+    score NUMERIC
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH user_preferences AS (
+        SELECT 
+            s.genre,
+            s.mood,
+            COUNT(*) as weight
+        FROM play_history ph
+        JOIN songs s ON ph.song_id = s.id
+        WHERE ph.user_id = $1
+        GROUP BY s.genre, s.mood
+    ),
+    similar_songs AS (
+        SELECT 
+            s.id as song_id,
+            s.title,
+            s.artist_id,
+            a.name as artist_name,
+            s.cover_url,
+            SUM(
+                CASE 
+                    WHEN up.genre = s.genre THEN up.weight * 2
+                    WHEN up.mood = s.mood THEN up.weight
+                    ELSE 0
+                END
+            ) as relevance_score
+        FROM songs s
+        JOIN artists a ON s.artist_id = a.id
+        CROSS JOIN user_preferences up
+        WHERE NOT EXISTS (
+            SELECT 1 FROM play_history ph 
+            WHERE ph.user_id = $1 AND ph.song_id = s.id
+        )
+        GROUP BY s.id, s.title, s.artist_id, a.name, s.cover_url
+    )
+    SELECT 
+        song_id,
+        title,
+        artist_id,
+        artist_name,
+        cover_url,
+        COALESCE(relevance_score, 0) as score
+    FROM similar_songs
+    ORDER BY score DESC, RANDOM()
+    LIMIT $2;
+END;
+$$;

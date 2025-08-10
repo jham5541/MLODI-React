@@ -7,6 +7,7 @@ import { initializeApp } from './src/utils/supabaseInit';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SearchProvider } from './src/context/SearchContext';
+import { AuthProvider } from './src/context/AuthContext';
 import { PlayProvider, usePlay } from './src/context/PlayContext';
 import { PlayTrackingProvider } from './src/context/PlayTrackingContext';
 import { RadioProvider } from './src/context/RadioContext';
@@ -67,15 +68,17 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <PlayProvider>
-        <PlayTrackingProvider>
-          <RadioProvider>
-            <SearchProvider>
-              <AppContent />
-            </SearchProvider>
-          </RadioProvider>
-        </PlayTrackingProvider>
-      </PlayProvider>
+      <AuthProvider>
+        <PlayProvider>
+          <PlayTrackingProvider>
+            <RadioProvider>
+              <SearchProvider>
+                <AppContent />
+              </SearchProvider>
+            </RadioProvider>
+          </PlayTrackingProvider>
+        </PlayProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

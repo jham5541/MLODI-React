@@ -1,0 +1,104 @@
+DO $$ 
+DECLARE
+    _tbl text;
+    _trigger text;
+BEGIN
+    -- Drop all existing update triggers
+    FOR _tbl IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
+    LOOP
+        FOR _trigger IN (
+            SELECT tgname 
+            FROM pg_trigger 
+            WHERE tgrelid = (_tbl::regclass)::oid 
+            AND tgname LIKE 'update_%_updated_at'
+        )
+        LOOP
+            EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I', _trigger, _tbl);
+        END LOOP;
+    END LOOP;
+
+    -- Create new triggers only if they don't exist
+    -- Songs table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'songs') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_songs_updated_at') THEN
+            CREATE TRIGGER update_songs_updated_at
+                BEFORE UPDATE ON songs
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- User likes table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_likes') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_likes_updated_at') THEN
+            CREATE TRIGGER update_user_likes_updated_at
+                BEFORE UPDATE ON user_likes
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Play history table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'play_history') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_play_history_updated_at') THEN
+            CREATE TRIGGER update_play_history_updated_at
+                BEFORE UPDATE ON play_history
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Engagements table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'engagements') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_engagements_updated_at') THEN
+            CREATE TRIGGER update_engagements_updated_at
+                BEFORE UPDATE ON engagements
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Products table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'products') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_products_updated_at') THEN
+            CREATE TRIGGER update_products_updated_at
+                BEFORE UPDATE ON products
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Carts table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'carts') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_carts_updated_at') THEN
+            CREATE TRIGGER update_carts_updated_at
+                BEFORE UPDATE ON carts
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Cart items table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'cart_items') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_cart_items_updated_at') THEN
+            CREATE TRIGGER update_cart_items_updated_at
+                BEFORE UPDATE ON cart_items
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+    -- Orders table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'orders') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_orders_updated_at') THEN
+            CREATE TRIGGER update_orders_updated_at
+                BEFORE UPDATE ON orders
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        END IF;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error managing triggers: %', SQLERRM;
+END $$;

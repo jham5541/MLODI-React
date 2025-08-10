@@ -1,0 +1,68 @@
+-- Drop existing trigger and function
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
+
+-- Create simplified trigger function
+create function public.handle_new_user()
+returns trigger
+security definer
+set search_path = public
+language plpgsql
+as $$
+begin
+  -- Create profile
+  insert into public.profiles (id, email)
+  values (new.id, new.email);
+
+  -- Create base settings 
+  insert into public.user_settings (user_id)
+  values (new.id);
+
+  return new;
+exception when others then
+  raise log 'Error in handle_new_user: %', SQLERRM;
+  return new;
+end;
+$$;
+
+-- Configure permissions
+alter function public.handle_new_user() owner to postgres;
+grant execute on function public.handle_new_user() to service_role;
+
+-- Create trigger
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Update RLS policies
+drop policy if exists "Enable read access for all users" on profiles;
+drop policy if exists "Enable insert for authenticated users only" on profiles;
+drop policy if exists "Enable update for users based on email" on profiles;
+
+create policy "Enable read access for all users" 
+  on profiles for select 
+  to public
+  using (true);
+
+create policy "Enable insert for authenticated users only" 
+  on profiles for insert 
+  to authenticated 
+  with check (auth.uid() = id);
+
+create policy "Enable update for users based on email" 
+  on profiles for update 
+  to authenticated 
+  using (auth.uid() = id);
+
+-- Grant permissions
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all on profiles to postgres, service_role;
+grant select on profiles to anon;
+grant select, insert, update on profiles to authenticated;
+
+grant all on user_settings to postgres, service_role;
+grant select, insert, update on user_settings to authenticated;
+
+-- Enable RLS
+alter table profiles enable row level security;
+alter table user_settings enable row level security;

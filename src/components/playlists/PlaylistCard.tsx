@@ -24,7 +24,7 @@ export default function PlaylistCard({
 const { playSong } = usePlay();
 
   const formatDuration = () => {
-    const totalSeconds = playlist.songs.reduce((total, song) => total + song.duration, 0);
+    const totalSeconds = playlist.duration || 0;
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     
@@ -35,8 +35,8 @@ const { playSong } = usePlay();
   };
 
   const handlePlayPress = () => {
-    if (playlist.songs.length > 0) {
-      playSong(playlist.songs[0]); // Play the first song in the playlist
+    if (onPlay) {
+      onPlay();
     }
   };
 
@@ -218,7 +218,7 @@ const { playSong } = usePlay();
             <View style={styles.metadataItem}>
               <Ionicons name="musical-notes" size={12} color={themeColors.textSecondary} />
               <Text style={styles.metadataText}>
-                {playlist.songs.length} track{playlist.songs.length !== 1 ? 's' : ''}
+                {playlist.total_tracks || 0} track{(playlist.total_tracks || 0) !== 1 ? 's' : ''}
               </Text>
             </View>
             

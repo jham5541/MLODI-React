@@ -37,8 +37,8 @@ if (typeof global.Buffer === 'undefined') {
 
 // Fix BackHandler for react-native-modal compatibility
 try {
-  const { BackHandler } = require('react-native');
-  if (BackHandler && !BackHandler.removeEventListener) {
+  const { BackHandler, Platform } = require('react-native');
+  if (Platform.OS === 'android' && BackHandler && !BackHandler.removeEventListener) {
     BackHandler.removeEventListener = function() {
       console.warn('BackHandler.removeEventListener is not available in this React Native version');
       return true;

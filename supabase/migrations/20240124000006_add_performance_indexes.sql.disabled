@@ -1,0 +1,123 @@
+-- Performance Optimization Indexes for M3lodi Database
+-- This migration adds critical indexes to improve query performance
+
+-- ============================================================================
+-- CORE MUSIC TABLE INDEXES
+-- ============================================================================
+
+-- Songs table indexes (most frequently queried)
+CREATE INDEX IF NOT EXISTS idx_songs_artist_genre_created 
+ON songs(artist_id, genre, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_songs_play_count_public 
+ON songs(play_count DESC, is_public) WHERE is_public = true;
+
+CREATE INDEX IF NOT EXISTS idx_songs_genre_trending 
+ON songs(genre, play_count DESC, created_at DESC) WHERE is_public = true;
+
+CREATE INDEX IF NOT EXISTS idx_songs_artist_popular 
+ON songs(artist_id, play_count DESC);
+
+CREATE INDEX IF NOT EXISTS idx_songs_search_text 
+ON songs USING gin(to_tsvector('english', title || ' ' || COALESCE(lyrics, '')));
+
+-- Artists table indexes
+CREATE INDEX IF NOT EXISTS idx_artists_followers_verified 
+ON artists(followers_count DESC, is_verified);
+
+CREATE INDEX IF NOT EXISTS idx_artists_genre_followers 
+ON artists USING gin(genres) WHERE followers_count > 0;
+
+CREATE INDEX IF NOT EXISTS idx_artists_search_text 
+ON artists USING gin(to_tsvector('english', name || ' ' || COALESCE(bio, '')));
+
+-- Albums table indexes
+CREATE INDEX IF NOT EXISTS idx_albums_artist_release 
+ON albums(artist_id, release_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_albums_release_public 
+ON albums(release_date DESC, is_public) WHERE is_public = true;
+
+-- ============================================================================
+-- USER INTERACTION INDEXES
+-- ============================================================================
+
+-- Play history indexes (critical for analytics and recommendations)
+CREATE INDEX IF NOT EXISTS idx_play_history_user_time 
+ON play_history(user_id, played_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_play_history_song_time 
+ON play_history(song_id, played_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_play_history_completion 
+ON play_history(user_id, completion_percentage) WHERE completion_percentage > 0.8;
+
+-- User follows indexes
+CREATE INDEX IF NOT EXISTS idx_user_follows_user_type 
+ON user_follows(user_id, followed_type, followed_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_follows_followed_type 
+ON user_follows(followed_type, followed_id, created_at DESC);
+
+-- User likes indexes
+CREATE INDEX IF NOT EXISTS idx_user_likes_user_type 
+ON user_likes(user_id, liked_type, liked_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_likes_liked_type 
+ON user_likes(liked_type, liked_id, created_at DESC);
+
+-- ============================================================================
+-- PLAYLIST SYSTEM INDEXES
+-- ============================================================================
+
+-- Playlists indexes
+CREATE INDEX IF NOT EXISTS idx_playlists_user_public 
+ON playlists(user_id, is_private, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_playlists_public_popular 
+ON playlists(is_private, play_count DESC) WHERE is_private = false;
+
+CREATE INDEX IF NOT EXISTS idx_playlists_collaborative 
+ON playlists(is_collaborative, updated_at DESC) WHERE is_collaborative = true;
+
+CREATE INDEX IF NOT EXISTS idx_playlists_search_text 
+ON playlists USING gin(to_tsvector('english', name || ' ' || COALESCE(description, '')));
+
+-- Playlist songs indexes
+CREATE INDEX IF NOT EXISTS idx_playlist_songs_playlist_position 
+ON playlist_songs(playlist_id, position);
+
+CREATE INDEX IF NOT EXISTS idx_playlist_songs_song_playlists 
+ON playlist_songs(song_id, playlist_id);
+
+-- Playlist collaborators indexes
+CREATE INDEX IF NOT EXISTS idx_playlist_collaborators_user 
+ON playlist_collaborators(user_id, role);
+
+CREATE INDEX IF NOT EXISTS idx_playlist_collaborators_playlist 
+ON playlist_collaborators(playlist_id, role);
+
+-- ============================================================================
+-- FOREIGN KEY INDEXES (if not automatically created)
+-- ============================================================================
+
+-- Ensure all foreign key columns have indexes
+CREATE INDEX IF NOT EXISTS idx_songs_artist_id ON songs(artist_id);
+CREATE INDEX IF NOT EXISTS idx_songs_album_id ON songs(album_id);
+CREATE INDEX IF NOT EXISTS idx_albums_artist_id ON albums(artist_id);
+CREATE INDEX IF NOT EXISTS idx_playlists_user_id ON playlists(user_id);
+CREATE INDEX IF NOT EXISTS idx_play_history_user_id ON play_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_play_history_song_id ON play_history(song_id);
+
+-- ============================================================================
+-- CLEANUP AND MAINTENANCE
+-- ============================================================================
+
+-- Update table statistics for better query planning
+ANALYZE songs;
+ANALYZE artists;
+ANALYZE albums;
+ANALYZE playlists;
+ANALYZE play_history;
+ANALYZE user_follows;
+ANALYZE user_likes;

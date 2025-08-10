@@ -1,0 +1,58 @@
+-- Create users table with all required fields
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    username TEXT UNIQUE,
+    display_name TEXT,
+    full_name TEXT,
+    email TEXT UNIQUE,
+    bio TEXT,
+    avatar_url TEXT,
+    cover_url TEXT,
+    location TEXT,
+    website_url TEXT,
+    social_links JSONB DEFAULT '{}'::jsonb,
+    preferences JSONB DEFAULT '{}'::jsonb,
+    subscription_tier TEXT DEFAULT 'free',
+    subscription_expires_at TIMESTAMPTZ,
+    total_listening_time_ms BIGINT DEFAULT 0,
+    last_sign_in_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', now())
+);
+
+-- Set up Row Level Security (RLS)
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Create policies with consolidated names
+CREATE POLICY "Users can view all profiles"
+    ON public.users FOR SELECT
+    USING (true);
+
+CREATE POLICY "Users can update their own profile"
+    ON public.users FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+    ON public.users FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
+-- Create function to handle user creation
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.users (id, email, created_at, updated_at)
+    VALUES (NEW.id, NEW.email, TIMEZONE('utc', now()), TIMEZONE('utc', now()));
+    RETURN NEW;
+END;
+$$;
+
+-- Create trigger for new user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_user();

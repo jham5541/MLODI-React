@@ -14,18 +14,21 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.heftydon.mlodi",
-      "usesAppleSignIn": true,
+      "bundleIdentifier": "com.MLODI.app",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
         ],
         "NSCameraUsageDescription": "This app uses the camera to take photos for profile pictures and content sharing.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for profile pictures and content sharing."
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for profile pictures and content sharing.",
+        "com.apple.developer.in-app-payments": [
+          "merchant.com.heftydon.mlodi"
+        ],
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "android": {
-      "package": "com.heftydon.mlodi",
+      "package": "com.MLODI.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -36,7 +39,9 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -50,7 +55,13 @@
           "photosPermission": "The app accesses your photos to let you select images for your profile and content sharing."
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-apple-authentication",
+        {
+          "merchantId": "merchant.com.heftydon.mlodi"
+        }
+      ]
     ],
     "scheme": "mlodi",
     "extra": {

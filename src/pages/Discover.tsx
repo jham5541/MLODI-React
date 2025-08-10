@@ -81,7 +81,7 @@ const generateArtists = (): Artist[] => {
   const artistNames = ['The Midnight', 'Arctic Monkeys', 'Kendrick Lamar', 'Daft Punk', 'Miles Davis', 'Bach', 'Johnny Cash', 'Frank Ocean', 'Tame Impala', 'Billie Eilish', 'Post Malone', 'The Weeknd', 'Taylor Swift', 'Drake', 'Adele', 'Ed Sheeran', 'Bruno Mars', 'Ariana Grande', 'The Beatles', 'Queen'];
   
   return artistNames.map((name, index) => ({
-    id: `artist-${index + 1}`,
+    id: `${index + 1}`,
     name: name,
     genre: genres[Math.floor(Math.random() * genres.length)],
     imageUrl: `https://picsum.photos/200/200?random=${index + 200}`,
@@ -305,18 +305,14 @@ export default function DiscoverScreen({ navigation }: Props) {
     filtersContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
+      justifyContent: 'space-around',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
       backgroundColor: themeColors.surface,
-      elevation: 3,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      marginTop: 8,
-      marginBottom: 16,
-      borderRadius: 16,
+      borderColor: themeColors.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      marginVertical: 10,
     },
     filtersList: {
       paddingHorizontal: 16,
@@ -325,30 +321,22 @@ export default function DiscoverScreen({ navigation }: Props) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      marginHorizontal: 4,
-      borderRadius: 24,
-      backgroundColor: themeColors.surface,
-      borderWidth: 1,
-      borderColor: themeColors.border,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
     },
     activeFilterButton: {
       backgroundColor: themeColors.primary,
-      borderColor: themeColors.primary,
     },
     filterIcon: {
-      marginRight: 6,
+      marginRight: 4,
     },
     filterText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: themeColors.text,
+      fontSize: 13,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
     },
     activeFilterText: {
       color: 'white',
@@ -628,8 +616,8 @@ export default function DiscoverScreen({ navigation }: Props) {
     },
     // Trending Artists Carousel styles
     trendingSection: {
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: 12,
+      paddingBottom: 4,
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -656,14 +644,14 @@ export default function DiscoverScreen({ navigation }: Props) {
       paddingLeft: 16,
     },
     trendingArtistCard: {
-      marginRight: 12,
+      marginRight: 8,
       alignItems: 'center',
-      width: 120,
+      width: 100,
     },
     trendingArtistImage: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 80,
+      height: 80,
+      borderRadius: 40,
       marginBottom: 8,
       borderWidth: 2,
       borderColor: themeColors.primary,
@@ -969,10 +957,6 @@ export default function DiscoverScreen({ navigation }: Props) {
         <View style={styles.trendingSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Artists</Text>
-            <TouchableOpacity style={styles.seeAllButton}>
-              <Text style={styles.seeAllText}>See All</Text>
-              <Ionicons name="arrow-forward-outline" size={16} color={themeColors.primary} />
-            </TouchableOpacity>
           </View>
           <FlatList
             data={trendingArtists}

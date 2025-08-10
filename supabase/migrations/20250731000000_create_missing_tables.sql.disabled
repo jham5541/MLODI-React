@@ -1,0 +1,60 @@
+-- Create missing tables
+
+-- Engagements table
+CREATE TABLE IF NOT EXISTS public.engagements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users (id),
+  artist_id UUID NOT NULL REFERENCES public.artists (id),
+  engagement_type TEXT NOT NULL,
+  points INTEGER NOT NULL DEFAULT 0,
+  timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Fan Scores table
+CREATE TABLE IF NOT EXISTS public.fan_scores (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users (id),
+  artist_id UUID NOT NULL REFERENCES public.artists (id),
+  total_score INTEGER NOT NULL DEFAULT 0,
+  streaming_points INTEGER NOT NULL DEFAULT 0,
+  purchase_points INTEGER NOT NULL DEFAULT 0,
+  social_points INTEGER NOT NULL DEFAULT 0,
+  video_points INTEGER NOT NULL DEFAULT 0,
+  event_points INTEGER NOT NULL DEFAULT 0,
+  consecutive_days INTEGER NOT NULL DEFAULT 0,
+  fan_since TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, artist_id)
+);
+
+-- Users view
+CREATE OR REPLACE VIEW public.users AS
+SELECT
+  auth.users.id,
+  auth.users.email,
+  COALESCE(public.user_profiles.username, auth.users.email) AS username,
+  COALESCE(public.user_profiles.display_name, split_part(auth.users.email, '@', 1)) AS display_name,
+  public.user_profiles.bio,
+  public.user_profiles.avatar_url,
+  public.user_profiles.cover_url,
+  public.user_profiles.location,
+  public.user_profiles.website_url,
+  public.user_profiles.social_links,
+  public.user_profiles.preferences,
+  public.user_profiles.subscription_tier,
+  public.user_profiles.subscription_expires_at,
+  public.user_profiles.total_listening_time_ms,
+  auth.users.created_at,
+  public.user_profiles.updated_at
+FROM auth.users
+LEFT JOIN public.user_profiles ON auth.users.id = public.user_profiles.id;
+
+-- Index for performance
+CREATE INDEX IF NOT EXISTS idx_engagements_user_artist ON public.engagements (user_id, artist_id);
+CREATE INDEX IF NOT EXISTS idx_fan_scores_user_artist ON public.fan_scores (user_id, artist_id);
+

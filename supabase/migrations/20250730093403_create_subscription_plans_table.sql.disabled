@@ -1,0 +1,31 @@
+-- Create subscription_plans table
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  tier TEXT NOT NULL CHECK (tier IN ('free', 'fan', 'enterprise')),
+  price_usd DECIMAL(10, 2) NOT NULL,
+  price_eth DECIMAL(10, 6),
+  duration_days INTEGER NOT NULL,
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_popular BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+COMMENT ON COLUMN subscription_plans.duration_days IS 'Duration of the subscription in days';
+COMMENT ON COLUMN subscription_plans.features IS 'JSON array of features included in the plan';
+COMMENT ON COLUMN subscription_plans.is_popular IS 'Whether this plan should be highlighted as popular';
+COMMENT ON COLUMN subscription_plans.is_active IS 'Whether this plan is currently available for purchase';
+
+-- Enable RLS
+ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for public read access
+CREATE POLICY "Anyone can view subscription plans" ON subscription_plans
+  FOR SELECT USING (is_active = true);
+
+-- Create trigger for updated_at
+CREATE TRIGGER update_subscription_plans_updated_at
+  BEFORE UPDATE ON subscription_plans
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

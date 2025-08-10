@@ -1,0 +1,71 @@
+-- Add sample play history data
+INSERT INTO play_history (id, user_id, song_id, artist_id, played_at, duration_ms)
+SELECT 
+  gen_random_uuid(),
+  (SELECT id FROM auth.users ORDER BY RANDOM() LIMIT 1),
+  s.id,
+  s.artist_id,
+  NOW() - (random() * interval '30 days'),
+  s.duration_ms
+FROM songs s
+CROSS JOIN generate_series(1, 50)
+ORDER BY RANDOM()
+LIMIT 1000;
+
+-- Add sample merchandise variants with inventory
+INSERT INTO merchandise_variants (id, merchandise_id, artist_id, name, inventory_count, price_adjustment, created_at)
+VALUES
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'T-Shirt Small', 15, 0, NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'T-Shirt Medium', 20, 0, NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'T-Shirt Large', 10, 2, NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'Hoodie Small', 5, 10, NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'Hoodie Medium', 8, 10, NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'Hoodie Large', 8, 12, NOW());
+
+-- Add sample event tickets
+INSERT INTO event_tickets (id, event_id, artist_id, ticket_type, quantity, price, status, created_at)
+VALUES
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'General Admission', 150, 29.99, 'sold', NOW() - interval '20 days'),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'VIP', 50, 99.99, 'sold', NOW() - interval '20 days'),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'Meet & Greet', 20, 149.99, 'sold', NOW() - interval '15 days'),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'General Admission', 200, 29.99, 'available', NOW()),
+  (gen_random_uuid(), gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440001', 'VIP', 75, 99.99, 'available', NOW());
+
+-- Add sample user subscriptions
+INSERT INTO user_subscriptions (id, user_id, artist_id, tier, status, start_date, end_date)
+SELECT
+  gen_random_uuid(),
+  u.id,
+  '550e8400-e29b-41d4-a716-446655440001',
+  CASE floor(random() * 3)
+    WHEN 0 THEN 'basic'
+    WHEN 1 THEN 'premium'
+    ELSE 'vip'
+  END,
+  'active',
+  NOW() - (random() * interval '90 days'),
+  NOW() + interval '1 year'
+FROM auth.users u
+CROSS JOIN generate_series(1, 25)
+ORDER BY RANDOM()
+LIMIT 25;
+
+-- Add sample artist analytics data for the past 30 days
+INSERT INTO artist_analytics (id, artist_id, date, total_engagement, total_plays, unique_listeners)
+SELECT
+  gen_random_uuid(),
+  '550e8400-e29b-41d4-a716-446655440001',
+  current_date - (n || ' days')::interval,
+  floor(random() * (1000 - 500 + 1) + 500), -- Random engagement between 500-1000
+  floor(random() * (2000 - 1000 + 1) + 1000), -- Random plays between 1000-2000
+  floor(random() * (500 - 200 + 1) + 200) -- Random listeners between 200-500
+FROM generate_series(0, 30) n;
+
+-- Update the most recent analytics to show growth
+UPDATE artist_analytics
+SET 
+  total_engagement = total_engagement * 1.25,
+  total_plays = total_plays * 1.2,
+  unique_listeners = unique_listeners * 1.15
+WHERE artist_id = '550e8400-e29b-41d4-a716-446655440001'
+  AND date >= current_date - interval '7 days';

@@ -1,0 +1,4 @@
+-- Drop existing functions
+DROP FUNCTION IF EXISTS get_track_reaction_counts(UUID);
+DROP FUNCTION IF EXISTS get_track_reactions(UUID, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS get_track_comments(UUID, INTEGER, INTEGER);

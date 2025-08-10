@@ -1,0 +1,31 @@
+CREATE OR REPLACE FUNCTION safely_create_trigger(
+    p_table_name text,
+    p_trigger_name text,
+    p_function_name text
+) RETURNS void AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_trigger 
+        WHERE tgname = p_trigger_name 
+        AND tgrelid = (p_table_name::regclass)::oid
+    ) THEN
+        EXECUTE format(
+            'CREATE TRIGGER %I
+            BEFORE UPDATE ON %I
+            FOR EACH ROW
+            EXECUTE FUNCTION %I()',
+            p_trigger_name,
+            p_table_name,
+            p_function_name
+        );
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Now call this function for each table that needs a trigger
+SELECT safely_create_trigger('songs', 'update_songs_updated_at', 'update_updated_at_column');
+SELECT safely_create_trigger('products', 'update_products_updated_at', 'update_updated_at_column');
+SELECT safely_create_trigger('carts', 'update_carts_updated_at', 'update_updated_at_column');
+SELECT safely_create_trigger('orders', 'update_orders_updated_at', 'update_updated_at_column');
+SELECT safely_create_trigger('merchandise', 'update_merchandise_updated_at', 'update_updated_at_column');

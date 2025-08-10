@@ -12,11 +12,13 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import { OnboardingFlow } from './OnboardingFlow';
 
 interface AuthModalProps {
   isVisible: boolean;
@@ -26,6 +28,28 @@ interface AuthModalProps {
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
+  const { profile } = useAuthStore();
+
+  useBackHandler(() => {
+    if (isVisible) {
+      onClose();
+      return true;
+    }
+    return false;
+  });
+
+  // Show onboarding flow if profile exists but onboarding not completed
+  if (profile && !profile.onboarding_completed) {
+    return (
+      <Modal
+        isVisible={isVisible}
+        style={styles.modalContainer}
+        avoidKeyboard
+      >
+        <OnboardingFlow />
+      </Modal>
+    );
+  }
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
@@ -36,7 +60,7 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
   
-  const { signInWithEmail, signUpWithEmail, signInWithApple, loading, error } = useAuthStore();
+  const { signIn, signUp, signInWithApple, loading, error } = useAuthStore();
 
   useEffect(() => {
     checkAppleAuthAvailability();
@@ -307,18 +331,17 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     }
 
     try {
-      let success = false;
       if (authMode === 'signup') {
-        success = await signUpWithEmail(email, password);
+        const { success } = await signUp(email, password);
         if (success) {
           Alert.alert(
             'Success!', 
-            'Account created successfully! Please check your email to verify your account.',
+            'Account created successfully!',
             [{ text: 'OK', onPress: onClose }]
           );
         }
       } else {
-        success = await signInWithEmail(email, password);
+        const { success } = await signIn(email, password);
         if (success) {
           onClose();
         }

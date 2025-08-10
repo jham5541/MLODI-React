@@ -7,12 +7,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { supabase } from '../../lib/supabase/client';
 
 interface RevenueData {
   totalRevenue: number;
   monthlyGrowth: number;
   streamingRevenue: number;
-  merchandiseRevenue: number;
+  merchandiseRevenue: {
+    available: number;
+    total: number;
+  };
   ticketSales: number;
   subscriptions: number;
 }
@@ -29,19 +33,37 @@ export default function RevenueInsights({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockRevenueData: RevenueData = {
-      totalRevenue: 45320,
-      monthlyGrowth: 12.5,
-      streamingRevenue: 28500,
-      merchandiseRevenue: 8900,
-      ticketSales: 5700,
-      subscriptions: 2220,
+    const fetchRevenueData = async () => {
+      try {
+        setLoading(true);
+        
+        // Using mock data to demonstrate UI changes
+        const mockData = {
+          totalRevenue: 25.5, // 25.5% increase in artist interest
+          monthlyGrowth: 25.5,
+          streamingRevenue: 1000, // 1000 total streams
+          merchandiseRevenue: {
+            available: 100, // 100 items available
+            total: 380, // out of 380 total items
+          },
+          ticketSales: 220, // 220 tickets sold
+          subscriptions: 25, // 25 active subscribers
+        };
+
+        setRevenueData(mockData);
+      } catch (error) {
+        console.error('Error fetching revenue data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setRevenueData(mockRevenueData);
+    if (artistId) {
+      fetchRevenueData();
+    }
   }, [artistId]);
 
   const formatCurrency = (amount: number): string => {
@@ -149,6 +171,19 @@ export default function RevenueInsights({
     },
   });
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Revenue Insights</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Loading data...</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!revenueData) {
     return (
       <View style={styles.container}>
@@ -165,28 +200,50 @@ export default function RevenueInsights({
   const growthColor = revenueData.monthlyGrowth >= 0 ? '#10B981' : '#EF4444';
   const growthIcon = revenueData.monthlyGrowth >= 0 ? 'trending-up' : 'trending-down';
 
-  const breakdownItems = [
+  const formatValue = (value: number | { available: number; total: number }, type: 'streams' | 'inventory' | 'count'): string => {
+    switch (type) {
+      case 'streams':
+        return `${value.toLocaleString()} plays`;
+      case 'inventory':
+        const { available, total } = value as { available: number; total: number };
+        return `${available.toLocaleString()}/${total.toLocaleString()}`;
+      case 'count':
+        return value.toLocaleString();
+      default:
+        return value.toString();
+    }
+  };
+
+  type BreakdownItem = 
+    | { label: string; amount: number; type: 'streams' | 'count'; icon: string; color: string }
+    | { label: string; amount: { available: number; total: number }; type: 'inventory'; icon: string; color: string };
+
+  const breakdownItems: BreakdownItem[] = [
     {
       label: 'Streaming',
       amount: revenueData.streamingRevenue,
+      type: 'streams',
       icon: 'musical-notes',
       color: '#6366F1',
     },
     {
       label: 'Merchandise',
       amount: revenueData.merchandiseRevenue,
+      type: 'inventory',
       icon: 'shirt',
       color: '#EC4899',
     },
     {
       label: 'Ticket Sales',
       amount: revenueData.ticketSales,
+      type: 'count',
       icon: 'ticket',
       color: '#F59E0B',
     },
     {
       label: 'Subscriptions',
       amount: revenueData.subscriptions,
+      type: 'count',
       icon: 'person-add',
       color: '#10B981',
     },
@@ -200,9 +257,9 @@ export default function RevenueInsights({
 
       {/* Total Revenue */}
       <View style={styles.totalRevenueSection}>
-        <Text style={styles.totalRevenueLabel}>Total Revenue</Text>
+        <Text style={styles.totalRevenueLabel}>Artist Interest Change</Text>
         <Text style={styles.totalRevenueAmount}>
-          {formatCurrency(revenueData.totalRevenue)}
+          {formatPercentage(revenueData.totalRevenue)}
         </Text>
         
         <View style={styles.growthContainer}>
@@ -232,7 +289,7 @@ export default function RevenueInsights({
               <Text style={styles.breakdownLabel}>{item.label}</Text>
             </View>
             <Text style={styles.breakdownAmount}>
-              {formatCurrency(item.amount)}
+              {formatValue(item.amount, item.type)}
             </Text>
           </View>
         ))}

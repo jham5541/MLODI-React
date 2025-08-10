@@ -80,15 +80,23 @@ export const createCommonStyles = (themeColors: ThemeColors) => StyleSheet.creat
     lineHeight: 24,
   },
   loadingContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
+    backgroundColor: themeColors.surface,
+    borderRadius: 12,
+    margin: 16,
+    minWidth: 280,
   },
   loadingText: {
-    marginLeft: 12,
-    color: themeColors.textSecondary,
+    color: themeColors.text,
     fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+    fontWeight: '500',
+    width: '100%',
+    paddingHorizontal: 16,
   },
   errorContainer: {
     padding: 20,
@@ -124,9 +132,9 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
   return (
     <View style={commonStyles.loadingContainer}>
       {iconName ? (
-        <Ionicons name={iconName} size={size === 'large' ? 32 : 24} color={themeColors.primary} />
+        <Ionicons name={iconName} size={size === 'large' ? 48 : 32} color={themeColors.primary} />
       ) : (
-        <ActivityIndicator size={size} color={themeColors.primary} />
+        <ActivityIndicator size={size === 'large' ? 'large' : 'small'} color={themeColors.primary} />
       )}
       <Text style={commonStyles.loadingText}>{text}</Text>
     </View>

@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  Platform,
 } from 'react-native';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -30,6 +32,14 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function SearchModal() {
   const { activeTheme } = useTheme();
+
+  useBackHandler(() => {
+    if (isSearchOpen) {
+      closeSearch();
+      return true;
+    }
+    return false;
+  });
   const themeColors = colors[activeTheme];
   const { isSearchOpen, closeSearch, searchQuery, setSearchQuery } = useSearch();
   const navigation = useNavigation<NavigationProp>();

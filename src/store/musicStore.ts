@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { musicService, Artist, Song, Album } from '../services/musicService';
+import { musicService, Artist as DBArtist, Song as DBSong, Album } from '../services/musicService';
 import { realtimeService } from '../services/realtimeService';
+import { Song, Artist } from '../types/music';
+import { transformSongs, transformArtists, transformSong } from '../utils/dataTransform';
 
 interface MusicState {
   // Current playing
@@ -259,7 +261,8 @@ export const useMusicStore = create<MusicState>()(
       loadTrendingSongs: async () => {
         set({ isLoadingTrending: true });
         try {
-          const songs = await musicService.getTrendingSongs(20);
+          const dbSongs = await musicService.getTrendingSongs(20);
+          const songs = transformSongs(dbSongs);
           set({ trendingSongs: songs });
         } catch (error) {
           console.error('Failed to load trending songs:', error);
@@ -271,7 +274,8 @@ export const useMusicStore = create<MusicState>()(
       loadPopularSongs: async () => {
         set({ isLoadingPopular: true });
         try {
-          const songs = await musicService.getPopularSongs(20);
+          const dbSongs = await musicService.getPopularSongs(20);
+          const songs = transformSongs(dbSongs);
           set({ popularSongs: songs });
         } catch (error) {
           console.error('Failed to load popular songs:', error);
@@ -283,7 +287,8 @@ export const useMusicStore = create<MusicState>()(
       loadRecentSongs: async () => {
         set({ isLoadingRecent: true });
         try {
-          const songs = await musicService.getRecentSongs(20);
+          const dbSongs = await musicService.getRecentSongs(20);
+          const songs = transformSongs(dbSongs);
           set({ recentSongs: songs });
         } catch (error) {
           console.error('Failed to load recent songs:', error);
@@ -295,7 +300,8 @@ export const useMusicStore = create<MusicState>()(
       loadLikedSongs: async () => {
         set({ isLoadingLiked: true });
         try {
-          const songs = await musicService.getLikedSongs();
+          const dbSongs = await musicService.getLikedSongs();
+          const songs = transformSongs(dbSongs);
           set({ likedSongs: songs });
         } catch (error) {
           console.error('Failed to load liked songs:', error);
@@ -307,7 +313,8 @@ export const useMusicStore = create<MusicState>()(
       loadFollowedArtists: async () => {
         set({ isLoadingFollowed: true });
         try {
-          const artists = await musicService.getFollowedArtists();
+          const dbArtists = await musicService.getFollowedArtists();
+          const artists = transformArtists(dbArtists);
           set({ followedArtists: artists });
         } catch (error) {
           console.error('Failed to load followed artists:', error);
@@ -319,10 +326,11 @@ export const useMusicStore = create<MusicState>()(
       loadRecommendations: async () => {
         set({ isLoadingRecommended: true });
         try {
-          const songs = await musicService.getRecommendations({
+          const dbSongs = await musicService.getRecommendations({
             limit: 20,
             based_on_history: true,
           });
+          const songs = transformSongs(dbSongs);
           set({ recommendedSongs: songs });
         } catch (error) {
           console.error('Failed to load recommendations:', error);
@@ -410,9 +418,9 @@ export const useMusicStore = create<MusicState>()(
 
           set({
             searchResults: {
-              artists: results.artists || [],
+              artists: results.artists ? transformArtists(results.artists) : [],
               albums: results.albums || [],
-              songs: results.songs || [],
+              songs: results.songs ? transformSongs(results.songs) : [],
             },
           });
         } catch (error) {
@@ -472,7 +480,7 @@ export const useMusicStore = create<MusicState>()(
 
       startListeningSession: async (song: Song) => {
         try {
-          const session = await realtimeService.startListeningSession(song.id, song.artist_id);
+          const session = await realtimeService.startListeningSession(song.id, song.artistId);
           set({ currentListeningSession: session });
         } catch (error) {
           console.error('Failed to start listening session:', error);

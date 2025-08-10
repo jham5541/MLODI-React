@@ -1,0 +1,95 @@
+-- First add the user_id column to artists table
+ALTER TABLE artists ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- Create index for performance
+CREATE INDEX IF NOT EXISTS idx_artists_user_id ON artists(user_id);
+
+-- Make user_id unique to ensure one artist profile per user
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'unique_artist_user_id'
+    ) THEN
+        ALTER TABLE artists ADD CONSTRAINT unique_artist_user_id UNIQUE (user_id);
+    END IF;
+END $$;
+
+-- Now create the nft_drops table and its policies
+CREATE TABLE IF NOT EXISTS nft_drops (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    artist_id UUID REFERENCES artists(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    drop_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    currency TEXT DEFAULT 'USD',
+    supply INTEGER NOT NULL DEFAULT 0,
+    minted INTEGER DEFAULT 0,
+    cover_image TEXT,
+    contract_address TEXT,
+    metadata_uri TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create drop_notifications table for user notifications
+CREATE TABLE IF NOT EXISTS drop_notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    drop_id UUID REFERENCES nft_drops(id) ON DELETE CASCADE,
+    notified_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, drop_id)
+);
+
+-- Create indexes for NFT drops
+CREATE INDEX IF NOT EXISTS idx_nft_drops_artist_id ON nft_drops(artist_id);
+CREATE INDEX IF NOT EXISTS idx_nft_drops_drop_date ON nft_drops(drop_date);
+CREATE INDEX IF NOT EXISTS idx_nft_drops_end_date ON nft_drops(end_date);
+CREATE INDEX IF NOT EXISTS idx_nft_drops_active ON nft_drops(is_active);
+CREATE INDEX IF NOT EXISTS idx_drop_notifications_user_id ON drop_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_drop_notifications_drop_id ON drop_notifications(drop_id);
+
+-- Create trigger for updating nft_drops updated_at
+CREATE TRIGGER update_nft_drops_updated_at 
+    BEFORE UPDATE ON nft_drops 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create RLS policies for nft_drops
+ALTER TABLE nft_drops ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active drops" ON nft_drops
+    FOR SELECT USING (is_active = true);
+
+CREATE POLICY "Artists can create their own drops" ON nft_drops
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM artists 
+            WHERE artists.id = artist_id 
+            AND artists.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Artists can update their own drops" ON nft_drops
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM artists 
+            WHERE artists.id = artist_id 
+            AND artists.user_id = auth.uid()
+        )
+    );
+
+-- Create RLS policies for drop_notifications
+ALTER TABLE drop_notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own notifications" ON drop_notifications
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own notifications" ON drop_notifications
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own notifications" ON drop_notifications
+    FOR DELETE USING (auth.uid() = user_id);

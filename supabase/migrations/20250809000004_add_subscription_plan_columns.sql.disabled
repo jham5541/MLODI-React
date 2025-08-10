@@ -1,0 +1,8 @@
+-- Add is_popular column to subscription_plans if it doesn't exist
+ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS is_popular BOOLEAN DEFAULT false;
+
+-- Add comments for the columns
+COMMENT ON COLUMN subscription_plans.duration_days IS 'Duration of the subscription in days';
+COMMENT ON COLUMN subscription_plans.features IS 'JSON array of features included in the plan';
+COMMENT ON COLUMN subscription_plans.is_popular IS 'Whether this plan should be highlighted as popular';
+COMMENT ON COLUMN subscription_plans.is_active IS 'Whether this plan is currently available for purchase';

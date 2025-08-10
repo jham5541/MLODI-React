@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase/client';
+import { supabase } from './databaseService';
 import { Song } from './musicService';
 
 export interface Playlist {
@@ -578,6 +578,36 @@ class PlaylistService {
     return data.map(item => item.playlists) as Playlist[];
   }
 
+  async getFeaturedPlaylists(options?: {
+    limit?: number;
+    offset?: number;
+    timeWindow?: string; // e.g. '7 days', '30 days', etc.
+  }) {
+    const { data } = await this.queryFromFunction('get_featured_playlists', {
+      p_limit: options?.limit || 10,
+      p_offset: options?.offset || 0,
+      p_time_window: options?.timeWindow || '7 days'
+    });
+
+    // If we want to include owner details, we need to fetch them separately
+    if (data && data.length > 0) {
+      const ownerIds = [...new Set(data.map(p => p.owner_id))];
+      const { data: owners } = await supabase
+        .from('user_profiles')
+        .select('id, username, display_name, avatar_url')
+        .in('id', ownerIds);
+      
+      if (owners) {
+        const ownerMap = new Map(owners.map(o => [o.id, o]));
+        data.forEach(playlist => {
+          playlist.owner = ownerMap.get(playlist.owner_id);
+        });
+      }
+    }
+
+    return data as (Playlist & { feature_score: number })[]; 
+  }
+
   async isPlaylistLiked(playlistId: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
@@ -655,6 +685,23 @@ class PlaylistService {
         callback
       )
       .subscribe();
+  }
+
+  async queryFromFunction(functionName: string, params: any) {
+    try {
+      const { data, error } = await supabase
+        .rpc(functionName, params);
+
+      if (error) {
+        console.error(`Error querying function ${functionName}:`, error);
+        throw error;
+      }
+
+      return { data };
+    } catch (err) {
+      console.error(`Error querying function ${functionName}:`, err);
+      throw err;
+    }
   }
 
   subscribeToCollaborators(playlistId: string, callback: (payload: any) => void) {

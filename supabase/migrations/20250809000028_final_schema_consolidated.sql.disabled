@@ -1,0 +1,220 @@
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Create users table first (since other tables depend on it)
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    username TEXT UNIQUE,
+    display_name TEXT,
+    full_name TEXT,
+    email TEXT UNIQUE,
+    bio TEXT,
+    avatar_url TEXT,
+    cover_url TEXT,
+    location TEXT,
+    website_url TEXT,
+    social_links JSONB DEFAULT '{}'::jsonb,
+    preferences JSONB DEFAULT '{}'::jsonb,
+    subscription_tier TEXT DEFAULT 'free',
+    subscription_expires_at TIMESTAMPTZ,
+    total_listening_time_ms BIGINT DEFAULT 0,
+    last_sign_in_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', now())
+);
+
+-- Enable RLS on users
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for users
+CREATE POLICY "Users can view all profiles"
+    ON public.users FOR SELECT
+    USING (true);
+
+CREATE POLICY "Users can update their own profile"
+    ON public.users FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+    ON public.users FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
+-- Create function to handle new user creation
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.users (id, email, created_at, updated_at)
+    VALUES (NEW.id, NEW.email, TIMEZONE('utc', now()), TIMEZONE('utc', now()));
+    RETURN NEW;
+END;
+$$;
+
+-- Create trigger for new user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_user();
+
+-- Create artists table
+CREATE TABLE IF NOT EXISTS artists (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id),
+    name TEXT NOT NULL,
+    bio TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Create fan_engagements table
+CREATE TABLE IF NOT EXISTS fan_engagements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    artist_id UUID NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    metadata JSONB DEFAULT '{}'::jsonb NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+-- Create the ticket-related tables
+CREATE TYPE purchase_status AS ENUM ('pending', 'completed', 'cancelled');
+
+-- Create shows table
+CREATE TABLE IF NOT EXISTS shows (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    artist_id UUID NOT NULL REFERENCES artists(id),
+    venue_name TEXT NOT NULL,
+    venue_address TEXT NOT NULL,
+    event_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    ticket_price DECIMAL(10,2) NOT NULL CHECK (ticket_price > 0),
+    available_tickets INTEGER NOT NULL CHECK (available_tickets >= 0),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create ticket purchases table
+CREATE TABLE IF NOT EXISTS ticket_purchases (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    show_id UUID NOT NULL REFERENCES shows(id),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount > 0),
+    status purchase_status NOT NULL DEFAULT 'pending',
+    payment_method TEXT NOT NULL,
+    payment_intent_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create fan_scores table
+CREATE TABLE IF NOT EXISTS fan_scores (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    artist_id UUID REFERENCES artists(id) ON DELETE CASCADE,
+    score INTEGER NOT NULL DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, artist_id)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_fan_engagements_user_artist ON fan_engagements(user_id, artist_id);
+CREATE INDEX IF NOT EXISTS idx_shows_artist ON shows(artist_id);
+CREATE INDEX IF NOT EXISTS idx_shows_date ON shows(event_date);
+CREATE INDEX IF NOT EXISTS idx_ticket_purchases_user ON ticket_purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_purchases_show ON ticket_purchases(show_id);
+CREATE INDEX IF NOT EXISTS idx_fan_scores_user ON fan_scores(user_id);
+CREATE INDEX IF NOT EXISTS idx_fan_scores_artist ON fan_scores(artist_id);
+CREATE INDEX IF NOT EXISTS idx_fan_scores_score ON fan_scores(score DESC);
+
+-- Enable RLS on tables
+ALTER TABLE fan_engagements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fan_scores ENABLE ROW LEVEL SECURITY;
+
+-- Grant permissions
+GRANT ALL ON TABLE fan_engagements TO anon, authenticated, service_role;
+GRANT ALL ON TABLE shows TO authenticated, service_role;
+GRANT ALL ON TABLE ticket_purchases TO authenticated, service_role;
+GRANT ALL ON TABLE fan_scores TO anon, authenticated, service_role;
+
+-- Create RLS policies for fan_engagements
+CREATE POLICY "Users can view their own engagements" ON fan_engagements
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own engagements" ON fan_engagements
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all engagements" ON fan_engagements
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create RLS policies for shows
+CREATE POLICY "Everyone can view shows" ON shows
+    FOR SELECT USING (true);
+
+CREATE POLICY "Only service role can manage shows" ON shows
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create RLS policies for ticket_purchases
+CREATE POLICY "Users can view their own purchases" ON ticket_purchases
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own purchases" ON ticket_purchases
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all purchases" ON ticket_purchases
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create RLS policies for fan_scores
+CREATE POLICY "Anyone can view fan scores" ON fan_scores
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can update their own scores" ON fan_scores
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all scores" ON fan_scores
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create trigger function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = TIMEZONE('utc', now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for timestamp updates
+CREATE TRIGGER update_users_timestamp
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_artists_timestamp
+    BEFORE UPDATE ON artists
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_shows_timestamp
+    BEFORE UPDATE ON shows
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_ticket_purchases_timestamp
+    BEFORE UPDATE ON ticket_purchases
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_fan_scores_timestamp
+    BEFORE UPDATE ON fan_scores
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

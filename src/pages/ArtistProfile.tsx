@@ -2,9 +2,10 @@ import { Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Dimensions, FlatList } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import BottomNavBar from '../components/common/BottomNavBar';
 
@@ -37,6 +38,7 @@ import { supabase } from '../services/databaseService';
 import { Artist } from '../types/music';
 import { fetchArtistDetails } from '../services/artistService';
 import MLService from '../services/ml/MLService';
+import merchandiseService, { Merchandise } from '../services/merchandiseService';
 
 type ArtistProfileRouteProp = RouteProp<RootStackParamList, 'ArtistProfile'>;
 
@@ -45,9 +47,13 @@ interface Props {
 }
 
 export default function ArtistProfileScreen({ route }: Props) {
-  const { artistId } = route?.params || { artistId: 'unknown' };
+  const artistId = route?.params?.artistId;
+  if (!artistId) {
+    console.error('No artist ID provided in route params');
+  }
   console.log('ArtistProfile received artistId:', artistId);
   const { activeTheme } = useTheme();
+  const { user } = useAuth();
   const themeColors = colors[activeTheme];
   const [artist, setArtist] = useState<Artist | null>(null);
   const screenWidth = Dimensions.get('window').width;
@@ -373,14 +379,25 @@ export default function ArtistProfileScreen({ route }: Props) {
     country: '',
   });
 
-  const merchandise = [
-   { id: '1', name: 'Signature T-Shirt', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop', price: '$25' },
-   { id: '2', name: 'Limited Hoodie', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300&h=300&fit=crop', price: '$65' },
-   { id: '3', name: 'Tour Poster', image: 'https://images.unsplash.com/photo-1549373468-14cab2e7703e?w=300&h=300&fit=crop', price: '$15' },
-   { id: '4', name: 'Snapback Cap', image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=300&h=300&fit=crop', price: '$30' },
-   { id: '5', name: 'Coffee Mug', image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=300&h=300&fit=crop', price: '$18' },
-   { id: '6', name: 'Vinyl Record', image: 'https://images.unsplash.com/photo-1603745781347-86ae2ee9c8a3?w=300&h=300&fit=crop', price: '$45' },
-  ];
+  const [merchandise, setMerchandise] = useState<Merchandise[]>([]);
+  const [loadingMerchandise, setLoadingMerchandise] = useState(true);
+
+  useEffect(() => {
+    const loadMerchandise = async () => {
+      try {
+        const data = await merchandiseService.getArtistMerchandise(artistId);
+        setMerchandise(data);
+      } catch (error) {
+        console.error('Error loading merchandise:', error);
+      } finally {
+        setLoadingMerchandise(false);
+      }
+    };
+
+    if (artistId) {
+      loadMerchandise();
+    }
+  }, [artistId]);
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
@@ -395,67 +412,38 @@ export default function ArtistProfileScreen({ route }: Props) {
         return;
       }
 
+      if (!selectedItem) {
+        Alert.alert('Error', 'No item selected');
+        return;
+      }
+
       // Map payment method to expected format
       const paymentMethodMap = {
         'apple': 'apple_pay',
         'card': 'credit_card', 
         'web3': 'crypto'
-      };
+      } as const;
 
-      // Create shipping address object
-      const [firstName, ...lastNameParts] = shippingInfo.fullName.split(' ');
-      const lastName = lastNameParts.join(' ') || '';
-      
-      const shippingAddress = {
-        firstName: firstName,
-        lastName: lastName,
-        address1: shippingInfo.address,
-        city: shippingInfo.city,
-        state: shippingInfo.state,
-        zipCode: shippingInfo.zipCode,
-        country: shippingInfo.country,
-      };
-
-      // Create a simplified order object
-      const orderData = {
-        id: `merch_${selectedItem.id}_${Date.now()}`,
-        user_id: 'demo_user', // Using demo user for now
-        artist_id: artistId,
-        engagement_type: 'purchase',
-        points: parseFloat(selectedItem.price.replace('$', '')),
-        timestamp: new Date().toISOString(),
-        metadata: {
-          item_name: selectedItem.name,
-          item_id: selectedItem.id,
-          price: parseFloat(selectedItem.price.replace('$', '')),
-          payment_method: paymentMethodMap[selectedPayment],
-          shipping_address: shippingAddress,
-          status: 'pending',
-          order_type: 'merchandise'
-        }
-      };
-
-      // Try to insert into engagements table as a fallback (this table likely exists)
-      const { data: order, error } = await supabase
-        .from('engagements')
-        .insert(orderData)
-        .select()
-        .single();
-
-      let orderId;
-      if (error) {
-        // If that fails too, let's just simulate success for demo purposes
-        console.warn('Database insert failed, simulating success:', error);
-        orderId = `DEMO_${Date.now()}`;
-        console.log('Mock order created with ID:', orderId);
-      } else {
-        orderId = order.id;
-        console.log('Order created successfully:', orderId);
-      }
+      const order = await merchandiseService.createOrder({
+        user_id: user?.id || '',
+        merchandise_id: selectedItem.id,
+        quantity: 1,
+        price: selectedItem.price,
+        status: 'pending',
+        shipping_address: {
+          full_name: shippingInfo.fullName,
+          address: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          zip_code: shippingInfo.zipCode,
+          country: shippingInfo.country,
+        },
+        payment_method: paymentMethodMap[selectedPayment]
+      });
       
       Alert.alert(
         'Order Confirmed!',
-        `Your ${selectedItem.name} order has been placed and will be shipped to ${shippingInfo.fullName} at ${shippingInfo.address}. Order ID: ${orderId}`,
+        `Your ${selectedItem.name} order has been placed and will be shipped to ${shippingInfo.fullName} at ${shippingInfo.address}. Order ID: ${order.id}`,
         [{ text: 'OK', onPress: () => toggleModal() }]
       );
       
@@ -519,229 +507,237 @@ export default function ArtistProfileScreen({ route }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 180 }}>
-        <ArtistHeader artist={artist} />
-        <EngagementMetrics artistId={artistId} artistName={artist.name} />
-        <RevenueInsights artistId={artistId} artistName={artist.name} />
-        <PopularSongs artistId={artistId} artistName={artist.name} />
-        <ReactionBar artistId={artistId} />
-        <CollaborationHub artistId={artistId} />
-        <CommentSection artistId={artistId} />
-        <DiscographyCarousel artistId={artistId} artistName={artist.name} />
-        <VideoCarousel artistId={artistId} artistName={artist.name} />
-        <TourDates artistId={artistId} artistName={artist.name} />
-        {/* AI-Powered Insights */}
-        {artistInsights && (
-          <View style={styles.merchandiseSection}>
-            <Text style={styles.merchandiseTitle}>AI Insights</Text>
-            <Text>Potential: {artistInsights.potential}%</Text>
-            <Text>Engagement Score: {artistInsights.engagementScore}</Text>
-            {isEmergingTalent && <Text style={{color: 'orange'}}>Emerging Talent!</Text>}
-          </View>
-        )}
-        <EngagementChallenges artistId={artistId} artistName={artist.name} userLevel={2} />
-        <PlaylistIntegration artistId={artistId} artistName={artist.name} />
-        <TopFansLeaderboard />
+      <FlatList
+        style={styles.contentContainer}
+        contentContainerStyle={{ paddingBottom: 180 }}
+        data={[{ id: 'content' }]}
+        renderItem={() => (
+          <>
+            <ArtistHeader artist={artist} />
+            <EngagementMetrics artistId={artistId} artistName={artist.name} />
+            <RevenueInsights artistId={artistId} artistName={artist.name} />
+            <PopularSongs artistId={artistId} artistName={artist.name} />
+            <ReactionBar artistId={artistId} />
+            <CollaborationHub artistId={artistId} />
+            <CommentSection artistId={artistId} />
+            <DiscographyCarousel artistId={artistId} artistName={artist.name} />
+            <VideoCarousel artistId={artistId} artistName={artist.name} />
+            <TourDates artistId={artistId} artistName={artist.name} />
+            {/* AI-Powered Insights */}
+            {artistInsights && (
+              <View style={styles.merchandiseSection}>
+                <Text style={styles.merchandiseTitle}>AI Insights</Text>
+                <Text>Potential: {artistInsights.potential}%</Text>
+                <Text>Engagement Score: {artistInsights.engagementScore}</Text>
+                {isEmergingTalent && <Text style={{color: 'orange'}}>Emerging Talent!</Text>}
+              </View>
+            )}
+            <EngagementChallenges artistId={artistId} artistName={artist.name} userLevel={2} />
+            <PlaylistIntegration artistId={artistId} artistName={artist.name} />
+            <TopFansLeaderboard artistId={artistId} />
 
-        <View style={styles.merchandiseSection}>
-          <View style={styles.merchandiseHeader}>
-            <Text style={styles.merchandiseTitle}>Merchandise</Text>
-          </View>
-          
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContainer}
-          >
-            {merchandise.map((item) => (
-              <View key={item.id} style={styles.merchandiseCard}>
-                <Image source={{ uri: item.image }} style={styles.merchandiseImage} />
-                <View style={styles.merchandiseInfo}>
-                  <Text style={styles.merchandiseName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.merchandisePrice}>{item.price}</Text>
-                  <TouchableOpacity
-                    style={styles.buyButton}
-                    onPress={() => {
-                      setSelectedItem(item);
-                      setModalVisible(true);
-                    }}
-                  >
-                    <Text style={styles.buyButtonText}>ADD TO CART</Text>
-                  </TouchableOpacity>
+            <View style={styles.merchandiseSection}>
+              <View style={styles.merchandiseHeader}>
+                <Text style={styles.merchandiseTitle}>Merchandise</Text>
+              </View>
+              
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContainer}
+                data={merchandise}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <View style={styles.merchandiseCard}>
+                    <Image source={{ uri: item.image_url }} style={styles.merchandiseImage} />
+                    <View style={styles.merchandiseInfo}>
+                      <Text style={styles.merchandiseName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.merchandisePrice}>${item.price.toFixed(2)}</Text>
+                      <TouchableOpacity
+                        style={styles.buyButton}
+                        onPress={() => {
+                          setSelectedItem(item);
+                          setModalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.buyButtonText}>ADD TO CART</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              />
+            </View>
+          </>
+        )}
+        keyExtractor={() => 'content'}
+      />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => {
+          setModalVisible(!modalVisible);
+        }}
+      >
+        <View style={styles.modalView}>
+          <ScrollView style={styles.checkoutContainer}>
+            <View style={styles.checkoutHandle} />
+            
+            <View style={styles.checkoutHeader}>
+              <Text style={styles.checkoutTitle}>Checkout</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={toggleModal}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedItem && (
+              <View style={styles.orderSummary}>
+                <View style={styles.orderItem}>
+                  <Image source={{ uri: selectedItem.image_url }} style={styles.orderItemImage} />
+                  <View style={styles.orderItemDetails}>
+                    <Text style={styles.orderItemName}>{selectedItem.name}</Text>
+                    <Text style={styles.orderItemPrice}>${selectedItem.price.toFixed(2)}</Text>
+                  </View>
                 </View>
               </View>
-            ))}
+            )}
+
+            <View style={styles.shippingForm}>
+              <Text style={styles.sectionTitle}>Shipping Information</Text>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={shippingInfo.fullName}
+                  onChangeText={(text) => setShippingInfo({...shippingInfo, fullName: text})}
+                  placeholder="John Doe"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Address</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={shippingInfo.address}
+                  onChangeText={(text) => setShippingInfo({...shippingInfo, address: text})}
+                  placeholder="123 Main Street"
+                />
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={[styles.inputGroup, styles.halfInput]}>
+                  <Text style={styles.inputLabel}>City</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={shippingInfo.city}
+                    onChangeText={(text) => setShippingInfo({...shippingInfo, city: text})}
+                    placeholder="New York"
+                  />
+                </View>
+                <View style={[styles.inputGroup, styles.halfInput]}>
+                  <Text style={styles.inputLabel}>State</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={shippingInfo.state}
+                    onChangeText={(text) => setShippingInfo({...shippingInfo, state: text})}
+                    placeholder="NY"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={[styles.inputGroup, styles.halfInput]}>
+                  <Text style={styles.inputLabel}>ZIP Code</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={shippingInfo.zipCode}
+                    onChangeText={(text) => setShippingInfo({...shippingInfo, zipCode: text})}
+                    placeholder="10001"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={[styles.inputGroup, styles.halfInput]}>
+                  <Text style={styles.inputLabel}>Country</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={shippingInfo.country}
+                    onChangeText={(text) => setShippingInfo({...shippingInfo, country: text})}
+                    placeholder="USA"
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.paymentOptions}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              
+              <TouchableOpacity
+                style={[styles.paymentButton, selectedPayment === 'apple' && styles.paymentButtonSelected]}
+                onPress={() => setSelectedPayment('apple')}
+              >
+                <View style={styles.paymentIconContainer}>
+                  <Ionicons name="logo-apple" size={24} color={themeColors.text} />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentText}>Apple Pay</Text>
+                  <Text style={styles.paymentDesc}>Touch ID or Face ID</Text>
+                </View>
+                {selectedPayment === 'apple' && (
+                  <View style={styles.paymentSelected}>
+                    <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.paymentButton, selectedPayment === 'card' && styles.paymentButtonSelected]}
+                onPress={() => setSelectedPayment('card')}
+              >
+                <View style={styles.paymentIconContainer}>
+                  <Ionicons name="card" size={24} color={themeColors.text} />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentText}>Credit Card</Text>
+                  <Text style={styles.paymentDesc}>Visa, Mastercard, Amex</Text>
+                </View>
+                {selectedPayment === 'card' && (
+                  <View style={styles.paymentSelected}>
+                    <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.paymentButton, selectedPayment === 'web3' && styles.paymentButtonSelected]}
+                onPress={() => setSelectedPayment('web3')}
+              >
+                <View style={styles.paymentIconContainer}>
+                  <Ionicons name="logo-bitcoin" size={24} color={themeColors.text} />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentText}>Ethereum</Text>
+                  <Text style={styles.paymentDesc}>Crypto payment</Text>
+                </View>
+                {selectedPayment === 'web3' && (
+                  <View style={styles.paymentSelected}>
+                    <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.totalSection}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalAmount}>${selectedItem ? selectedItem.price.toFixed(2) : '0.00'}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.checkoutButton} onPress={handlePurchase}>
+              <Text style={styles.checkoutButtonText}>Complete Purchase</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
-
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => {
-            setModalVisible(!modalVisible);
-          }}
-        >
-          <View style={styles.modalView}>
-            <ScrollView style={styles.checkoutContainer}>
-              <View style={styles.checkoutHandle} />
-              
-              <View style={styles.checkoutHeader}>
-                <Text style={styles.checkoutTitle}>Checkout</Text>
-                <TouchableOpacity style={styles.closeButton} onPress={toggleModal}>
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-
-              {selectedItem && (
-                <View style={styles.orderSummary}>
-                  <View style={styles.orderItem}>
-                    <Image source={{ uri: selectedItem.image }} style={styles.orderItemImage} />
-                    <View style={styles.orderItemDetails}>
-                      <Text style={styles.orderItemName}>{selectedItem.name}</Text>
-                      <Text style={styles.orderItemPrice}>{selectedItem.price}</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.shippingForm}>
-                <Text style={styles.sectionTitle}>Shipping Information</Text>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Full Name</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={shippingInfo.fullName}
-                    onChangeText={(text) => setShippingInfo({...shippingInfo, fullName: text})}
-                    placeholder="John Doe"
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Address</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={shippingInfo.address}
-                    onChangeText={(text) => setShippingInfo({...shippingInfo, address: text})}
-                    placeholder="123 Main Street"
-                  />
-                </View>
-
-                <View style={styles.inputRow}>
-                  <View style={[styles.inputGroup, styles.halfInput]}>
-                    <Text style={styles.inputLabel}>City</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={shippingInfo.city}
-                      onChangeText={(text) => setShippingInfo({...shippingInfo, city: text})}
-                      placeholder="New York"
-                    />
-                  </View>
-                  <View style={[styles.inputGroup, styles.halfInput]}>
-                    <Text style={styles.inputLabel}>State</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={shippingInfo.state}
-                      onChangeText={(text) => setShippingInfo({...shippingInfo, state: text})}
-                      placeholder="NY"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.inputRow}>
-                  <View style={[styles.inputGroup, styles.halfInput]}>
-                    <Text style={styles.inputLabel}>ZIP Code</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={shippingInfo.zipCode}
-                      onChangeText={(text) => setShippingInfo({...shippingInfo, zipCode: text})}
-                      placeholder="10001"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  <View style={[styles.inputGroup, styles.halfInput]}>
-                    <Text style={styles.inputLabel}>Country</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={shippingInfo.country}
-                      onChangeText={(text) => setShippingInfo({...shippingInfo, country: text})}
-                      placeholder="USA"
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.paymentOptions}>
-                <Text style={styles.sectionTitle}>Payment Method</Text>
-                
-                <TouchableOpacity
-                  style={[styles.paymentButton, selectedPayment === 'apple' && styles.paymentButtonSelected]}
-                  onPress={() => setSelectedPayment('apple')}
-                >
-                  <View style={styles.paymentIconContainer}>
-                    <Ionicons name="logo-apple" size={24} color={themeColors.text} />
-                  </View>
-                  <View style={styles.paymentInfo}>
-                    <Text style={styles.paymentText}>Apple Pay</Text>
-                    <Text style={styles.paymentDesc}>Touch ID or Face ID</Text>
-                  </View>
-                  {selectedPayment === 'apple' && (
-                    <View style={styles.paymentSelected}>
-                      <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.paymentButton, selectedPayment === 'card' && styles.paymentButtonSelected]}
-                  onPress={() => setSelectedPayment('card')}
-                >
-                  <View style={styles.paymentIconContainer}>
-                    <Ionicons name="card" size={24} color={themeColors.text} />
-                  </View>
-                  <View style={styles.paymentInfo}>
-                    <Text style={styles.paymentText}>Credit Card</Text>
-                    <Text style={styles.paymentDesc}>Visa, Mastercard, Amex</Text>
-                  </View>
-                  {selectedPayment === 'card' && (
-                    <View style={styles.paymentSelected}>
-                      <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.paymentButton, selectedPayment === 'web3' && styles.paymentButtonSelected]}
-                  onPress={() => setSelectedPayment('web3')}
-                >
-                  <View style={styles.paymentIconContainer}>
-                    <Ionicons name="logo-bitcoin" size={24} color={themeColors.text} />
-                  </View>
-                  <View style={styles.paymentInfo}>
-                    <Text style={styles.paymentText}>Ethereum</Text>
-                    <Text style={styles.paymentDesc}>Crypto payment</Text>
-                  </View>
-                  {selectedPayment === 'web3' && (
-                    <View style={styles.paymentSelected}>
-                      <Ionicons name="checkmark-circle" size={20} color={themeColors.primary} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.totalSection}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalAmount}>{selectedItem?.price || '$0'}</Text>
-              </View>
-
-              <TouchableOpacity style={styles.checkoutButton} onPress={handlePurchase}>
-                <Text style={styles.checkoutButtonText}>Complete Purchase</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </Modal>
-      </ScrollView>
+      </Modal>
       <BottomNavBar />
     </View>
   );

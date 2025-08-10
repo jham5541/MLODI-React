@@ -479,6 +479,18 @@ class FanScoringService {
   async getUserFanScores(userId: string): Promise<ArtistFanScore[]> {
     return await databaseService.getUserFanScores(userId);
   }
+
+  /**
+   * Subscribe to leaderboard updates for a specific artist
+   */
+  subscribeToLeaderboardUpdates(artistId: string, callback: () => void) {
+    // Subscribe to database changes
+    const unsubscribe = databaseService.subscribeToArtistLeaderboard(artistId, callback);
+    
+    return {
+      unsubscribe
+    };
+  }
 }
 
 export const fanScoringService = new FanScoringService();

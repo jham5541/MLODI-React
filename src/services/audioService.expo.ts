@@ -1,4 +1,5 @@
 // Mock Audio Service for Expo Go compatibility
+import { Platform } from 'react-native';
 import { Song } from '../types/music';
 
 // Mock track player states
@@ -98,7 +99,10 @@ class MockAudioService {
   }
 
   removeEventListener(event: string, callback: Function) {
-    console.log('[Mock Audio] Event listener removed:', event);
+    // Only log if not a BackHandler event on non-Android platforms
+    if (!(event === 'hardwareBackPress' && Platform.OS !== 'android')) {
+      console.log('[Mock Audio] Event listener removed:', event);
+    }
   }
 }
 

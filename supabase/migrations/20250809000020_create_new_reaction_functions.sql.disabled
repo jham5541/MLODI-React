@@ -1,0 +1,95 @@
+-- Function to get reaction counts for a track
+CREATE OR REPLACE FUNCTION get_track_reactions_summary(track_id_param UUID)
+RETURNS TABLE (
+    reaction_type TEXT,
+    count BIGINT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tr.reaction_type::TEXT,
+        COUNT(*)::BIGINT as count
+    FROM track_reactions tr
+    WHERE tr.track_id = track_id_param
+    GROUP BY tr.reaction_type;
+END;
+$$;
+
+-- Function to get track reactions with user details
+CREATE OR REPLACE FUNCTION get_track_reaction_details(
+    track_id_param UUID,
+    limit_val INTEGER DEFAULT 50,
+    offset_val INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    user_id UUID,
+    track_id UUID,
+    reaction_type TEXT,
+    username TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tr.id,
+        tr.user_id,
+        tr.track_id,
+        tr.reaction_type::TEXT,
+        up.username,
+        up.avatar_url,
+        tr.created_at
+    FROM track_reactions tr
+    LEFT JOIN user_profiles up ON tr.user_id = up.id
+    WHERE tr.track_id = track_id_param
+    ORDER BY tr.created_at DESC
+    LIMIT limit_val
+    OFFSET offset_val;
+END;
+$$;
+
+-- Function to get comments for a track
+CREATE OR REPLACE FUNCTION get_track_comment_details(
+    track_id_param UUID,
+    limit_val INTEGER DEFAULT 50,
+    offset_val INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    user_id UUID,
+    track_id UUID,
+    comment TEXT,
+    username TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tc.id,
+        tc.user_id,
+        tc.track_id,
+        tc.comment,
+        up.username,
+        up.avatar_url,
+        tc.created_at,
+        tc.updated_at
+    FROM track_comments tc
+    LEFT JOIN user_profiles up ON tc.user_id = up.id
+    WHERE tc.track_id = track_id_param
+    ORDER BY tc.created_at DESC
+    LIMIT limit_val
+    OFFSET offset_val;
+END;
+$$;

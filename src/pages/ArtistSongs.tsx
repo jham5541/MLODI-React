@@ -17,16 +17,27 @@ import { useTheme, colors } from '../context/ThemeContext';
 import { usePlay } from '../context/PlayContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Song as MusicSong } from '../types/music';
+import { purchaseService } from '../services/purchaseService';
+import PurchaseModal from '../components/purchase/PurchaseModal';
+import { sampleSongs } from '../data/sampleData';
 
 interface Song {
   id: string;
   title: string;
+  artist: string;
+  artistId: string;
   album: string;
   duration: number;
   coverUrl: string;
-  playCount: number;
+  playCount?: number;
+  popularity?: number;
   price?: number;
-  releaseDate: string;
+  releaseDate?: string;
+  audioUrl?: string;
+  supply?: {
+    total: number;
+    available: number;
+  };
 }
 
 type ArtistSongsRouteProp = RouteProp<RootStackParamList, 'ArtistSongs'>;
@@ -46,6 +57,9 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'popular' | 'recent' | 'alphabetical'>('popular');
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadSongs();
@@ -54,113 +68,21 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
   const loadSongs = async () => {
     setLoading(true);
     
-    // Mock data - replace with actual API call
-    const mockSongs: Song[] = [
-      {
-        id: '1',
-        title: 'Summer Nights',
-        album: 'Golden Hour',
-        duration: 195,
-        coverUrl: 'https://picsum.photos/200/200?random=1',
-        playCount: 2500000,
-        price: 1.99,
-        releaseDate: '2023-08-15',
-      },
-      {
-        id: '2',
-        title: 'Electric Dreams',
-        album: 'Neon City',
-        duration: 208,
-        coverUrl: 'https://picsum.photos/200/200?random=2',
-        playCount: 1800000,
-        price: 1.99,
-        releaseDate: '2022-11-20',
-      },
-      {
-        id: '3',
-        title: 'Midnight Drive',
-        album: 'Golden Hour',
-        duration: 183,
-        coverUrl: 'https://picsum.photos/200/200?random=3',
-        playCount: 1200000,
-        price: 1.99,
-        releaseDate: '2023-08-15',
-      },
-      {
-        id: '4',
-        title: 'Ocean Waves',
-        album: 'Serenity',
-        duration: 222,
-        coverUrl: 'https://picsum.photos/200/200?random=4',
-        playCount: 950000,
-        releaseDate: '2021-05-10',
-      },
-      {
-        id: '5',
-        title: 'City Lights',
-        album: 'Neon City',
-        duration: 176,
-        coverUrl: 'https://picsum.photos/200/200?random=5',
-        playCount: 780000,
-        price: 1.99,
-        releaseDate: '2022-11-20',
-      },
-      {
-        id: '6',
-        title: 'Starlight',
-        album: 'Golden Hour',
-        duration: 201,
-        coverUrl: 'https://picsum.photos/200/200?random=6',
-        playCount: 650000,
-        releaseDate: '2023-08-15',
-      },
-      {
-        id: '7',
-        title: 'Moonbeam',
-        album: 'Serenity',
-        duration: 189,
-        coverUrl: 'https://picsum.photos/200/200?random=7',
-        playCount: 520000,
-        releaseDate: '2021-05-10',
-      },
-      {
-        id: '8',
-        title: 'Digital Heart',
-        album: 'Neon City',
-        duration: 214,
-        coverUrl: 'https://picsum.photos/200/200?random=8',
-        playCount: 445000,
-        price: 1.99,
-        releaseDate: '2022-11-20',
-      },
-      {
-        id: '9',
-        title: 'Golden Dawn',
-        album: 'Golden Hour',
-        duration: 196,
-        coverUrl: 'https://picsum.photos/200/200?random=9',
-        playCount: 380000,
-        releaseDate: '2023-08-15',
-      },
-      {
-        id: '10',
-        title: 'Peace Within',
-        album: 'Serenity',
-        duration: 234,
-        coverUrl: 'https://picsum.photos/200/200?random=10',
-        playCount: 290000,
-        releaseDate: '2021-05-10',
-      },
-    ];
+    // Get songs from sampleData for this artist
+    const artistSongs = sampleSongs.filter(song => song.artistId === artistId);
 
     // Sort songs based on selected criteria
-    let sortedSongs = [...mockSongs];
+    let sortedSongs = [...artistSongs];
     switch (sortBy) {
       case 'popular':
-        sortedSongs.sort((a, b) => b.playCount - a.playCount);
+        sortedSongs.sort((a, b) => (b.popularity || b.playCount || 0) - (a.popularity || a.playCount || 0));
         break;
       case 'recent':
-        sortedSongs.sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+        sortedSongs.sort((a, b) => {
+          const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+          const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+          return dateB - dateA;
+        });
         break;
       case 'alphabetical':
         sortedSongs.sort((a, b) => a.title.localeCompare(b.title));
@@ -211,15 +133,13 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
     playSong(musicSong, playlist);
   };
 
-  const handlePurchase = (song: Song) => {
-    Alert.alert(
-      'Purchase Song',
-      `Purchase "${song.title}" for $${song.price}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Buy', onPress: () => console.log('Purchase:', song.id) },
-      ]
-    );
+  const handleBuyPress = (song: Song) => {
+    setSelectedSongForPurchase(song);
+    setPurchaseModalVisible(true);
+  };
+
+  const handlePurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
   const handleShare = (song: Song) => {
@@ -245,9 +165,14 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
     const isCurrentlyPlaying = currentSong?.id === item.id && isPlaying;
+    const isPurchased = purchaseService.isPurchased(item.id);
+    const purchaseCount = purchaseService.getPurchaseCount(item.id);
 
     return (
-      <View style={styles.songItem}>
+      <View style={[
+        styles.songItem,
+        isPurchased && styles.songItemPurchased
+      ]}>
         <View style={styles.rankContainer}>
           <Text style={styles.rank}>{index + 1}</Text>
         </View>
@@ -264,7 +189,7 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
             </Text>
             <View style={styles.separator} />
             <Text style={styles.playCount}>
-              {formatNumber(item.playCount)} plays
+              {formatNumber(item.popularity || item.playCount || 0)} plays
             </Text>
           </View>
         </View>
@@ -283,14 +208,23 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
             />
           </TouchableOpacity>
 
-          {item.price && (
+          <View style={{ position: 'relative' }}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.priceButton]}
-              onPress={() => handlePurchase(item)}
+              style={styles.buyButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleBuyPress(item);
+              }}
             >
-              <Text style={styles.priceText}>${item.price}</Text>
+              <Text style={styles.buyButtonText}>BUY</Text>
             </TouchableOpacity>
-          )}
+            
+            {purchaseCount > 0 && (
+              <View style={styles.purchaseCount}>
+                <Text style={styles.purchaseCountText}>{purchaseCount}</Text>
+              </View>
+            )}
+          </View>
 
           <TouchableOpacity
             style={styles.actionButton}
@@ -450,16 +384,43 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
       borderWidth: 1,
       borderColor: themeColors.border,
     },
-    priceButton: {
-      backgroundColor: themeColors.success + '20',
-      borderColor: themeColors.success,
+    buyButton: {
+      backgroundColor: themeColors.primary,
       paddingHorizontal: 8,
-      borderRadius: 12,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginLeft: 8,
+      minWidth: 40,
+      alignItems: 'center',
     },
-    priceText: {
+    buyButtonText: {
+      color: 'white',
       fontSize: 10,
       fontWeight: '600',
-      color: themeColors.success,
+    },
+    songItemPurchased: {
+      backgroundColor: themeColors.primary + '10',
+      borderWidth: 1,
+      borderColor: themeColors.primary + '30',
+    },
+    purchaseCount: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: themeColors.primary,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+      zIndex: 1,
+    },
+    purchaseCountText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '700',
     },
     emptyState: {
       flex: 1,
@@ -522,6 +483,20 @@ export default function ArtistSongsScreen({ route, navigation }: Props) {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
+        />
+      )}
+      
+      {selectedSongForPurchase && (
+        <PurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedSongForPurchase(null);
+          }}
+          songId={selectedSongForPurchase.id}
+          songTitle={selectedSongForPurchase.title}
+          artist={selectedSongForPurchase.artist || artistName || 'Unknown Artist'}
+          onPurchaseComplete={handlePurchaseComplete}
         />
       )}
     </SafeAreaView>

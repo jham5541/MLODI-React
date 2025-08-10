@@ -14,6 +14,7 @@ import ArtistCarousel from '../components/home/ArtistCarousel';
 import RadioCarousel from '../components/home/RadioCarousel';
 import ChartCarousel from '../components/home/ChartCarousel';
 import SongList from '../components/home/SongList';
+import FeaturedPlaylists from '../components/home/FeaturedPlaylists';
 import { SubscriptionStatusCard } from '../components/SubscriptionStatusCard';
 import { useMusicStore } from '../store/musicStore';
 import { usePlaylistStore } from '../store/playlistStore';
@@ -516,7 +517,6 @@ export default function HomeScreen() {
                 <SongCard
                   song={item}
                   onPress={() => handleSongPress(item)}
-                  showMenu={true}
                 />
               )}
               keyExtractor={(item) => item.id}
@@ -536,6 +536,9 @@ export default function HomeScreen() {
         />
 
         
+        {/* Featured Playlists */}
+        <FeaturedPlaylists />
+
         {/* Popular Artists Carousel */}
         <ArtistCarousel
           title="Popular Artists"

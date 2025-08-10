@@ -1,0 +1,111 @@
+-- Create purchase status enum type
+CREATE TYPE purchase_status AS ENUM ('pending', 'completed', 'cancelled');
+
+-- Create shows table first
+CREATE TABLE IF NOT EXISTS shows (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    artist_id UUID NOT NULL REFERENCES artists(id),
+    venue_name TEXT NOT NULL,
+    venue_address TEXT NOT NULL,
+    event_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    ticket_price DECIMAL(10,2) NOT NULL CHECK (ticket_price > 0),
+    available_tickets INTEGER NOT NULL CHECK (available_tickets >= 0),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create ticket purchases table
+CREATE TABLE IF NOT EXISTS ticket_purchases (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    show_id UUID NOT NULL REFERENCES shows(id),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount > 0),
+    status purchase_status NOT NULL DEFAULT 'pending',
+    payment_method TEXT NOT NULL,
+    payment_intent_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create ticket attendance table
+CREATE TABLE IF NOT EXISTS ticket_attendance (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    ticket_purchase_id UUID NOT NULL REFERENCES ticket_purchases(id),
+    checked_in_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', now())
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_shows_artist ON shows(artist_id);
+CREATE INDEX IF NOT EXISTS idx_shows_date ON shows(event_date);
+CREATE INDEX IF NOT EXISTS idx_ticket_purchases_user ON ticket_purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_purchases_show ON ticket_purchases(show_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_attendance_purchase ON ticket_attendance(ticket_purchase_id);
+
+-- Enable Row Level Security
+ALTER TABLE shows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_attendance ENABLE ROW LEVEL SECURITY;
+
+-- Grant access to authenticated users and service role
+GRANT ALL ON TABLE shows TO authenticated, service_role;
+GRANT ALL ON TABLE ticket_purchases TO authenticated, service_role;
+GRANT ALL ON TABLE ticket_attendance TO authenticated, service_role;
+
+-- RLS Policies for shows
+CREATE POLICY "Everyone can view shows" ON shows
+    FOR SELECT USING (true);
+
+CREATE POLICY "Only service role can manage shows" ON shows
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- RLS Policies for ticket_purchases
+CREATE POLICY "Users can view their own purchases" ON ticket_purchases
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own purchases" ON ticket_purchases
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage all purchases" ON ticket_purchases
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- RLS Policies for ticket_attendance
+CREATE POLICY "Users can view their own attendance" ON ticket_attendance
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM ticket_purchases tp
+            WHERE tp.id = ticket_attendance.ticket_purchase_id
+            AND tp.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Service role can manage all attendance" ON ticket_attendance
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create function to update timestamps
+CREATE OR REPLACE FUNCTION update_ticket_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = TIMEZONE('utc', now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for timestamp updates
+CREATE TRIGGER update_shows_timestamp
+    BEFORE UPDATE ON shows
+    FOR EACH ROW
+    EXECUTE FUNCTION update_ticket_updated_at();
+
+CREATE TRIGGER update_ticket_purchases_timestamp
+    BEFORE UPDATE ON ticket_purchases
+    FOR EACH ROW
+    EXECUTE FUNCTION update_ticket_updated_at();
+
+CREATE TRIGGER update_ticket_attendance_timestamp
+    BEFORE UPDATE ON ticket_attendance
+    FOR EACH ROW
+    EXECUTE FUNCTION update_ticket_updated_at();

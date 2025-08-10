@@ -1,58 +1,84 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { useAuthStore } from '../../store/authStore';
+import { databaseService } from '../../services/databaseService';
 
-// Mock data with expanded list for infinite scroll demonstration
-const generateMockFans = (start: number, count: number) => {
-  const levels = ['Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'];
-  const avatars = ['🥇', '🥈', '🥉', '🎵', '🎧', '🎤', '🎹', '🎸', '🎺', '🥁'];
-  const usernames = ['CryptoMelody', 'BeatLover2024', 'MusicNFTFan', 'VibeCollector', 'SonicExplorer', 'VinylVibe', 'NewFanRising', 'GuitarHero88', 'DrumMachine', 'BasslineKing'];
+interface Fan {
+  id: string;
+  user_id: string;
+  username: string;
+  avatar_url: string;
+  level: string;
+  points: number;
+  rank: number;
+  fan_since: string;
+  badges: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+  }>;
+  user: {
+    username: string;
+    avatar_url: string;
+  };
+  avatar: string;
+}
 
-  return Array.from({ length: count }, (_, i) => {
-    const rank = start + i;
-    const points = Math.max(15000 - (rank * 100) - Math.random() * 50, 100);
+interface TopFansLeaderboardProps {
+  artistId: string;
+}
 
-    return {
-      walletAddress: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`,
-      points: Math.floor(points),
-      rank,
-      lastWeekRank: rank > 1 ? rank + Math.floor(Math.random() * 3 - 1) : rank,
-      badges: rank <= 10 ? ['Super Fan'] : rank <= 50 ? ['Early Supporter'] : [],
-      avatar: avatars[Math.floor(Math.random() * avatars.length)],
-      username: `${usernames[Math.floor(Math.random() * usernames.length)]}${rank}`,
-      streakDays: Math.floor(Math.random() * 60),
-      totalSpent: Math.floor(Math.random() * 3000),
-      fanLevel: levels[Math.min(Math.floor(rank / 20), levels.length - 1)],
-      trend: (Math.random() - 0.5) * 10
-    };
-  });
-};
+const ITEMS_PER_PAGE = 50;
 
-const TopFansLeaderboard = () => {
+const TopFansLeaderboard = ({ artistId }: TopFansLeaderboardProps) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const listRef = useRef<FlatList>(null);
+  const { user } = useAuthStore();
 
-  const [fans, setFans] = useState(() => generateMockFans(1, 50));
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
+  const [fans, setFans] = useState<Fan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPeriod, setCurrentPeriod] = useState<'all_time' | 'monthly' | 'weekly'>('all_time');
 
-  // Mock current user - in real app this would come from context/auth
-  const currentUser = { walletAddress: fans[2]?.walletAddress }; // Third place user for demo
+useEffect(() => {
+    loadFans();
+    const subscription = databaseService.subscribeToArtistLeaderboard(artistId, loadFans);
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [artistId, currentPeriod]);
 
-  const fetchMoreFans = async () => {
-    if (loading) return;
+  const loadFans = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      const nextPage = page + 1;
-      const newFans = generateMockFans((page * 50) + 1, 50);
-      setFans(prevFans => [...prevFans, ...newFans]);
-      setPage(nextPage);
+      let data: Fan[];
+      // Get fan leaderboard data
+      if (!artistId || true) { // Force empty state while feature is in development
+        data = [];
+      } else {
+      const { data: leaderboardData } = await databaseService.getArtistLeaderboard(artistId, ITEMS_PER_PAGE);
+      data = leaderboardData || [];
+      }
+
+      setFans(data);
+    } catch (err) {
+      console.error('Error loading fans:', err);
+      setError('Failed to load leaderboard');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadFans();
   };
 
   const autoScrollToUser = (userIndex: number) => {
@@ -69,13 +95,13 @@ const TopFansLeaderboard = () => {
   };
 
   useEffect(() => {
-    if (currentUser && fans.length > 0) {
-      const userIndex = fans.findIndex(fan => fan.walletAddress === currentUser.walletAddress);
+    if (user && fans.length > 0) {
+      const userIndex = fans.findIndex(fan => fan.user_id === user.id);
       if (userIndex !== -1) {
         autoScrollToUser(userIndex);
       }
     }
-  }, [fans, currentUser]);
+  }, [fans, user]);
 
   const formatPoints = (points: number) => {
     if (points >= 1000) {
@@ -116,10 +142,9 @@ const TopFansLeaderboard = () => {
     }
   };
 
-  const renderFan = ({ item, index }: { item: any; index: number }) => {
+  const renderFan = ({ item, index }: { item: Fan; index: number }) => {
     const isTopThree = item.rank <= 3;
-    const positionChange = getPositionChange(item.rank, item.lastWeekRank);
-    const isCurrentUser = item.walletAddress === currentUser?.walletAddress;
+    const isCurrentUser = user && item.user_id === user.id;
 
     const rowStyle = [
       styles.fanRow,
@@ -173,46 +198,48 @@ const TopFansLeaderboard = () => {
         {/* Fan Information */}
         <View style={styles.fanInfoSection}>
           <Text style={[styles.username, isCurrentUser && styles.currentUserText]} numberOfLines={1}>
-            {item.username}
+            {item.user.username}
             {isCurrentUser && ' (You)'}
           </Text>
           <View style={styles.detailsRow}>
-            <View style={[styles.fanLevelBadge, { backgroundColor: `${getFanLevelColor(item.fanLevel)}20` }]}>
-              <Text style={[styles.fanLevelText, { color: getFanLevelColor(item.fanLevel) }]}>
-                {item.fanLevel}
+            <View style={[styles.fanLevelBadge, { backgroundColor: `${getFanLevelColor(item.level)}20` }]}>
+              <Text style={[styles.fanLevelText, { color: getFanLevelColor(item.level) }]}>
+                {item.level}
               </Text>
             </View>
             <Text style={styles.pointsText}>{formatPoints(item.points)} pts</Text>
           </View>
         </View>
-
-        {/* Trend Indicator */}
-        <View style={styles.trendSection}>
-          <Ionicons 
-            name={item.trend >= 0 ? "trending-up" : "trending-down"} 
-            size={16} 
-            color={item.trend >= 0 ? '#22C55E' : '#EF4444'} 
-          />
-          <Text style={[
-            styles.trendText,
-            { color: item.trend >= 0 ? '#22C55E' : '#EF4444' }
-          ]}>
-            {item.trend > 0 ? '+' : ''}{item.trend.toFixed(1)}%
-          </Text>
-        </View>
       </View>
     );
   };
 
-  const renderFooter = () => {
-    if (!loading) return null;
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="people-outline" size={64} color={themeColors.textSecondary} />
+      <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+        Top Fans Leaderboard Coming Soon
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: themeColors.primary }]}>
+        Compete with other fans and earn rewards!
+      </Text>
+    </View>
+  );
 
-    return (
-      <View style={styles.loadingFooter}>
-        <Text style={styles.loadingText}>Loading more fans...</Text>
-      </View>
-    );
-  };
+  const renderError = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="alert-circle-outline" size={64} color={themeColors.error} />
+      <Text style={[styles.emptyTitle, { color: themeColors.error }]}>
+        {error}
+      </Text>
+      <TouchableOpacity 
+        style={[styles.retryButton, { backgroundColor: themeColors.primary }]}
+        onPress={loadFans}
+      >
+        <Text style={styles.retryButtonText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const styles = StyleSheet.create({
     container: {
@@ -436,6 +463,41 @@ const TopFansLeaderboard = () => {
       color: themeColors.textSecondary,
       fontSize: 14,
     },
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+      backgroundColor: themeColors.background,
+      borderRadius: 16,
+      margin: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 16,
+      marginBottom: 8,
+      textAlign: 'center',
+      width: '100%',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+      width: '100%',
+      paddingHorizontal: 20,
+    },
+    retryButton: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 8,
+      marginTop: 16,
+    },
+    retryButtonText: {
+      color: 'white',
+      fontSize: 14,
+      fontWeight: '600',
+    },
   });
 
   return (
@@ -458,25 +520,27 @@ const TopFansLeaderboard = () => {
           <Text style={styles.chartHeaderText}>Trend</Text>
         </View>
 
-        <FlatList
-          ref={listRef}
-          data={fans}
-          renderItem={renderFan}
-          keyExtractor={(item) => item.walletAddress}
-          showsVerticalScrollIndicator={true}
-          onEndReached={fetchMoreFans}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
-          maxToRenderPerBatch={20}
-          windowSize={10}
-          style={styles.scrollableList}
-          contentContainerStyle={styles.listContainer}
-          getItemLayout={(data, index) => ({
-            length: 60, // Approximate item height
-            offset: 60 * index,
-            index,
-          })}
-        />
+          <FlatList
+            data={fans}
+            renderItem={renderFan}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={true}
+            style={styles.scrollableList}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={handleRefresh}
+                tintColor={themeColors.primary}
+              />
+            }
+            ListEmptyComponent={error ? renderError() : renderEmptyState()}
+            getItemLayout={(data, index) => ({
+              length: 60,
+              offset: 60 * index,
+              index,
+            })}
+          />
       </View>
     </View>
   );

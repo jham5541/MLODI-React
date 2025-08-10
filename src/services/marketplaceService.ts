@@ -153,9 +153,7 @@ export class MarketplaceService {
   async getFeaturedProducts(limit = 10): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
-      .select(`
-        *,
-      `)
+      .select('*')
       .eq('is_active', true)
       .eq('is_featured', true)
       .order('created_at', { ascending: false })
@@ -538,9 +536,7 @@ export class MarketplaceService {
     const { data, error } = await supabase
       .from('wishlists')
       .select(`
-        products(
-          *,
-        )
+        products(*)
       `)
       .eq('user_id', user.id)
       .order('added_at', { ascending: false });

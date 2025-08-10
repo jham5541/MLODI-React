@@ -1,0 +1,262 @@
+-- Add missing functions for reactions and comments
+
+-- Function to get reaction counts for a track
+CREATE OR REPLACE FUNCTION get_track_reaction_counts(track_id_param UUID)
+RETURNS TABLE (
+    reaction_type TEXT,
+    count BIGINT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tr.reaction_type,
+        COUNT(*)::BIGINT as count
+    FROM track_reactions tr
+    WHERE tr.track_id = track_id_param
+    GROUP BY tr.reaction_type;
+END;
+$$;
+
+-- Function to get track reactions with user details
+CREATE OR REPLACE FUNCTION get_track_reactions(
+    track_id_param UUID,
+    limit_val INTEGER DEFAULT 50,
+    offset_val INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    user_id UUID,
+    track_id UUID,
+    reaction_type reaction_type,
+    username TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tr.id,
+        tr.user_id,
+        tr.track_id,
+        tr.reaction_type,
+        up.username,
+        up.avatar_url,
+        tr.created_at
+    FROM track_reactions tr
+    LEFT JOIN user_profiles up ON tr.user_id = up.id
+    WHERE tr.track_id = track_id_param
+    ORDER BY tr.created_at DESC
+    LIMIT limit_val
+    OFFSET offset_val;
+END;
+$$;
+
+-- Function to get comments for a track
+CREATE OR REPLACE FUNCTION get_track_comments(
+    track_id_param UUID,
+    limit_val INTEGER DEFAULT 50,
+    offset_val INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    id UUID,
+    user_id UUID,
+    track_id UUID,
+    comment TEXT,
+    username TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tc.id,
+        tc.user_id,
+        tc.track_id,
+        tc.comment,
+        up.username,
+        up.avatar_url,
+        tc.created_at,
+        tc.updated_at
+    FROM track_comments tc
+    LEFT JOIN user_profiles up ON tc.user_id = up.id
+    WHERE tc.track_id = track_id_param
+    ORDER BY tc.created_at DESC
+    LIMIT limit_val
+    OFFSET offset_val;
+END;
+$$;
+
+-- Fix or recreate the function that fan scoring service uses
+CREATE OR REPLACE FUNCTION get_fan_leaderboard(
+    artist_id_param UUID,
+    period TEXT DEFAULT 'all_time'::text,
+    limit_val INTEGER DEFAULT 50,
+    offset_val INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+    user_id UUID,
+    username TEXT,
+    avatar_url TEXT,
+    level TEXT,
+    points INTEGER,
+    rank INTEGER,
+    fan_since TIMESTAMP WITH TIME ZONE,
+    badges JSONB[]
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH ranked_fans AS (
+        SELECT 
+            fs.user_id,
+            up.username,
+            up.avatar_url,
+            CASE
+                WHEN fs.total_score >= 10000 THEN 'Diamond'
+                WHEN fs.total_score >= 5000 THEN 'Platinum'
+                WHEN fs.total_score >= 2500 THEN 'Gold'
+                WHEN fs.total_score >= 1000 THEN 'Silver'
+                WHEN fs.total_score >= 500 THEN 'Bronze'
+                ELSE 'New Fan'
+            END as level,
+            fs.total_score as points,
+            ROW_NUMBER() OVER (ORDER BY fs.total_score DESC) as rank,
+            fs.fan_since,
+            ARRAY[]::jsonb[] as badges
+        FROM fan_scores fs
+        LEFT JOIN user_profiles up ON fs.user_id = up.id
+        WHERE fs.artist_id = artist_id_param
+        AND CASE 
+            WHEN period = 'weekly' THEN fs.updated_at >= NOW() - INTERVAL '7 days'
+            WHEN period = 'monthly' THEN fs.updated_at >= NOW() - INTERVAL '30 days'
+            ELSE TRUE
+        END
+    )
+    SELECT * FROM ranked_fans
+    ORDER BY rank ASC
+    LIMIT limit_val
+    OFFSET offset_val;
+END;
+$$;
+
+-- Function to subscribe to leaderboard updates
+CREATE OR REPLACE FUNCTION subscribe_to_leaderboard_updates(
+    artist_id_param UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Create a notification channel for this artist's leaderboard
+    PERFORM pg_notify(
+        'leaderboard_updates',
+        json_build_object(
+            'artist_id', artist_id_param,
+            'timestamp', NOW()
+        )::text
+    );
+END;
+$$;
+
+-- Additional utility functions for fan leaderboard
+CREATE OR REPLACE FUNCTION get_user_fan_ranking(
+    user_id_param UUID,
+    artist_id_param UUID
+)
+RETURNS TABLE (
+    rank INTEGER,
+    total_fans INTEGER,
+    points INTEGER,
+    level TEXT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH rankings AS (
+        SELECT 
+            fs.user_id,
+            fs.total_score as points,
+            CASE
+                WHEN fs.total_score >= 10000 THEN 'Diamond'
+                WHEN fs.total_score >= 5000 THEN 'Platinum'
+                WHEN fs.total_score >= 2500 THEN 'Gold'
+                WHEN fs.total_score >= 1000 THEN 'Silver'
+                WHEN fs.total_score >= 500 THEN 'Bronze'
+                ELSE 'New Fan'
+            END as level,
+            ROW_NUMBER() OVER (ORDER BY fs.total_score DESC) as rank,
+            COUNT(*) OVER () as total_fans
+        FROM fan_scores fs
+        WHERE fs.artist_id = artist_id_param
+    )
+    SELECT 
+        r.rank,
+        r.total_fans,
+        r.points,
+        r.level
+    FROM rankings r
+    WHERE r.user_id = user_id_param;
+END;
+$$;
+
+-- Add RLS policies for fan scoring tables
+ALTER TABLE fan_scores ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable read access for all users"
+    ON fan_scores FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Enable update for users own scores"
+    ON fan_scores FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable insert for users own scores"
+    ON fan_scores FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+
+-- Add missing foreign key constraint for track_comments
+ALTER TABLE track_comments DROP CONSTRAINT IF EXISTS fk_track_comments_users;
+ALTER TABLE track_comments 
+    ADD CONSTRAINT fk_track_comments_users 
+    FOREIGN KEY (user_id) 
+    REFERENCES auth.users(id) 
+    ON DELETE CASCADE;
+
+-- Create notification triggers for leaderboard updates
+CREATE OR REPLACE FUNCTION notify_leaderboard_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM pg_notify(
+        'leaderboard_updates',
+        json_build_object(
+            'artist_id', NEW.artist_id,
+            'timestamp', NOW()
+        )::text
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_leaderboard_update ON fan_scores;
+CREATE TRIGGER trigger_leaderboard_update
+    AFTER INSERT OR UPDATE OR DELETE ON fan_scores
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_leaderboard_update();

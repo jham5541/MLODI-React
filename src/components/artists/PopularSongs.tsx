@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
-  Animated,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,22 +15,23 @@ import { usePlay } from '../../context/PlayContext';
 import { Song as MusicSong } from '../../types/music';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { purchaseService } from '../../services/purchaseService';
-
-interface MerchandiseCount {
-  available: number;
-  total: number;
-}
+import { sampleSongs } from '../../data/sampleData';
+import PurchaseModal from '../purchase/PurchaseModal';
 
 interface Song {
   id: string;
   title: string;
+  artist: string;
+  artistId: string;
   album: string;
-  duration: number;
   coverUrl: string;
-  playCount: number;
-  price?: number;
-  isPlaying?: boolean;
-  merchandiseInventory?: MerchandiseCount;
+  duration: number;
+  audioUrl: string;
+  supply?: {
+    total: number;
+    available: number;
+  };
+  popularity?: number;
 }
 
 interface PopularSongsProps {
@@ -52,61 +52,17 @@ export default function PopularSongs({
   const { playSong, currentSong, isPlaying } = usePlay();
   const navigation = useNavigation<NavigationProp>();
   const [songs, setSongs] = useState<Song[]>([]);
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [currentAnimatingSongIndex, setCurrentAnimatingSongIndex] = useState(-1);
-  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockSongs: Song[] = [
-      {
-        id: '1',
-        title: 'Summer Nights',
-        album: 'Golden Hour',
-        duration: 195,
-        coverUrl: 'https://picsum.photos/200/200?random=1',
-        playCount: 2500000,
-        price: 1.99,
-        merchandiseInventory: { available: 100, total: 380 },
-      },
-      {
-        id: '2',
-        title: 'Electric Dreams',
-        album: 'Neon City',
-        duration: 208,
-        coverUrl: 'https://picsum.photos/200/200?random=2',
-        playCount: 1800000,
-        price: 1.99,
-      },
-      {
-        id: '3',
-        title: 'Midnight Drive',
-        album: 'Golden Hour',
-        duration: 183,
-        coverUrl: 'https://picsum.photos/200/200?random=3',
-        playCount: 1200000,
-        price: 1.99,
-      },
-      {
-        id: '4',
-        title: 'Ocean Waves',
-        album: 'Serenity',
-        duration: 222,
-        coverUrl: 'https://picsum.photos/200/200?random=4',
-        playCount: 950000,
-      },
-      {
-        id: '5',
-        title: 'City Lights',
-        album: 'Neon City',
-        duration: 176,
-        coverUrl: 'https://picsum.photos/200/200?random=5',
-        playCount: 780000,
-        price: 1.99,
-      },
-    ];
+    // Filter songs for the current artist and limit them
+    const artistSongs = sampleSongs
+      .filter(song => song.artistId === artistId)
+      .slice(0, limit);
 
-    setSongs(mockSongs.slice(0, limit));
+    setSongs(artistSongs);
   }, [artistId, limit]);
 
   const formatDuration = (seconds: number): string => {
@@ -149,21 +105,13 @@ export default function PopularSongs({
     playSong(musicSong, playlist);
   };
 
-  const handlePurchase = (song: Song) => {
-    Alert.alert(
-      'Purchase Song',
-      `Purchase "${song.title}" for $${song.price}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Buy', 
-          onPress: async () => {
-            await purchaseService.purchaseSong(song.id, song.price || 0);
-            startPurchaseAnimation(songs.findIndex(s => s.id === song.id));
-          } 
-        },
-      ]
-    );
+  const handleBuyPress = (song: Song) => {
+    setSelectedSongForPurchase(song);
+    setPurchaseModalVisible(true);
+  };
+
+  const handlePurchaseComplete = () => {
+    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
   const handleViewAll = () => {
@@ -175,130 +123,108 @@ export default function PopularSongs({
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: themeColors.surface,
-      borderRadius: 16,
-      padding: 20,
       marginBottom: 16,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 12,
+      paddingHorizontal: 16,
     },
     title: {
-      fontSize: 20,
-      fontWeight: '800',
+      fontSize: 18,
+      fontWeight: '600',
       color: themeColors.text,
     },
-    viewAllButton: {
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      backgroundColor: themeColors.primary + '20',
-    },
     viewAllText: {
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: 14,
       color: themeColors.primary,
+      fontWeight: '500',
     },
     songItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: themeColors.surface,
+      marginBottom: 8,
+      marginHorizontal: 16,
+      borderRadius: 12,
     },
-    lastItem: {
-      borderBottomWidth: 0,
+    songItemPurchased: {
+      backgroundColor: themeColors.primary + '20',
+      borderWidth: 1,
+      borderColor: themeColors.primary + '40',
     },
-    rankContainer: {
+    rankBadge: {
       width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: themeColors.primary,
+      justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
-    rank: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: themeColors.textSecondary,
+    rankText: {
+      fontSize: 12,
+      color: 'white',
+      fontWeight: 'bold',
     },
-    coverImage: {
-      width: 48,
-      height: 48,
+    songCover: {
+      width: 50,
+      height: 50,
       borderRadius: 8,
       marginRight: 12,
     },
     songInfo: {
       flex: 1,
-      marginRight: 4,
+      marginRight: 12,
     },
     songTitle: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
       color: themeColors.text,
       marginBottom: 2,
-      lineHeight: 18,
     },
-    songDetails: {
+    songArtist: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      marginBottom: 2,
+    },
+    songMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
     },
-    albumName: {
+    songDuration: {
       fontSize: 12,
       color: themeColors.textSecondary,
-      lineHeight: 14,
+      marginRight: 8,
     },
-    playCount: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-      lineHeight: 14,
-    },
-    separator: {
-      width: 2,
-      height: 2,
-      borderRadius: 1,
-      backgroundColor: themeColors.textSecondary,
-    },
-    duration: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-      marginRight: 12,
-      fontWeight: '500',
-    },
-    controls: {
+    popularityBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      backgroundColor: themeColors.primary + '20',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
     },
-    playButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: themeColors.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
+    popularityText: {
+      fontSize: 10,
+      color: themeColors.primary,
+      fontWeight: '600',
+      marginLeft: 2,
     },
-    actionButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: themeColors.background,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: themeColors.border,
-    },
-    priceButton: {
+    buyButton: {
       backgroundColor: themeColors.primary,
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 8,
+      marginLeft: 8,
       minWidth: 40,
       alignItems: 'center',
-      justifyContent: 'center',
     },
-    priceText: {
+    buyButtonText: {
       color: 'white',
       fontSize: 10,
       fontWeight: '600',
@@ -315,7 +241,6 @@ export default function PopularSongs({
       justifyContent: 'center',
       borderWidth: 2,
       borderColor: themeColors.surface,
-      zIndex: 1,
     },
     purchaseCountText: {
       color: 'white',
@@ -325,6 +250,7 @@ export default function PopularSongs({
     emptyState: {
       alignItems: 'center',
       paddingVertical: 40,
+      marginHorizontal: 16,
     },
     emptyText: {
       fontSize: 16,
@@ -333,135 +259,78 @@ export default function PopularSongs({
     },
   });
 
-  const startPurchaseAnimation = (index: number) => {
-    setIsAnimating(true);
-    setCurrentAnimatingSongIndex(index);
-  };
-
-  // Initialize animated values for each song
-  const animatedValues = useRef<Animated.Value[]>([]).current;
-
-  // Update animated values when songs change
-  useEffect(() => {
-    animatedValues.length = 0;
-    songs.forEach((_, i) => {
-      animatedValues[i] = new Animated.Value(0);
-    });
-  }, [songs]);
-
-  // Handle animation for a specific song
-  useEffect(() => {
-    if (!isAnimating || currentAnimatingSongIndex === -1) return;
-
-    const index = currentAnimatingSongIndex;
-    const animatedValue = animatedValues[index];
-    if (!animatedValue) return;
-
-    animatedValue.setValue(0);
-    Animated.sequence([
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animatedValue, {
-        toValue: 0.3,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setIsAnimating(false);
-      setCurrentAnimatingSongIndex(-1);
-      setRefreshKey(prev => prev + 1);
-    });
-  }, [isAnimating, currentAnimatingSongIndex]);
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => {
-    const isCurrentlyPlaying = currentSong?.id === item.id && isPlaying;
-    const isLastItem = index === songs.length - 1;
-    const isCurrentlyAnimating = isAnimating && currentAnimatingSongIndex === index;
+    const isCurrentSong = currentSong?.id === item.id;
     const isPurchased = purchaseService.isPurchased(item.id);
     const purchaseCount = purchaseService.getPurchaseCount(item.id);
-
+    
     return (
-      <Animated.View style={[
-        styles.songItem,
-        isLastItem && styles.lastItem,
-        {
-          transform: [{ scale: animatedValues[index] }],
-        },
-        isCurrentlyAnimating && {
-          shadowColor: themeColors.primary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 8,
-        }
-      ]}>
-        <View style={styles.rankContainer}>
-          <Text style={styles.rank}>{index + 1}</Text>
+      <TouchableOpacity 
+        style={[
+          styles.songItem,
+          isPurchased && styles.songItemPurchased
+        ]}
+        onPress={() => handlePlayPause(item)}
+      >
+        <View style={styles.rankBadge}>
+          <Text style={styles.rankText}>{index + 1}</Text>
         </View>
-
-        <Image source={{ uri: item.coverUrl }} style={styles.coverImage} />
-
+        
+        <Image source={{ uri: item.coverUrl }} style={styles.songCover} />
+        
         <View style={styles.songInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          <View style={styles.songDetails}>
-            <Text style={styles.albumName} numberOfLines={1}>
-              {item.album}
+          <Text style={styles.songArtist} numberOfLines={1}>
+            {item.artist || artistName || 'Unknown Artist'}
+          </Text>
+          <View style={styles.songMeta}>
+            <Text style={styles.songDuration}>
+              {formatDuration(item.duration)}
             </Text>
-            <View style={styles.separator} />
-            <Text style={styles.playCount}>
-              {formatNumber(item.playCount)} plays
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
-
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => handlePlayPause(item)}
-          >
-            <Ionicons
-              name={isCurrentlyPlaying ? 'pause' : 'play'}
-              size={16}
-              color={themeColors.background}
-            />
-          </TouchableOpacity>
-
-          <View style={{ position: 'relative' }}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.priceButton]}
-              onPress={() => handlePurchase(item)}
-            >
-              <Text style={styles.priceText}>
-                {item.merchandiseInventory 
-                  ? `${item.merchandiseInventory.available}/${item.merchandiseInventory.total}`
-                  : 'BUY'
-                }
-              </Text>
-            </TouchableOpacity>
-
-            {purchaseCount > 0 && (
-              <Animated.View
-                style={[
-                  styles.purchaseCount,
-                  isCurrentlyAnimating && {
-                    transform: [{ scale: 1.2 }],
-                    backgroundColor: themeColors.success,
-                  }
-                ]}
-              >
-                <Text style={styles.purchaseCountText}>{purchaseCount}</Text>
-              </Animated.View>
+            {item.popularity && (
+              <View style={styles.popularityBadge}>
+                <Ionicons name="trending-up" size={10} color={themeColors.primary} />
+                <Text style={styles.popularityText}>{formatNumber(item.popularity)}</Text>
+              </View>
             )}
           </View>
         </View>
-      </Animated.View>
+        
+        <TouchableOpacity 
+          style={{ marginLeft: 8 }} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handlePlayPause(item);
+          }}
+        >
+          <Ionicons 
+            name={isCurrentSong && isPlaying ? "pause" : "play"} 
+            size={20} 
+            color={themeColors.primary} 
+          />
+        </TouchableOpacity>
+
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity 
+            style={styles.buyButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleBuyPress(item);
+            }}
+          >
+            <Text style={styles.buyButtonText}>BUY</Text>
+          </TouchableOpacity>
+          
+          {purchaseCount > 0 && (
+            <View style={styles.purchaseCount}>
+              <Text style={styles.purchaseCountText}>{purchaseCount}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -482,16 +351,31 @@ export default function PopularSongs({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Popular Songs</Text>
-        <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAll}>
+        <TouchableOpacity onPress={handleViewAll}>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
 
-      {songs.map((item, index) => (
-        <View key={item.id}>
-          {renderSongItem({ item, index })}
-        </View>
-      ))}
+      <FlatList 
+        data={songs}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => renderSongItem({ item, index })}
+        scrollEnabled={false}
+      />
+      
+      {selectedSongForPurchase && (
+        <PurchaseModal
+          visible={purchaseModalVisible}
+          onClose={() => {
+            setPurchaseModalVisible(false);
+            setSelectedSongForPurchase(null);
+          }}
+          songId={selectedSongForPurchase.id}
+          songTitle={selectedSongForPurchase.title}
+          artist={selectedSongForPurchase.artist}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      )}
     </View>
   );
 }
