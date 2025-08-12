@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 // Audio import removed - using audioService instead
-import { Video } from 'expo-video';
+// import { VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';

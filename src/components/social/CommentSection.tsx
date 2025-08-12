@@ -15,55 +15,73 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import commentService, { Comment } from '../../services/commentService';
+import { supabase } from '../../lib/supabase/client';
 
 interface CommentSectionProps {
-  artistId: string;
+  trackId: string; // target id (track or artist)
+  scope?: 'track' | 'artist';
   placeholder?: string;
   maxLength?: number;
 }
 
 export default function CommentSection({
-  artistId,
+  trackId,
+  scope = 'track',
   placeholder = "Add a comment...",
   maxLength = 500,
 }: CommentSectionProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { isConnected, user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validate that the provided target id is a UUID (to avoid 22P02 errors)
+  const isUuid = (v: string) => /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/.test(v);
+  const isValidTargetId = scope === 'artist' ? true : isUuid(trackId);
 
   useEffect(() => {
     const loadComments = async () => {
+      if (!isValidTargetId) {
+        setComments([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
-      const fetchedComments = await commentService.fetchComments(artistId, user?.id);
+      const fetchedComments = await commentService.fetchComments(trackId, user?.id, scope);
       setComments(fetchedComments);
       setLoading(false);
     };
     loadComments();
-  }, [artistId, user?.id]);
+  }, [trackId, user?.id, isValidTargetId, scope]);
 
-  const handleAddComment = async (content: string, parentId?: string) => {
-    if (!isConnected || !user) return;
+  // Realtime updates to feel like chat: refetch on new inserts
+  useEffect(() => {
+    if (!isValidTargetId) return;
+    const table = scope === 'artist' ? 'artist_comments' : 'track_comments';
+    const foreignIdColumn = scope === 'artist' ? 'artist_id' : 'track_id';
 
-    const newComment = await commentService.addComment(artistId, user.id, content, parentId);
-    if (newComment) {
-      setComments(prev => parentId ?
-        prev.map(comment => comment.id === parentId
-          ? { ...comment, replies: [...(comment.replies || []), newComment] }
-          : comment)
-        : [newComment, ...prev]
-      );
-    }
-  };
+    const channel = supabase
+      .channel(`comments-${scope}-${trackId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: `${foreignIdColumn}=eq.${trackId}` }, () => {
+        // Simple approach: refetch comments on every new insert
+        commentService.fetchComments(trackId, user?.id, scope).then(setComments);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [trackId, scope, isValidTargetId, user?.id]);
+
 
   const handleToggleLike = async (commentId: string) => {
-    if (!isConnected || !user) return;
+    if (!user) return;
 
-    const success = await commentService.toggleCommentLike(commentId, user.id);
+    const success = await commentService.toggleCommentLike(commentId, user.id, scope);
     if (success) {
       setComments(prev => {
         const updateCommentLike = (comments: Comment[]): Comment[] => {
@@ -75,33 +93,57 @@ export default function CommentSection({
       });
     }
   };
-  const [replyContent, setReplyContent] = useState('');
   const inputRef = useRef<TextInput>(null);
 
   const handleSubmitComment = async () => {
-    if (!isConnected) {
-      Alert.alert('Authentication Required', 'Please connect your wallet to comment');
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please sign in to comment');
       return;
     }
+    if (!isValidTargetId) {
+      Alert.alert('Comments unavailable', 'Comments are not available for this item yet.');
+      return;
+    }
+    if (!newComment.trim() || isSubmitting) return;
 
-    if (!newComment.trim()) return;
+    const content = newComment.trim();
+    // Build optimistic (temporary) comment
+    const tempId = `temp-${Date.now()}`;
+    const tempComment: Comment = {
+      id: tempId,
+      userId: user.id,
+      username: profile?.display_name || profile?.username || user.email || 'You',
+      avatarUrl: (profile as any)?.avatar_url,
+      content,
+      timestamp: Date.now(),
+      likes: 0,
+      isLiked: false,
+      trackId,
+    };
 
-    await handleAddComment(newComment.trim());
+    // Optimistically update UI
+    setComments(prev => [tempComment, ...prev]);
     setNewComment('');
-  };
+    setIsSubmitting(true);
 
-  const handleSubmitReply = async (parentId: string) => {
-    if (!isConnected) {
-      Alert.alert('Authentication Required', 'Please connect your wallet to comment');
-      return;
+    try {
+      const created = await commentService.addComment(trackId, user.id, content, undefined, scope);
+      if (created) {
+        // Replace temp with server comment
+        setComments(prev => prev.map(c => (c.id === tempId ? created : c)));
+      } else {
+        // Rollback on failure
+        setComments(prev => prev.filter(c => c.id !== tempId));
+        Alert.alert('Comment failed', 'Could not post your comment. Please try again.');
+      }
+    } catch (e) {
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      Alert.alert('Comment failed', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (!replyContent.trim()) return;
-
-    await handleAddComment(replyContent.trim(), parentId);
-    setReplyContent('');
-    setReplyingTo(null);
   };
+
 
   const handleDeleteComment = async (commentId: string) => {
     if (!user) return;
@@ -115,7 +157,7 @@ export default function CommentSection({
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const success = await commentService.deleteComment(commentId, user.id);
+            const success = await commentService.deleteComment(commentId, user.id, scope);
             if (success) {
               setComments(prev => prev.filter(c => c.id !== commentId));
             }
@@ -139,8 +181,8 @@ export default function CommentSection({
     return new Date(timestamp).toLocaleDateString();
   };
 
-  const renderComment = (comment: Comment, isReply = false) => (
-    <View key={comment.id} style={[styles.comment, isReply && styles.replyComment]}>
+  const renderComment = (comment: Comment) => (
+    <View key={comment.id} style={styles.comment}>
       <View style={styles.commentHeader}>
         <View style={styles.commentUser}>
           {comment.avatarUrl ? (
@@ -188,58 +230,8 @@ export default function CommentSection({
           </Text>
         </TouchableOpacity>
 
-        {!isReply && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setReplyingTo(comment.id)}
-          >
-            <Ionicons name="chatbubble-outline" size={16} color={themeColors.textSecondary} />
-            <Text style={styles.actionText}>Reply</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {replyingTo === comment.id && (
-        <View style={styles.replyInput}>
-          <TextInput
-            style={styles.input}
-            placeholder="Write a reply..."
-            placeholderTextColor={themeColors.textSecondary}
-            value={replyContent}
-            onChangeText={setReplyContent}
-            maxLength={maxLength}
-            multiline
-            autoFocus
-          />
-          <View style={styles.replyActions}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                setReplyingTo(null);
-                setReplyContent('');
-              }}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                !replyContent.trim() && styles.submitButtonDisabled
-              ]}
-              onPress={() => handleSubmitReply(comment.id)}
-              disabled={!replyContent.trim()}
-            >
-              <Text style={styles.submitButtonText}>Reply</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {comment.replies && comment.replies.length > 0 && (
-        <View style={styles.replies}>
-          {comment.replies.map(reply => renderComment(reply, true))}
-        </View>
-      )}
     </View>
   );
 
@@ -249,9 +241,15 @@ export default function CommentSection({
       backgroundColor: themeColors.background,
     },
     header: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
     headerTitle: {
       fontSize: 18,
@@ -260,7 +258,8 @@ export default function CommentSection({
     },
     commentsContainer: {
       flex: 1,
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 12,
     },
     emptyState: {
       flex: 1,
@@ -279,15 +278,13 @@ export default function CommentSection({
       borderRadius: 12,
       padding: 12,
       marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
     },
-    replyComment: {
-      backgroundColor: themeColors.background,
-      marginLeft: 16,
-      marginTop: 8,
-      borderLeftWidth: 3,
-      borderLeftColor: themeColors.primary,
-      paddingLeft: 12,
-    },
+    /* Removed reply styles */
     commentHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -355,29 +352,9 @@ export default function CommentSection({
       color: themeColors.textSecondary,
       fontWeight: '500',
     },
-    replies: {
+    /* Removed reply styles */
+    _unused2: {
       marginTop: 8,
-    },
-    replyInput: {
-      marginTop: 12,
-      padding: 12,
-      backgroundColor: themeColors.background,
-      borderRadius: 8,
-    },
-    replyActions: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 8,
-      marginTop: 8,
-    },
-    cancelButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 6,
-    },
-    cancelButtonText: {
-      fontSize: 14,
-      color: themeColors.textSecondary,
     },
     submitButton: {
       paddingHorizontal: 12,
@@ -401,14 +378,13 @@ export default function CommentSection({
     },
     input: {
       backgroundColor: themeColors.background,
-      borderRadius: 20,
-      paddingHorizontal: 16,
+      borderRadius: 22,
+      paddingHorizontal: 14,
       paddingVertical: 10,
       fontSize: 16,
       color: themeColors.text,
       maxHeight: 100,
       borderWidth: 1,
-      borderColor: themeColors.border,
     },
     inputActions: {
       flexDirection: 'row',
@@ -425,9 +401,12 @@ export default function CommentSection({
     },
     sendButton: {
       backgroundColor: themeColors.primary,
-      borderRadius: 20,
-      paddingHorizontal: 16,
+      borderRadius: 18,
+      paddingHorizontal: 12,
       paddingVertical: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 40,
     },
     sendButtonDisabled: {
       opacity: 0.5,
@@ -437,23 +416,50 @@ export default function CommentSection({
       fontWeight: '600',
       fontSize: 14,
     },
+    badge: {
+      marginLeft: 8,
+      backgroundColor: themeColors.background,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
   });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          Comments ({comments.reduce((total, comment) => 
-            total + 1 + (comment.replies?.length || 0), 0
-          )})
-        </Text>
+        <View style={styles.headerLeft}>
+          <Ionicons name="chatbubbles" size={18} color={themeColors.primary} />
+          <Text style={styles.headerTitle}>
+            Comments
+          </Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {comments.length}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      <ScrollView style={styles.commentsContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.commentsContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
         {loading ? (
           <View style={styles.emptyState}>
             <ActivityIndicator size="large" color={themeColors.primary} />
             <Text style={[styles.emptyStateText, { marginTop: 16 }]}>Loading comments...</Text>
+          </View>
+        ) : !isValidTargetId ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="alert-circle-outline" size={48} color={themeColors.warning || themeColors.textSecondary} />
+            <Text style={styles.emptyStateText}>
+              Comments are unavailable for this item.
+            </Text>
           </View>
         ) : comments.length === 0 ? (
           <View style={styles.emptyState}>
@@ -470,7 +476,7 @@ export default function CommentSection({
       <View style={styles.inputContainer}>
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[styles.input, { borderColor: themeColors.border }]}
           placeholder={placeholder}
           placeholderTextColor={themeColors.textSecondary}
           value={newComment}
@@ -488,14 +494,12 @@ export default function CommentSection({
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!newComment.trim() || !isConnected) && styles.sendButtonDisabled
+              (!newComment.trim() || isSubmitting || !isValidTargetId) && styles.sendButtonDisabled
             ]}
             onPress={handleSubmitComment}
-            disabled={!newComment.trim() || !isConnected}
+            disabled={!newComment.trim() || isSubmitting || !isValidTargetId}
           >
-            <Text style={styles.sendButtonText}>
-              {isConnected ? 'Send' : 'Connect Wallet'}
-            </Text>
+            <Ionicons name="send" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>

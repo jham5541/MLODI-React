@@ -5,7 +5,7 @@ export async function testSupabaseConnection(): Promise<boolean> {
   try {
     // Test basic connection
     const { data, error } = await supabase
-      .from('artists')
+      .from('artists_public_view')
       .select('id')
       .limit(1);
     

@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import WaveformVisualizer from './WaveformVisualizer';
-import { Audio } from 'expo-audio';
+import { Audio } from 'expo-av';
 
 interface Track {
   id: string;
@@ -53,7 +53,7 @@ export default function PreviewPlayer({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  const progressInterval = useRef<NodeJS.Timeout>();
+const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -117,13 +117,11 @@ export default function PreviewPlayer({
       setIsLoading(true);
       
       // Configure audio session
-      await Audio.setAudioModeAsync({
+await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         staysActiveInBackground: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
         playThroughEarpieceAndroid: false,
       });
 
@@ -161,6 +159,10 @@ export default function PreviewPlayer({
       if (status.didJustFinish) {
         setIsPlaying(false);
         setCurrentTime(0);
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+          progressInterval.current = null;
+        }
         // Handle preview end logic
         if (!track.hasFullAccess && track.previewDuration) {
           showPurchasePrompt();

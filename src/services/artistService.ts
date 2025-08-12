@@ -8,7 +8,7 @@ class ArtistService {
     try {
       // First try to get from Supabase
       const { data, error } = await supabase
-        .from('artists')
+        .from('artists_public_view')
         .select('*')
         .eq('id', id)
         .single();

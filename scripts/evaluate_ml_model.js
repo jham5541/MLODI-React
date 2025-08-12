@@ -27,9 +27,16 @@ async function evaluateModel() {
 }
 
 async function loadTestData() {
-    // Implement test data loading logic
-    const features = tf.tensor2d([...]); // Load your test feature data
-    const labels = tf.tensor1d([...]);    // Load your test label data
+    // Minimal dummy test data to make this script valid.
+    // Replace with real data loading logic as needed.
+    // Example: two samples with two features each, and binary labels.
+    const features = tf.tensor2d(
+        [
+            [0.1, 0.9],
+            [0.8, 0.2]
+        ]
+    );
+    const labels = tf.tensor1d([0, 1], 'int32');
 
     return { features, labels };
 }

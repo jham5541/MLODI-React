@@ -47,8 +47,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-av",
+"plugins": [
+      "expo-audio",
+      "expo-video",
       [
         "expo-image-picker",
         {

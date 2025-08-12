@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, Platform, StatusBar } from 'react-native';
 import { useTheme, colors } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -97,7 +97,8 @@ export default function GenresAll() {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingTop: Platform.OS === 'ios' ? 44 + 12 : StatusBar.currentHeight + 12,
+      paddingBottom: 12,
       backgroundColor: themeColors.surface,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
@@ -174,6 +175,7 @@ export default function GenresAll() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={themeColors.text} />

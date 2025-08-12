@@ -17,7 +17,9 @@ import { useAuthStore } from '../store/authStore';
 export default function ProfileCompletionScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { user, updateUserProfile, completeProfileSetup } = useAuthStore();
+  const { user, completeProfileSetup } = useAuthStore();
+  const [saving, setSaving] = useState(false);
+  const { completeProfile } = require('../services/userService');
   
   const [formData, setFormData] = useState({
     username: '',
@@ -34,10 +36,17 @@ export default function ProfileCompletionScreen() {
 
     setLoading(true);
     try {
-      await updateUserProfile(formData);
-      completeProfileSetup();
+      // Use privileged RPC path to avoid RLS errors
+      const { userService } = await import('../services/userService');
+      await userService.completeProfile({
+        username: formData.username,
+        display_name: formData.display_name,
+        bio: formData.bio,
+      });
+      await completeProfileSetup();
       Alert.alert('Success', 'Profile completed successfully!');
     } catch (error) {
+      console.error('Profile completion error:', error);
       Alert.alert('Error', 'Failed to complete profile. Please try again.');
     } finally {
       setLoading(false);

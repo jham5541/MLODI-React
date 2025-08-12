@@ -297,7 +297,7 @@ class DatabaseService {
    */
   async getUser(userId: string) {
     const { data, error } = await supabase
-      .from('users')
+      .from('users_public_view')
       .select('username, profile_picture, first_name, last_name')
       .eq('id', userId)
       .single();

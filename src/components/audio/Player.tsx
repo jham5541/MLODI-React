@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Slider } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
@@ -107,7 +108,7 @@ export default function Player() {
           minimumValue={0}
           maximumValue={duration}
           value={position}
-          onSlidingComplete={(value) => seekTo(value)}
+          onSlidingComplete={(value: number) => seekTo(value)}
           minimumTrackTintColor={themeColors.primary}
           maximumTrackTintColor={themeColors.border}
           thumbTintColor={themeColors.primary}

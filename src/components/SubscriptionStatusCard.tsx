@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSubscriptionStore } from '../store/subscriptionStore';
-import { colors } from '../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface SubscriptionStatusCardProps {
   onPress?: () => void;
@@ -21,6 +21,7 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
   showUpgradePrompt = true,
   compact = false,
 }) => {
+  const { colors } = useTheme();
   const {
     subscription,
     fetchSubscription,
@@ -71,6 +72,110 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
     return 'Active';
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      marginVertical: 8,
+    },
+    compactContainer: {
+      marginVertical: 4,
+    },
+    upgradeGradient: {
+      height: 40,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    compactGradient: {
+      height: 36,
+      borderRadius: 6,
+    },
+    upgradeContent: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+    },
+    upgradeTitle: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: 'white',
+      flex: 1,
+      textAlign: 'center',
+      marginHorizontal: 12,
+    },
+    compactTitle: {
+      fontSize: 13,
+      marginBottom: 0,
+    },
+    subscriptionCard: {
+      backgroundColor: colors.surface,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    compactCard: {
+      padding: 12,
+      borderRadius: 8,
+    },
+    subscriptionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    subscriptionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    tierIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: `${colors.primary}20`,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    subscriptionText: {
+      marginLeft: 12,
+      flex: 1,
+    },
+    tierName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    compactTierName: {
+      fontSize: 14,
+      marginBottom: 2,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    compactStatusRow: {
+      marginTop: 6,
+      paddingTop: 6,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 6,
+    },
+    statusText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    compactStatusText: {
+      fontSize: 12,
+    },
+  });
+
   // Free tier or no subscription - show upgrade prompt
   if (!hasActiveSubscription() && showUpgradePrompt) {
     return (
@@ -79,24 +184,17 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
         onPress={onPress}
       >
         <LinearGradient
-          colors={[colors.primary, colors.secondary]}
+          colors={['#C0C0C0', '#2C2C2C']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
           style={[styles.upgradeGradient, compact && styles.compactGradient]}
         >
           <View style={styles.upgradeContent}>
-            <View style={styles.upgradeLeft}>
-              <Ionicons name="diamond" size={compact ? 20 : 24} color="white" />
-              <View style={styles.upgradeText}>
-                <Text style={[styles.upgradeTitle, compact && styles.compactTitle]}>
-                  Upgrade to Premium
-                </Text>
-                {!compact && (
-                  <Text style={styles.upgradeSubtitle}>
-                    Unlock all features and premium content
-                  </Text>
-                )}
-              </View>
-            </View>
-            <Ionicons name="arrow-forward" size={compact ? 16 : 20} color="white" />
+            <Ionicons name="diamond" size={20} color="white" />
+            <Text style={[styles.upgradeTitle, compact && styles.compactTitle]}>
+              Upgrade to Premium
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="white" />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -146,116 +244,5 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
     );
   }
 
-  return null;
+  return <View />;
 };
-
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-  },
-  compactContainer: {
-    marginVertical: 4,
-  },
-  upgradeGradient: {
-    padding: 16,
-    borderRadius: 12,
-  },
-  compactGradient: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  upgradeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  upgradeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  upgradeText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  upgradeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 2,
-  },
-  compactTitle: {
-    fontSize: 14,
-    marginBottom: 0,
-  },
-  upgradeSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  subscriptionCard: {
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  compactCard: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  subscriptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  subscriptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  tierIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${colors.primary}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subscriptionText: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  tierName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  compactTierName: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  compactStatusRow: {
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  compactStatusText: {
-    fontSize: 12,
-  },
-});

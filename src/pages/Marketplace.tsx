@@ -104,6 +104,22 @@ export default function MarketplaceScreen() {
     loadProducts();
   }, [activeFilter, searchQuery]);
 
+  useEffect(() => {
+    // Load initial products from mock data
+    const getInitialProducts = () => {
+      if (activeFilter === 'featured') {
+        return featuredProducts;
+      } else if (activeFilter === 'sale') {
+        return onSaleProducts;
+      } else if (activeFilter !== 'all') {
+        return allProducts.filter(p => p.type === activeFilter);
+      }
+      return allProducts;
+    };
+    setProducts(getInitialProducts());
+    setLoading(false);
+  }, [activeFilter]);
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -351,7 +367,7 @@ export default function MarketplaceScreen() {
       marginRight: 4,
     },
     productsList: {
-      padding: 16,
+      padding: 8,
     },
     emptyContainer: {
       flex: 1,

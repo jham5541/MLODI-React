@@ -16,6 +16,7 @@ interface FeaturedPlaylist {
   followers_count: number;
   track_count: number;
   matching_tracks_count: number;
+  trending?: boolean;
 }
 
 // Initial loading state playlists

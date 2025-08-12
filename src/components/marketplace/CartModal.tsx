@@ -246,26 +246,29 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
   });
 
   const renderCartItem = (item: any) => {
-    const price = item.variant?.price || item.product.price;
+    // Handle the different product structure
+    const product = item.products || item.product;
+    const variant = item.product_variants || item.variant;
+    const price = variant?.price || product?.price || 0;
     const totalPrice = price * item.quantity;
 
     return (
       <View key={item.id} style={styles.cartItem}>
         <Image
-          source={{ uri: item.product.coverUrl }}
+          source={{ uri: product?.image || product?.coverUrl }}
           style={styles.itemImage}
           defaultSource={{ uri: 'https://via.placeholder.com/60x60?text=♪' }}
         />
         <View style={styles.itemDetails}>
           <Text style={styles.itemTitle} numberOfLines={1}>
-            {item.product.title}
+            {product?.title}
           </Text>
           <Text style={styles.itemArtist} numberOfLines={1}>
-            {item.product.artist}
+            {product?.artist}
           </Text>
-          {item.variant && (
+          {variant && (
             <Text style={styles.itemVariant}>
-              {Object.entries(item.variant.attributes)
+              {Object.entries(variant.attributes || {})
                 .map(([key, value]) => `${key}: ${value}`)
                 .join(', ')}
             </Text>
@@ -352,25 +355,36 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Subtotal</Text>
                     <Text style={styles.summaryValue}>
-                      {formatPrice(cart.subtotal)}
+                      {formatPrice(cart.items.reduce((sum, item) => {
+                        const price = item.product_variants?.price || item.products?.price || 0;
+                        return sum + (price * item.quantity);
+                      }, 0))}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Tax</Text>
                     <Text style={styles.summaryValue}>
-                      {formatPrice(cart.tax)}
+                      {formatPrice(cart.items.reduce((sum, item) => {
+                        const price = item.product_variants?.price || item.products?.price || 0;
+                        return sum + (price * item.quantity * 0.08); // 8% tax
+                      }, 0))}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Shipping</Text>
                     <Text style={styles.summaryValue}>
-                      {cart.shipping > 0 ? formatPrice(cart.shipping) : 'Free'}
+                      {cart.items.some(item => item.products?.shipping_required) ? formatPrice(5.99) : 'Free'}
                     </Text>
                   </View>
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total</Text>
                     <Text style={styles.totalValue}>
-                      {formatPrice(cart.total)}
+                      {formatPrice(cart.items.reduce((sum, item) => {
+                        const price = item.product_variants?.price || item.products?.price || 0;
+                        const itemTotal = price * item.quantity;
+                        const tax = itemTotal * 0.08;
+                        return sum + itemTotal + tax;
+                      }, 0) + (cart.items.some(item => item.products?.shipping_required) ? 5.99 : 0))}
                     </Text>
                   </View>
                   <TouchableOpacity

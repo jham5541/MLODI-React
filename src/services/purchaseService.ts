@@ -1,30 +1,46 @@
 export interface PurchasedSong {
   id: string;
+  song_id: string;
+  song_title: string;
+  artist_name: string;
   count: number;
   purchaseDate: Date;
   paymentMethod: 'apple_pay' | 'web3_wallet';
   price: number;
+  transaction_hash?: string;
 }
 
 export interface PurchasedAlbum {
   id: string;
+  album_id: string;
+  album_title: string;
+  artist_name: string;
   count: number;
   purchaseDate: Date;
   paymentMethod: 'apple_pay' | 'web3_wallet';
   price: number;
+  transaction_hash?: string;
 }
 
 export interface PurchasedVideo {
   id: string;
+  video_id: string;
+  video_title: string;
+  artist_name: string;
   count: number;
   purchaseDate: Date;
   paymentMethod: 'apple_pay' | 'web3_wallet';
   price: number;
+  transaction_hash?: string;
 }
 
 export interface PurchasedTicket {
   id: string;
-  tourDateId: string;
+  event_id: string;
+  event_name: string;
+  artist_name: string;
+  venue: string;
+  event_date: string;
   quantity: number;
   totalPrice: number;
   purchaseDate: Date;
@@ -34,6 +50,7 @@ export interface PurchasedTicket {
     qrCode: string;
     seatInfo?: string;
   }[];
+  transaction_hash?: string;
 }
 
 export interface PaymentMethod {
@@ -43,15 +60,129 @@ export interface PaymentMethod {
   description?: string;
 }
 
+import { supabase } from './databaseService';
+
 class PurchaseService {
   private purchasedSongs: Map<string, PurchasedSong> = new Map();
   private purchasedAlbums: Map<string, PurchasedAlbum> = new Map();
   private purchasedVideos: Map<string, PurchasedVideo> = new Map();
   private purchasedTickets: Map<string, PurchasedTicket> = new Map();
 
-  // Get purchased songs from storage (in a real app, this would be from a database)
+  private initialized = false;
+
+  // Initialize maps from Supabase
+  private async ensureInitialized() {
+    if (!this.initialized) {
+      await this.initializePurchaseHistory();
+      this.initialized = true;
+    }
+  }
+
+  private async initializePurchaseHistory() {
+    try {
+      // Only attempt to load purchases for authenticated users
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // Not signed in; leave maps empty and return
+        return;
+      }
+
+      const { data: songPurchases, error: songError } = await supabase
+        .from('song_purchases')
+        .select('*');
+      
+      const { data: albumPurchases, error: albumError } = await supabase
+        .from('album_purchases')
+        .select('*');
+      
+      const { data: videoPurchases, error: videoError } = await supabase
+        .from('video_purchases')
+        .select('*');
+      
+      const { data: ticketPurchases, error: ticketError } = await supabase
+        .from('ticket_purchases')
+        .select('*');
+
+      if (songError) console.error('Error loading song purchases:', songError);
+      if (albumError) console.error('Error loading album purchases:', albumError);
+      if (videoError) console.error('Error loading video purchases:', videoError);
+      if (ticketError) console.error('Error loading ticket purchases:', ticketError);
+
+      // Initialize maps with data from Supabase
+      if (songPurchases) {
+        songPurchases.forEach(purchase => {
+          this.purchasedSongs.set(purchase.id, {
+            id: purchase.id,
+            song_id: purchase.song_id,
+            song_title: purchase.song_title,
+            artist_name: purchase.artist_name,
+            count: purchase.count,
+            purchaseDate: new Date(purchase.purchase_date),
+            paymentMethod: purchase.payment_method,
+            price: purchase.price,
+            transaction_hash: purchase.transaction_hash
+          });
+        });
+      }
+
+      if (albumPurchases) {
+        albumPurchases.forEach(purchase => {
+          this.purchasedAlbums.set(purchase.id, {
+            id: purchase.id,
+            album_id: purchase.album_id,
+            album_title: purchase.album_title,
+            artist_name: purchase.artist_name,
+            count: purchase.count,
+            purchaseDate: new Date(purchase.purchase_date),
+            paymentMethod: purchase.payment_method,
+            price: purchase.price,
+            transaction_hash: purchase.transaction_hash
+          });
+        });
+      }
+
+      if (videoPurchases) {
+        videoPurchases.forEach(purchase => {
+          this.purchasedVideos.set(purchase.id, {
+            id: purchase.id,
+            video_id: purchase.video_id,
+            video_title: purchase.video_title,
+            artist_name: purchase.artist_name,
+            count: purchase.count,
+            purchaseDate: new Date(purchase.purchase_date),
+            paymentMethod: purchase.payment_method,
+            price: purchase.price,
+            transaction_hash: purchase.transaction_hash
+          });
+        });
+      }
+
+      if (ticketPurchases) {
+        ticketPurchases.forEach(purchase => {
+          this.purchasedTickets.set(purchase.id, {
+            id: purchase.id,
+            event_id: purchase.event_id,
+            event_name: purchase.event_name,
+            artist_name: purchase.artist_name,
+            venue: purchase.venue,
+            event_date: purchase.event_date,
+            quantity: purchase.quantity,
+            totalPrice: purchase.total_price,
+            purchaseDate: new Date(purchase.purchase_date),
+            paymentMethod: purchase.payment_method,
+            tickets: purchase.tickets || [],
+            transaction_hash: purchase.transaction_hash
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing purchase history:', error);
+    }
+  }
+
+  // Get purchased songs from storage
   async getPurchasedSongs(): Promise<Map<string, PurchasedSong>> {
-    // Mock implementation - in a real app, load from AsyncStorage or API
+    await this.ensureInitialized();
     return this.purchasedSongs;
   }
 
@@ -68,6 +199,11 @@ class PurchaseService {
 
   // Purchase a song with Apple Pay
   async purchaseWithApplePay(songId: string, price: number = 1.99): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('User must be logged in to make purchases');
+      return false;
+    }
     try {
       // Mock Apple Pay implementation
       // In a real app, you would use react-native-payments or similar
@@ -86,7 +222,31 @@ class PurchaseService {
         price: price
       };
       
+      // Store in local map
+      // Store in local map
       this.purchasedSongs.set(songId, purchasedSong);
+
+      // Store in Supabase
+      const { error } = await supabase
+        .from('song_purchases')
+        .insert([
+          {
+            song_id: songId,
+            user_id: user.id,
+            song_title: 'Song Title', // TODO: Get actual song title
+            artist_name: 'Artist Name', // TODO: Get actual artist name
+            count: purchasedSong.count,
+            purchase_date: purchasedSong.purchaseDate.toISOString(),
+            payment_method: purchasedSong.paymentMethod,
+            price: purchasedSong.price
+          }
+        ]);
+
+      if (error) {
+        console.error('Failed to store song purchase:', error);
+        return false;
+      }
+
       return true;
     } catch (error) {
       console.error('Apple Pay purchase failed:', error);
@@ -96,6 +256,11 @@ class PurchaseService {
 
   // Purchase a song with Web3 wallet
   async purchaseWithWeb3Wallet(songId: string, price: number = 0.001): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('User must be logged in to make purchases');
+      return false;
+    }
     try {
       // Mock Web3 wallet implementation
       // In a real app, you would use WalletConnect or similar
@@ -124,6 +289,7 @@ class PurchaseService {
 
   // Album purchase methods
   async getPurchasedAlbums(): Promise<Map<string, PurchasedAlbum>> {
+    await this.ensureInitialized();
     return this.purchasedAlbums;
   }
 
@@ -202,6 +368,7 @@ class PurchaseService {
 
   // Video purchase methods
   async getPurchasedVideos(): Promise<Map<string, PurchasedVideo>> {
+    await this.ensureInitialized();
     return this.purchasedVideos;
   }
 
@@ -271,6 +438,7 @@ class PurchaseService {
 
   // Ticket purchase methods
   async getPurchasedTickets(): Promise<Map<string, PurchasedTicket>> {
+    await this.ensureInitialized();
     return this.purchasedTickets;
   }
 

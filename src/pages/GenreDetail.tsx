@@ -12,7 +12,8 @@ import {
   Image,
   ImageBackground,
   BlurView,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -244,11 +245,12 @@ export default function GenreDetail() {
       backgroundColor: themeColors.background,
     },
     header: {
-      height: 250,
+      height: 180,  // Reduced from 250
       justifyContent: 'flex-end',
       alignItems: 'center',
       position: 'relative',
       overflow: 'hidden',
+      paddingTop: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight,  // Safe area padding
     },
     artistShowcaseBackground: {
       position: 'absolute',
@@ -257,7 +259,7 @@ export default function GenreDetail() {
       right: 0,
       bottom: 0,
       flexDirection: 'row',
-      opacity: 0.8,
+      opacity: 0.6,  // Reduced opacity for better text contrast
     },
     artistShowcaseContainer: {
       flexDirection: 'row',
@@ -274,27 +276,27 @@ export default function GenreDetail() {
       justifyContent: 'flex-end',
       alignItems: 'flex-start',
       paddingHorizontal: 20,
-      paddingBottom: 30,
+      paddingBottom: 20,  // Reduced from 30
       position: 'relative',
       zIndex: 2,
     },
     backButton: {
       position: 'absolute',
-      top: 50,
-      left: 20,
+      top: Platform.OS === 'ios' ? 44 + 10 : StatusBar.currentHeight + 10,  // Adjusted for safe area
+      left: 16,
       zIndex: 10,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
       alignItems: 'center',
     },
     genreTitle: {
-      fontSize: 32,
+      fontSize: 28,  // Reduced from 32
       fontWeight: 'bold',
       color: 'white',
-      marginBottom: 8,
+      marginBottom: 6,  // Reduced from 8
       textShadowColor: 'rgba(0, 0, 0, 0.75)',
       textShadowOffset: { width: -1, height: 1 },
       textShadowRadius: 10,

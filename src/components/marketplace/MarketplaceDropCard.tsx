@@ -21,7 +21,7 @@ export default function MarketplaceDropCard({
 
   const updateCountdown = () => {
     const now = new Date().getTime();
-    const dropTime = new Date(drop.drop_date).getTime();
+    const dropTime = new Date(drop.dropDate).getTime();
     const difference = dropTime - now;
 
     if (difference > 0) {
@@ -46,11 +46,11 @@ export default function MarketplaceDropCard({
     try {
       setIsLoading(true);
       if (isNotified) {
-        await nftDropsService.removeNotification(drop.id);
+        await nftDropsService.removeDropNotification(drop.id);
         setIsNotified(false);
         Alert.alert('Success', 'Notification removed successfully');
       } else {
-        await nftDropsService.setNotification(drop.id);
+        await nftDropsService.setDropNotification(drop.id);
         setIsNotified(true);
         Alert.alert('Success', 'You will be notified when this drop goes live!');
       }
@@ -66,7 +66,7 @@ export default function MarketplaceDropCard({
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [drop.drop_date]);
+  }, [drop.dropDate]);
 
   useEffect(() => {
     // Check if user has notification set for this drop
@@ -277,7 +277,7 @@ export default function MarketplaceDropCard({
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.imageContainer}>
-        <ImageBackground source={{ uri: drop.cover_image }} style={styles.coverImage}>
+        <ImageBackground source={{ uri: drop.coverImage }} style={styles.coverImage}>
           <View style={styles.overlay}>
             <View style={styles.topOverlay}>
               <View style={styles.dropBadge}>
@@ -326,10 +326,10 @@ export default function MarketplaceDropCard({
 
       <View style={styles.content}>
         <View style={styles.artistContainer}>
-          {drop.artist?.avatar_url && (
-            <Image source={{ uri: drop.artist.avatar_url }} style={styles.artistAvatar} />
+          {drop.artistAvatar && (
+            <Image source={{ uri: drop.artistAvatar }} style={styles.artistAvatar} />
           )}
-          <Text style={styles.artist}>by {drop.artist?.name || 'Unknown Artist'}</Text>
+          <Text style={styles.artist}>by {drop.artist || 'Unknown Artist'}</Text>
         </View>
 
         {drop.description && (
@@ -342,13 +342,13 @@ export default function MarketplaceDropCard({
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>Starting Price</Text>
             <Text style={styles.price}>
-              {drop.starting_price} {drop.currency}
+              {drop.price} {drop.currency}
             </Text>
           </View>
 
           <View style={styles.supplyContainer}>
             <Text style={styles.supplyLabel}>Supply</Text>
-            <Text style={styles.supply}>{drop.total_supply.toLocaleString()}</Text>
+            <Text style={styles.supply}>{drop.supply.toLocaleString()}</Text>
           </View>
         </View>
 

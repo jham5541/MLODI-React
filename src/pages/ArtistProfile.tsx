@@ -30,10 +30,10 @@ import ReactionBar from '../components/social/ReactionBar';
 import CommentSection from '../components/social/CommentSection';
 
 // Collaboration Components
-import CollaborationHub from '../components/collaboration/CollaborationHub';
+import CollaborationContainer from '../components/collaboration/CollaborationContainer';
 
 // Database Service
-import { supabase } from '../services/databaseService';
+import { databaseService } from '../services/databaseServiceProvider';
 
 import { Artist } from '../types/music';
 import { fetchArtistDetails } from '../services/artistService';
@@ -518,8 +518,8 @@ export default function ArtistProfileScreen({ route }: Props) {
             <RevenueInsights artistId={artistId} artistName={artist.name} />
             <PopularSongs artistId={artistId} artistName={artist.name} />
             <ReactionBar artistId={artistId} />
-            <CollaborationHub artistId={artistId} />
-            <CommentSection artistId={artistId} />
+            <CollaborationContainer artistId={artistId} />
+            <CommentSection trackId={artistId} scope="artist" />
             <DiscographyCarousel artistId={artistId} artistName={artist.name} />
             <VideoCarousel artistId={artistId} artistName={artist.name} />
             <TourDates artistId={artistId} artistName={artist.name} />

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { usePlay } from '../../context/PlayContext';
 import { Song } from '../../types/music';
@@ -18,7 +19,7 @@ export default function SongCard({ song, onPress, showArtwork = true }: SongCard
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { playSong, currentSong, isPlaying } = usePlay();
-  const navigation = useNavigation();
+  const navigation = useNavigation<RootStackNavigationProp<'ArtistProfile'>>();
 
   const [isLiked, setIsLiked] = React.useState(false);
   const isCurrentSong = currentSong?.id === song.id;
@@ -53,9 +54,7 @@ export default function SongCard({ song, onPress, showArtwork = true }: SongCard
   };
 
   const handleArtistPress = () => {
-    // Navigate to artist profile - we'll use the artist name as ID for now
-    // In a real app, you'd have an artistId field in the song object
-    navigation.navigate('ArtistProfile', { artistId: song.artist });
+    navigation.navigate('ArtistProfile', { artistId: song.artistId });
   };
 
   const styles = StyleSheet.create({

@@ -1,18 +1,9 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase/client';
+import { supabase } from '../services/databaseService';
 import { Session, User, AuthError } from '@supabase/supabase-js';
+import { userService, UserProfile } from '../services/userService';
 
-interface Profile {
-  id: string;
-  username?: string;
-  display_name?: string;
-  email?: string;
-  avatar_url?: string;
-  onboarding_completed: boolean;
-  onboarding_step: string;
-  created_at?: string;
-  updated_at?: string;
-}
+type OnboardingStep = 'welcome' | 'profile' | 'preferences' | 'completed';
 
 interface UserSettings {
   notification_preferences: Record<string, any>;
@@ -24,12 +15,10 @@ interface UserSettings {
   volume_normalization: boolean;
 }
 
-type OnboardingStep = 'welcome' | 'profile' | 'preferences' | 'completed';
-
 interface AuthState {
   // State
   user: User | null;
-  profile: Profile | null;
+  profile: UserProfile | null;
   settings: UserSettings | null;
   session: Session | null;
   loading: boolean;
@@ -42,9 +31,11 @@ interface AuthState {
   signOut: () => Promise<void>;
   
   // Profile methods
-  updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   updateSettings: (updates: Partial<UserSettings>) => Promise<void>;
   completeOnboardingStep: (step: OnboardingStep) => Promise<void>;
+  // Backward-compatibility helper for components expecting this API
+  completeProfileSetup: () => Promise<void>;
   
   // Session methods
   checkSession: () => Promise<void>;
@@ -80,6 +71,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 3. Fetch initial profile and settings
       if (authData?.user) {
         await get().checkSession();
+
+        // 4. Ensure a free-tier subscription exists for new users
+        try {
+          const userId = authData.user.id;
+
+          // Check for existing active subscription
+          const { data: existingSub, error: subError } = await supabase
+            .from('user_subscriptions')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .maybeSingle();
+
+          if (!subError && !existingSub) {
+            const FREE_PLAN_ID = '00000000-0000-0000-0000-000000000001';
+            const startDate = new Date();
+            const endDate = new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+            // Create free subscription
+            await supabase
+              .from('user_subscriptions')
+              .insert({
+                user_id: userId,
+                plan_id: FREE_PLAN_ID,
+                tier: 'free',
+                status: 'active',
+                start_date: startDate.toISOString(),
+                end_date: endDate.toISOString(),
+                auto_renew: false,
+                payment_method: 'card',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+
+            // Mark user's subscription tier as free
+            await userService.updateUserMetadata(userId, {
+              subscription_tier: 'free',
+              updated_at: new Date().toISOString()
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to ensure free subscription on sign up:', e);
+        }
       }
 
       return { success: true };
@@ -107,6 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       await get().checkSession();
+      
       return { success: true };
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -143,27 +178,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  updateProfile: async (updates: Partial<Profile>) => {
-    if (!get().user) return;
+  updateProfile: async (updates: Partial<UserProfile>) => {
+    const userId = get().user?.id;
+    if (!userId) return;
     
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', get().user!.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      set(state => ({
-        profile: { ...state.profile, ...data } as Profile,
-        loading: false,
-      }));
+      await userService.updateUserMetadata(userId, updates);
+      
+      // Refresh the profile
+      await get().checkSession();
+      
+      set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;
@@ -201,7 +227,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!get().user) return;
 
     try {
-      let updates: Partial<Profile> = {
+      let updates: Partial<UserProfile> = {
         onboarding_step: step,
       };
 
@@ -216,18 +242,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Backward compatibility for components calling completeProfileSetup()
+  completeProfileSetup: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    try {
+      await userService.updateUserMetadata(userId, {
+        onboarding_completed: true,
+        onboarding_step: 'completed',
+      } as Partial<UserProfile>);
+      await get().checkSession();
+    } catch (error) {
+      console.error('Error completing profile setup:', error);
+    }
+  },
+
   checkSession: async () => {
     try {
       // Get session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Get profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        // Get profile using the new user service
+        const profile = await userService.getUserProfile(session.user.id);
 
         // Get settings
         const { data: settings } = await supabase

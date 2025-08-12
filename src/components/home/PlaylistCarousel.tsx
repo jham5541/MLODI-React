@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../../context/ThemeContext';
 import PlaylistCard from '../playlists/PlaylistCard';
 import { Playlist } from '../../types/music';
@@ -15,8 +16,9 @@ export default function PlaylistCarousel({
   title, 
   playlists, 
   onPlaylistPress, 
-  onPlayPress 
-}: PlaylistCarouselProps) {
+  onPlayPress,
+  onSeeAllPress
+}: PlaylistCarouselProps & { onSeeAllPress?: () => void }) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
@@ -69,7 +71,9 @@ export default function PlaylistCarousel({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.seeAll}>See All</Text>
+        <TouchableOpacity onPress={onSeeAllPress}>
+          <Text style={styles.seeAll}>See All</Text>
+        </TouchableOpacity>
       </View>
       
       <FlatList

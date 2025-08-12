@@ -59,7 +59,8 @@ export default function CollaborationHub({
   const themeColors = colors[activeTheme];
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'pending'>('all');
 
-  // Sample projects if none provided
+// Development sample data for empty state preview in dev only
+const DEV_MODE = process.env.NODE_ENV === 'development';
   const sampleProjects: CollaborationProject[] = [
     {
       id: '1',
@@ -150,7 +151,7 @@ export default function CollaborationHub({
     },
   ];
 
-  const displayProjects = projects.length > 0 ? projects : sampleProjects;
+  const displayProjects = projects.length > 0 ? projects : (DEV_MODE ? sampleProjects : []);
 
   const filteredProjects = displayProjects.filter(project => {
     if (filter === 'all') return true;
@@ -327,11 +328,6 @@ export default function CollaborationHub({
           ? "Start collaborating with other artists to create amazing music together"
           : `No ${filter} collaborations found`}
       </Text>
-      {onCreateProject && (
-        <TouchableOpacity style={styles.createButton} onPress={onCreateProject}>
-          <Text style={styles.createButtonText}>Start Collaborating</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -346,6 +342,7 @@ export default function CollaborationHub({
       alignItems: 'center',
       padding: 16,
       backgroundColor: themeColors.surface,
+      marginTop: 8,
     },
     headerTitle: {
       fontSize: 24,
@@ -627,14 +624,6 @@ export default function CollaborationHub({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Collaborations</Text>
-        {onCreateProject && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton} onPress={onCreateProject}>
-              <Ionicons name="add" size={16} color="white" />
-              <Text style={styles.headerButtonText}>New</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       <View style={styles.filterContainer}>

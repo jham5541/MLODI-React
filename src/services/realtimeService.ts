@@ -81,11 +81,11 @@ class RealtimeService {
         async (payload) => {
           // Reload active sessions with user and song details
           const { data, error } = await supabase
-            .from('listening_sessions')
+            .from('listening_sessions_public_view')
             .select(`
               *,
-              user:users(display_name, avatar_url),
-              song:songs(title, artist_name, cover_url)
+              user:users_public_view(display_name, avatar_url),
+              song:tracks_public_view(title, artist_name, cover_url)
             `)
             .eq('is_active', true)
             .order('started_at', { ascending: false })
@@ -123,11 +123,11 @@ class RealtimeService {
         async (payload) => {
           // Reload artist's active listeners
           const { data, error } = await supabase
-            .from('listening_sessions')
+            .from('listening_sessions_public_view')
             .select(`
               *,
-              user:users(display_name, avatar_url),
-              song:songs(title, artist_name, cover_url)
+              user:users_public_view(display_name, avatar_url),
+              song:tracks_public_view(title, artist_name, cover_url)
             `)
             .eq('artist_id', artistId)
             .eq('is_active', true)
@@ -262,7 +262,7 @@ class RealtimeService {
           if (payload.new) {
             // Get artist details
             const { data: artist, error } = await supabase
-              .from('artists')
+              .from('artists_public_view')
               .select('name, avatar_url')
               .eq('id', payload.new.artist_id)
               .single();

@@ -103,7 +103,7 @@ class MusicService {
     search?: string;
   }) {
     let query = supabase
-      .from('artists')
+      .from('artists_public_view')
       .select('*');
 
     if (options?.verified_only) {
@@ -135,7 +135,7 @@ class MusicService {
 
   async getArtist(id: string) {
     const { data, error } = await supabase
-      .from('artists')
+      .from('artists_public_view')
       .select('*')
       .eq('id', id)
       .single();
@@ -229,9 +229,8 @@ class MusicService {
     sort?: 'popularity' | 'recent' | 'alphabetical';
   }) {
     let query = supabase
-      .from('songs')
-      .select('*')
-      .eq('is_public', true);
+      .from('tracks_public_view')
+      .select('*');
 
     if (options?.artist_id) {
       query = query.eq('artist_id', options.artist_id);
@@ -286,7 +285,7 @@ class MusicService {
       const artistIds = [...new Set(songsWithRelations.map(s => s.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -323,7 +322,7 @@ class MusicService {
 
   async getSong(id: string, includeRelated = true) {
     const { data, error } = await supabase
-      .from('songs')
+      .from('tracks_public_view')
       .select('*')
       .eq('id', id)
       .single();
@@ -336,7 +335,7 @@ class MusicService {
       // Fetch artist separately
       if (song.artist_id) {
         const { data: artist } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .eq('id', song.artist_id)
           .single();
@@ -348,7 +347,7 @@ class MusicService {
       // Fetch album separately
       if (song.album_id) {
         const { data: album } = await supabase
-          .from('albums')
+          .from('albums_public_view')
           .select('*')
           .eq('id', song.album_id)
           .single();
@@ -366,7 +365,7 @@ class MusicService {
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     const { data, error } = await supabase
-      .from('songs')
+      .from('tracks_public_view')
       .select('*')
       .gte('created_at', weekAgo.toISOString())
       .order('play_count', { ascending: false })
@@ -380,7 +379,7 @@ class MusicService {
       const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -399,7 +398,7 @@ class MusicService {
 
   async getPopularSongs(limit = 20) {
     const { data, error } = await supabase
-      .from('songs')
+      .from('tracks_public_view')
       .select('*')
       .order('play_count', { ascending: false })
       .limit(limit);
@@ -412,7 +411,7 @@ class MusicService {
       const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -431,7 +430,7 @@ class MusicService {
 
   async getRecentSongs(limit = 20) {
     const { data, error } = await supabase
-      .from('songs')
+      .from('tracks_public_view')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -444,7 +443,7 @@ class MusicService {
       const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -520,7 +519,7 @@ class MusicService {
       const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -563,9 +562,8 @@ class MusicService {
     include_artist?: boolean;
   }) {
     let query = supabase
-      .from('albums')
-      .select('*')
-      .eq('is_public', true);
+      .from('albums_public_view')
+      .select('*');
 
     if (options?.artist_id) {
       query = query.eq('artist_id', options.artist_id);
@@ -599,7 +597,7 @@ class MusicService {
       const artistIds = [...new Set(albums.map(a => a.artist_id).filter(Boolean))];
       if (artistIds.length > 0) {
         const { data: artists } = await supabase
-          .from('artists')
+          .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
         
@@ -618,7 +616,7 @@ class MusicService {
 
   async getAlbum(id: string) {
     const { data, error } = await supabase
-      .from('albums')
+      .from('albums_public_view')
       .select('*')
       .eq('id', id)
       .single();
@@ -630,7 +628,7 @@ class MusicService {
     // Fetch artist separately
     if (album.artist_id) {
       const { data: artist } = await supabase
-        .from('artists')
+        .from('artists_public_view')
         .select('*')
         .eq('id', album.artist_id)
         .single();

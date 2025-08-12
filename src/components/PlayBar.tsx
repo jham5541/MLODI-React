@@ -11,7 +11,8 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import MLService from '../services/ml/MLService';
 import { AnomalyType } from '../services/ml/types';
@@ -21,10 +22,12 @@ import { useTheme, colors } from '../context/ThemeContext';
 import { usePlayTracking } from '../context/PlayTrackingContext';
 import { formatDuration } from '../utils/uiHelpers';
 import { Song } from '../types/music';
-import { musicService } from '../services/musicService';
+import { currentMusicService as musicService } from '../services/serviceProvider';
 import { useAuthStore } from '../store/authStore';
 import AuthModal from './auth/AuthModal';
 import AddToPlaylistModal from './playlists/AddToPlaylistModal';
+
+import { Audio } from 'expo-av';
 
 interface PlayBarProps {
   currentSong: Song | null;
@@ -39,7 +42,7 @@ interface PlayBarProps {
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-const PlayBar: React.FC<PlayBarProps> = ({
+const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
   currentSong,
   isPlaying,
   isVisible,
@@ -48,6 +51,7 @@ const PlayBar: React.FC<PlayBarProps> = ({
   onPrevious,
   onClose,
   onExpand,
+  sound,
 }) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -65,6 +69,7 @@ const PlayBar: React.FC<PlayBarProps> = ({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
   const handleLike = async () => {
     console.log('👤 Like button pressed - User:', !!user, 'Current song:', !!currentSong, 'Is liked:', isLiked);
@@ -117,15 +122,15 @@ const PlayBar: React.FC<PlayBarProps> = ({
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 85,
+        friction: 12,
       }).start();
     } else {
       Animated.spring(slideAnim, {
-        toValue: 100,
+        toValue: 200,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 85,
+        friction: 12,
       }).start();
     }
   }, [isVisible, currentSong]);
@@ -191,24 +196,32 @@ const PlayBar: React.FC<PlayBarProps> = ({
   };
 
   // Simulate progress (in a real app, this would come from audio player)
+  // Use real audio progress instead of simulation
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentSong) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          const totalSeconds = currentSong.duration; // duration is already in seconds
-          const newTime = prev + 1;
-          setProgress((newTime / totalSeconds) * 100);
-          
-          // Update play tracking with current progress
-          updateProgress(newTime);
-          
-          return newTime >= totalSeconds ? 0 : newTime;
-        });
+      interval = setInterval(async () => {
+        try {
+          const status = await sound?.getStatusAsync();
+          if (status?.isLoaded) {
+            const newTime = status.positionMillis / 1000; // Convert to seconds
+            const totalSeconds = status.durationMillis ? status.durationMillis / 1000 : currentSong.duration;
+            const newProgress = (newTime / totalSeconds) * 100;
+            
+            // Schedule updates for the next render cycle
+            Promise.resolve().then(() => {
+              setCurrentTime(newTime);
+              setProgress(newProgress);
+              updateProgress(newTime);
+            });
+          }
+        } catch (error) {
+          console.error('Error getting playback status:', error);
+        }
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, currentSong]);
+  }, [isPlaying, currentSong, sound]);
 
   // Check if song is liked when currentSong changes
   useEffect(() => {
@@ -257,9 +270,11 @@ const PlayBar: React.FC<PlayBarProps> = ({
   const styles = StyleSheet.create({
     container: {
       position: 'absolute',
-      bottom: 90,
-      left: 16,
-      right: 16,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      margin: 16,
+      marginBottom: Platform.OS === 'ios' ? 90 : 80,
       backgroundColor: themeColors.surface,
       borderRadius: 16,
       shadowColor: themeColors.text,
@@ -371,9 +386,9 @@ const PlayBar: React.FC<PlayBarProps> = ({
     modalContent: {
       flex: 1,
       justifyContent: 'space-between',
-      paddingHorizontal: 32,
-      paddingTop: 40,
-      paddingBottom: 50,
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      paddingBottom: 80,
     },
     modalTopSection: {
       alignItems: 'center',
@@ -452,12 +467,16 @@ const PlayBar: React.FC<PlayBarProps> = ({
     },
     modalBottomSection: {
       alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingBottom: 16,
     },
     modalControls: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 20,
+      justifyContent: 'space-between',
+      gap: 12,
+      width: '100%',
+      maxWidth: 520,
     },
     modalControlButton: {
       width: 44,
@@ -465,6 +484,9 @@ const PlayBar: React.FC<PlayBarProps> = ({
       borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: themeColors.surface + '40',
+      borderWidth: 1,
+      borderColor: themeColors.border + '30',
     },
     modalPlayButton: {
       width: 64,
@@ -478,6 +500,35 @@ const PlayBar: React.FC<PlayBarProps> = ({
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 8,
+      marginHorizontal: 8,
+    },
+    // Action sheet styles
+    actionsBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    actionsPanel: {
+      backgroundColor: themeColors.surface,
+      paddingVertical: 8,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderTopWidth: 1,
+      borderColor: themeColors.border,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border + '60',
+    },
+    actionRowText: {
+      fontSize: 16,
+      color: themeColors.text,
+      fontWeight: '500',
     },
   });
 
@@ -486,6 +537,21 @@ const PlayBar: React.FC<PlayBarProps> = ({
     const newTime = (value / 100) * totalSeconds;
     setCurrentTime(Math.floor(newTime));
     setProgress(value);
+  };
+
+  const seekBySeconds = async (deltaSeconds: number) => {
+    try {
+      if (!sound) return;
+      const status = await sound.getStatusAsync();
+      if (!status.isLoaded) return;
+      const currentMs = status.positionMillis ?? 0;
+      const durationMs = status.durationMillis ?? Number.MAX_SAFE_INTEGER;
+      const target = Math.max(0, Math.min(currentMs + deltaSeconds * 1000, durationMs));
+      await sound.setPositionAsync(target);
+      setCurrentTime(Math.floor(target / 1000));
+    } catch (e) {
+      console.error('Seek error:', e);
+    }
   };
 
   const getRepeatIcon = () => {
@@ -629,7 +695,10 @@ const PlayBar: React.FC<PlayBarProps> = ({
             <Text style={{ fontSize: 16, fontWeight: '600', color: themeColors.text }}>
               Now Playing
             </Text>
-            <TouchableOpacity style={styles.modalHeaderButton}>
+            <TouchableOpacity 
+              style={styles.modalHeaderButton}
+              onPress={() => setShowActions(true)}
+            >
               <Ionicons name="ellipsis-horizontal" size={24} color={themeColors.text} />
             </TouchableOpacity>
           </View>
@@ -703,7 +772,7 @@ const PlayBar: React.FC<PlayBarProps> = ({
 
             {/* Bottom Section - Main Controls */}
             <View style={styles.modalBottomSection}>
-              <View style={styles.modalControls}>
+            <View style={styles.modalControls}>
                 <TouchableOpacity 
                   style={styles.modalControlButton}
                   onPress={() => setShuffle(!shuffle)}
@@ -713,6 +782,13 @@ const PlayBar: React.FC<PlayBarProps> = ({
                     size={22} 
                     color={shuffle ? themeColors.primary : themeColors.textSecondary} 
                   />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
+                  onPress={() => seekBySeconds(-10)}
+                >
+                  <Ionicons name="play-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -743,6 +819,13 @@ const PlayBar: React.FC<PlayBarProps> = ({
 
                 <TouchableOpacity 
                   style={styles.modalControlButton}
+                  onPress={() => seekBySeconds(10)}
+                >
+                  <Ionicons name="play-forward" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalControlButton}
                   onPress={() => setRepeatMode((repeatMode + 1) % 3)}
                 >
                   <Ionicons 
@@ -757,6 +840,37 @@ const PlayBar: React.FC<PlayBarProps> = ({
         </SafeAreaView>
       </Modal>
       
+      {/* Quick Actions Sheet */}
+      <Modal
+        visible={showActions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowActions(false)}
+      >
+        <TouchableOpacity style={styles.actionsBackdrop} activeOpacity={1} onPress={() => setShowActions(false)}>
+          <View style={styles.actionsPanel}>
+            <TouchableOpacity style={styles.actionRow} onPress={() => { setShowActions(false); handleAddToPlaylist(); }}>
+              <Ionicons name="add-circle-outline" size={20} color={themeColors.text} />
+              <Text style={styles.actionRowText}>Add to Playlist</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionRow} onPress={() => { setShowActions(false); handleShare(); }}>
+              <Ionicons name="share-outline" size={20} color={themeColors.text} />
+              <Text style={styles.actionRowText}>Share</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionRow} onPress={() => { setShowActions(false); handleLike(); }}>
+              <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={20} color={isLiked ? themeColors.primary : themeColors.text} />
+              <Text style={styles.actionRowText}>{isLiked ? 'Unlike' : 'Like'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.actionRow, { justifyContent: 'center' }]} onPress={() => setShowActions(false)}>
+              <Text style={[styles.actionRowText, { color: themeColors.textSecondary }]}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Auth Modal */}
       <AuthModal
         isVisible={showAuthModal}

@@ -678,7 +678,7 @@ export default function EngagementChallenges({
                 <Ionicons
                   name="lock-closed"
                   size={16}
-                  color={colors.textSecondary}
+                  color={themeColors.textSecondary}
                   style={styles.lockIcon}
                 />
               </>

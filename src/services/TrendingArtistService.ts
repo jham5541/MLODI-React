@@ -44,7 +44,7 @@ export class TrendingArtistService {
         try {
             // Try to fetch from artists table if it exists
             const { data: artists, error } = await supabase
-                .from('artists')
+                .from('artists_public_view')
                 .select('id, name')
                 .limit(limit);
 

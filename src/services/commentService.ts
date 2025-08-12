@@ -10,7 +10,7 @@ export interface Comment {
   likes: number;
   isLiked: boolean;
   replies?: Comment[];
-  artistId: string;
+  trackId: string;
   parentId?: string;
 }
 
@@ -21,26 +21,39 @@ export interface CommentLike {
 }
 
 class CommentService {
+  private getTables(scope: 'track' | 'artist') {
+    if (scope === 'artist') {
+      return {
+        commentsTable: 'artist_comments',
+        likesTable: 'artist_comment_likes',
+        foreignIdColumn: 'artist_id',
+        fkProfilesAlias: 'artist_comments_user_fk',
+      } as const;
+    }
+    return {
+      commentsTable: 'track_comments',
+      likesTable: 'comment_likes',
+      foreignIdColumn: 'track_id',
+      fkProfilesAlias: 'fk_track_comments_user' as const,
+    } as const;
+  }
+
   /**
-   * Fetch comments for an artist
+   * Fetch comments for a target (track or artist)
    */
-  async fetchComments(artistId: string, userId?: string): Promise<Comment[]> {
+  async fetchComments(targetId: string, userId?: string, scope: 'track' | 'artist' = 'track'): Promise<Comment[]> {
     try {
+      const { commentsTable, likesTable, foreignIdColumn, fkProfilesAlias } = this.getTables(scope);
+      const profilesEmbed = `profiles!${fkProfilesAlias} (id, username, avatar_url)`;
       // Fetch top-level comments
       const { data: comments, error } = await supabase
-        .from('track_comments')
+        .from(commentsTable)
         .select(`
           *,
-          users (
-            id,
-            username,
-            avatar_url
-          ),
-          comment_likes (
-            user_id
-          )
+          ${profilesEmbed},
+          ${likesTable} (user_id)
         `)
-        .eq('artist_id', artistId)
+        .eq(foreignIdColumn, targetId)
         .is('parent_id', null)
         .order('created_at', { ascending: false });
 
@@ -52,19 +65,13 @@ class CommentService {
       // Process comments and fetch replies
       const processedComments = await Promise.all(
         (comments || []).map(async (comment) => {
-          // Fetch replies for this comment
+          // Fetch replies for this comment (if you use threaded replies)
           const { data: replies } = await supabase
-            .from('track_comments')
+            .from(commentsTable)
             .select(`
               *,
-              users (
-                id,
-                username,
-                avatar_url
-              ),
-              comment_likes (
-                user_id
-              )
+              ${profilesEmbed},
+              ${likesTable} (user_id)
             `)
             .eq('parent_id', comment.id)
             .order('created_at', { ascending: true });
@@ -72,23 +79,23 @@ class CommentService {
           return {
             id: comment.id,
             userId: comment.user_id,
-            username: comment.users?.username || 'Anonymous',
-            avatarUrl: comment.users?.avatar_url,
-            content: comment.content,
+            username: comment.profiles?.username || 'Anonymous',
+            avatarUrl: comment.profiles?.avatar_url,
+            content: comment.content ?? comment.body,
             timestamp: new Date(comment.created_at).getTime(),
-            likes: comment.comment_likes?.length || 0,
-            isLiked: userId ? comment.comment_likes?.some((like: any) => like.user_id === userId) : false,
-            artistId: comment.artist_id,
+            likes: (comment as any)[likesTable]?.length || 0,
+            isLiked: userId ? ((comment as any)[likesTable]?.some((like: any) => like.user_id === userId)) : false,
+            trackId: comment.track_id,
             replies: (replies || []).map((reply) => ({
               id: reply.id,
               userId: reply.user_id,
-              username: reply.users?.username || 'Anonymous',
-              avatarUrl: reply.users?.avatar_url,
-              content: reply.content,
+              username: reply.profiles?.username || 'Anonymous',
+              avatarUrl: reply.profiles?.avatar_url,
+              content: reply.content ?? reply.body,
               timestamp: new Date(reply.created_at).getTime(),
-              likes: reply.comment_likes?.length || 0,
-              isLiked: userId ? reply.comment_likes?.some((like: any) => like.user_id === userId) : false,
-              artistId: reply.artist_id,
+              likes: (reply as any)[likesTable]?.length || 0,
+              isLiked: userId ? ((reply as any)[likesTable]?.some((like: any) => like.user_id === userId)) : false,
+              trackId: reply.track_id,
               parentId: reply.parent_id,
             })),
           };
@@ -106,28 +113,28 @@ class CommentService {
    * Add a new comment
    */
   async addComment(
-    artistId: string,
+    targetId: string,
     userId: string,
     content: string,
-    parentId?: string
+    parentId?: string,
+    scope: 'track' | 'artist' = 'track'
   ): Promise<Comment | null> {
     try {
+      const { commentsTable, foreignIdColumn, fkProfilesAlias } = this.getTables(scope);
+      const profilesEmbed = fkProfilesAlias
+        ? `profiles!${fkProfilesAlias} (id, username, avatar_url)`
+        : `profiles (id, username, avatar_url)`;
       const { data: comment, error } = await supabase
-        .from('track_comments')
+        .from(commentsTable)
         .insert({
-          artist_id: artistId,
+          [foreignIdColumn]: targetId,
           user_id: userId,
           content: content,
           parent_id: parentId || null,
-          created_at: new Date().toISOString(),
-        })
+        } as any)
         .select(`
           *,
-          users (
-            id,
-            username,
-            avatar_url
-          )
+          ${profilesEmbed}
         `)
         .single();
 
@@ -139,13 +146,13 @@ class CommentService {
       return {
         id: comment.id,
         userId: comment.user_id,
-        username: comment.users?.username || 'Anonymous',
-        avatarUrl: comment.users?.avatar_url,
-        content: comment.content,
+        username: comment.profiles?.username || 'Anonymous',
+        avatarUrl: comment.profiles?.avatar_url,
+        content: comment.content ?? comment.body,
         timestamp: new Date(comment.created_at).getTime(),
         likes: 0,
         isLiked: false,
-        artistId: comment.artist_id,
+        trackId: comment.track_id,
         parentId: comment.parent_id,
       };
     } catch (error) {
@@ -157,20 +164,21 @@ class CommentService {
   /**
    * Like or unlike a comment
    */
-  async toggleCommentLike(commentId: string, userId: string): Promise<boolean> {
+  async toggleCommentLike(commentId: string, userId: string, scope: 'track' | 'artist' = 'track'): Promise<boolean> {
     try {
+      const { likesTable } = this.getTables(scope);
       // Check if like exists
       const { data: existingLike } = await supabase
-        .from('comment_likes')
+        .from(likesTable)
         .select('*')
         .eq('comment_id', commentId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (existingLike) {
         // Unlike - remove the like
         const { error } = await supabase
-          .from('comment_likes')
+          .from(likesTable)
           .delete()
           .eq('comment_id', commentId)
           .eq('user_id', userId);
@@ -182,7 +190,7 @@ class CommentService {
       } else {
         // Like - add the like
         const { error } = await supabase
-          .from('comment_likes')
+          .from(likesTable)
           .insert({
             comment_id: commentId,
             user_id: userId,
@@ -205,11 +213,12 @@ class CommentService {
   /**
    * Delete a comment (only by the author)
    */
-  async deleteComment(commentId: string, userId: string): Promise<boolean> {
+  async deleteComment(commentId: string, userId: string, scope: 'track' | 'artist' = 'track'): Promise<boolean> {
     try {
+      const { commentsTable } = this.getTables(scope);
       // First verify the user owns the comment
       const { data: comment } = await supabase
-        .from('track_comments')
+        .from(commentsTable)
         .select('user_id')
         .eq('id', commentId)
         .single();
@@ -221,7 +230,7 @@ class CommentService {
 
       // Delete the comment (and cascade delete replies and likes)
       const { error } = await supabase
-        .from('track_comments')
+        .from(commentsTable)
         .delete()
         .eq('id', commentId);
 
@@ -238,14 +247,15 @@ class CommentService {
   }
 
   /**
-   * Get comment count for an artist
+   * Get comment count for a track
    */
-  async getCommentCount(artistId: string): Promise<number> {
+  async getCommentCount(targetId: string, scope: 'track' | 'artist' = 'track'): Promise<number> {
     try {
+      const { commentsTable, foreignIdColumn } = this.getTables(scope);
       const { count, error } = await supabase
-        .from('track_comments')
+        .from(commentsTable)
         .select('*', { count: 'exact', head: true })
-        .eq('artist_id', artistId);
+        .eq(foreignIdColumn, targetId);
 
       if (error) {
         console.error('Error getting comment count:', error);

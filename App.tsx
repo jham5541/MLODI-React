@@ -25,7 +25,9 @@ function PlayBarWrapper() {
     previousSong,
     closePlayBar,
     expandPlayBar,
+    sound
   } = usePlay();
+
 
   return (
     <PlayBar
@@ -37,6 +39,7 @@ function PlayBarWrapper() {
       onPrevious={previousSong}
       onClose={closePlayBar}
       onExpand={expandPlayBar}
+      sound={sound}
     />
   );
 }

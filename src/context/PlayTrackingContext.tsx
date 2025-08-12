@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { usePlay } from './PlayContext';
+import { databaseService } from '../services/databaseServiceProvider';
 
 interface PlaySession {
   songId: string;
@@ -21,7 +22,7 @@ interface ArtistPlayStats {
 interface PlayTrackingContextType {
   artistPlayStats: Record<string, ArtistPlayStats>;
   currentSession: PlaySession | null;
-  updateProgress: (progress: number) => void;
+  updateProgress: (progress: number) => Promise<void>;
   getArtistTotalPlays: (artistId: string) => number;
   getArtistSongPlays: (artistId: string) => number;
   getArtistVideoPlays: (artistId: string) => number;
@@ -79,7 +80,7 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
     }
   }, [currentSong, isPlaying]);
 
-  const updateProgress = (progress: number) => {
+  const updateProgress = async (progress: number) => {
     if (!currentSession) return;
 
     const updatedSession = { ...currentSession, currentProgress: progress };
@@ -90,6 +91,14 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
     
     if (progressPercentage >= 50 && !currentSession.hasCountedPlay) {
       console.log('PlayTracking: 50% threshold reached, counting play for', currentSession.songId);
+      
+      // Record the play in the database
+      try {
+        await databaseService.recordPlay(userId, currentSession.songId, progress);
+        console.log('PlayTracking: Play recorded in database');
+      } catch (error) {
+        console.error('PlayTracking: Failed to record play:', error);
+      }
       
       // Mark session as counted
       updatedSession.hasCountedPlay = true;

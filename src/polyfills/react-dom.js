@@ -1,25 +1,27 @@
 // React DOM polyfill for React Native
 // This provides the minimum functionality needed for @tanstack/react-query
 
-// Import from React Native instead of React
-const React = require('react-native');
+// React DOM polyfill for React Native
+// Provides minimal APIs some libraries expect from react-dom
 
-// Use React Native's batched updates if available, otherwise use a fallback
-const unstable_batchedUpdates = React.unstable_batchedUpdates || ((fn) => fn());
+// Import batched updates from React Native
+let batched;
+try {
+  const rn = require('react-native');
+  batched = typeof rn.unstable_batchedUpdates === 'function' ? rn.unstable_batchedUpdates : undefined;
+} catch (e) {
+  batched = undefined;
+}
 
-// Export the batched updates function that react-query expects
+const noop = () => {};
+const safeBatched = batched || ((fn) => fn());
+
 module.exports = {
-  unstable_batchedUpdates,
-  render: () => {},
-  createPortal: () => {},
-  findDOMNode: () => {},
-  unmountComponentAtNode: () => {},
+  unstable_batchedUpdates: safeBatched,
+  render: noop,
+  createPortal: noop,
+  findDOMNode: noop,
+  unmountComponentAtNode: noop,
 };
 
-// Also support ES module exports
 module.exports.default = module.exports;
-
-// Support named exports
-Object.assign(module.exports, {
-  unstable_batchedUpdates,
-});

@@ -204,7 +204,7 @@ class PlaylistService {
 
   async getPlaylist(id: string, includeDetails = true) {
     const { data, error } = await supabase
-      .from('playlists')
+      .from('playlists_public_view')
       .select('*')
       .eq('id', id)
       .single();
@@ -233,7 +233,7 @@ class PlaylistService {
 
     // Check if user has permission to update
     const { data: playlist } = await supabase
-      .from('playlists')
+      .from('playlists_public_view')
       .select('owner_id')
       .eq('id', id)
       .single();
@@ -467,7 +467,7 @@ class PlaylistService {
       .single();
 
     const { data: playlist } = await supabase
-      .from('playlists')
+      .from('playlists_public_view')
       .select('owner_id')
       .eq('id', playlistId)
       .single();

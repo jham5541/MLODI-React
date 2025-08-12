@@ -15,7 +15,7 @@ import { usePlay } from '../../context/PlayContext';
 import { Song as MusicSong } from '../../types/music';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { purchaseService } from '../../services/purchaseService';
-import { sampleSongs } from '../../data/sampleData';
+import { demoSongs } from '../../data/demoMusic';
 import PurchaseModal from '../purchase/PurchaseModal';
 
 interface Song {
@@ -57,9 +57,10 @@ export default function PopularSongs({
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Filter songs for the current artist and limit them
-    const artistSongs = sampleSongs
+    // Filter songs for the current artist, sort by popularity, and limit them
+    const artistSongs = demoSongs
       .filter(song => song.artistId === artistId)
+      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
       .slice(0, limit);
 
     setSongs(artistSongs);
@@ -87,7 +88,7 @@ export default function PopularSongs({
       album: song.album,
       coverUrl: song.coverUrl,
       duration: song.duration,
-      audioUrl: '', // Would be populated from API
+      audioUrl: song.audioUrl,
     };
 
     // Create playlist from all songs
@@ -99,7 +100,7 @@ export default function PopularSongs({
       album: s.album,
       coverUrl: s.coverUrl,
       duration: s.duration,
-      audioUrl: '',
+      audioUrl: s.audioUrl,
     }));
 
     playSong(musicSong, playlist);

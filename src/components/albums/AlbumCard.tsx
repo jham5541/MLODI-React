@@ -20,95 +20,56 @@ export default function AlbumCard({ album, onPress, viewMode = 'grid' }: AlbumCa
 
   const hasNFTTracks = album.songs.some(song => song.tokenMetadata);
 
-  const gridStyles = StyleSheet.create({
+  const styles = StyleSheet.create({
+    // Base styles shared between grid and list views
     container: {
-      width: 160,
       backgroundColor: themeColors.surface,
       borderRadius: 12,
       padding: 12,
-      marginRight: 12,
-      marginBottom: 16,
+      marginBottom: viewMode === 'grid' ? 16 : 12,
+      ...(viewMode === 'grid' ? {
+        width: 160,
+        marginRight: 12,
+      } : {
+        flexDirection: 'row',
+        alignItems: 'center',
+      }),
     },
     image: {
-      width: '100%',
-      height: 136,
       borderRadius: 8,
-      marginBottom: 12,
-    },
-    title: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: themeColors.text,
-      marginBottom: 4,
-    },
-    artist: {
-      fontSize: 14,
-      color: themeColors.textSecondary,
-      marginBottom: 4,
-    },
-    metadata: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: 8,
-    },
-    year: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-    },
-    trackCount: {
-      fontSize: 12,
-      color: themeColors.textSecondary,
-    },
-    nftBadge: {
-      position: 'absolute',
-      top: 16,
-      right: 16,
-      backgroundColor: themeColors.primary,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
-    },
-    nftText: {
-      fontSize: 10,
-      color: 'white',
-      fontWeight: '600',
-    },
-  });
-
-  const listStyles = StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 12,
-      alignItems: 'center',
-    },
-    image: {
-      width: 60,
-      height: 60,
-      borderRadius: 8,
-      marginRight: 12,
+      ...(viewMode === 'grid' ? {
+        width: '100%',
+        height: 136,
+        marginBottom: 12,
+      } : {
+        width: 60,
+        height: 60,
+        marginRight: 12,
+      }),
     },
     content: {
-      flex: 1,
+      flex: viewMode === 'list' ? 1 : undefined,
     },
     title: {
       fontSize: 16,
       fontWeight: '600',
       color: themeColors.text,
-      marginBottom: 2,
+      marginBottom: viewMode === 'grid' ? 4 : 2,
     },
     artist: {
       fontSize: 14,
       color: themeColors.textSecondary,
-      marginBottom: 2,
+      marginBottom: viewMode === 'grid' ? 4 : 2,
     },
     metadata: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      ...(viewMode === 'grid' ? {
+        justifyContent: 'space-between',
+        marginTop: 8,
+      } : {
+        gap: 12,
+      }),
     },
     year: {
       fontSize: 12,
@@ -128,6 +89,11 @@ export default function AlbumCard({ album, onPress, viewMode = 'grid' }: AlbumCa
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 4,
+      ...(viewMode === 'grid' ? {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+      } : {}),
     },
     nftText: {
       fontSize: 10,
@@ -143,8 +109,6 @@ export default function AlbumCard({ album, onPress, viewMode = 'grid' }: AlbumCa
       alignItems: 'center',
     },
   });
-
-  const styles = viewMode === 'grid' ? gridStyles : listStyles;
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>

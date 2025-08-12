@@ -2,13 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../navigation/AppNavigator';
 import { useTheme, colors } from '../context/ThemeContext';
 import { SubscriptionStatusCard } from '../components/SubscriptionStatusCard';
 
 export default function SettingsScreen() {
   const { activeTheme, theme, setTheme, toggleTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const navigation = useNavigation();
+  const navigation = useNavigation<RootStackNavigationProp<'Settings'>>();
 
   const styles = StyleSheet.create({
     container: {
@@ -85,16 +86,29 @@ export default function SettingsScreen() {
     },
   });
 
+  const goToPurchaseHistory = () => {
+    try {
+      // First try navigating within the current navigator
+      navigation.navigate('PurchaseHistory');
+      // Also attempt parent navigator in case the route lives higher up
+      // @ts-ignore - getParent is available at runtime depending on navigator nesting
+      const parent = (navigation as any).getParent?.();
+      parent?.navigate?.('PurchaseHistory');
+    } catch (e) {
+      // no-op; navigation won't normally throw
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.subscriptionSection}>
         <Text style={styles.sectionTitle}>Subscription</Text>
         <SubscriptionStatusCard 
-          onPress={() => navigation.navigate('SubscriptionManagement' as never)}
+          onPress={() => navigation.navigate('SubscriptionManagement')}
         />
         <TouchableOpacity 
           style={styles.settingItemWithIcon}
-          onPress={() => navigation.navigate('Subscription' as never)}
+          onPress={() => navigation.navigate('Subscription')}
         >
           <Ionicons name="diamond-outline" size={20} color={themeColors.primary} style={styles.settingIcon} />
           <View style={styles.settingContent}>
@@ -158,6 +172,22 @@ export default function SettingsScreen() {
             thumbColor={themeColors.background}
           />
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        
+        <TouchableOpacity 
+          style={styles.settingItemWithIcon}
+          accessibilityRole="button"
+          onPress={goToPurchaseHistory}
+        >
+          <Ionicons name="receipt-outline" size={20} color={themeColors.primary} style={styles.settingIcon} />
+          <View style={styles.settingContent}>
+            <Text style={styles.settingLabel}>Purchase History</Text>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textSecondary} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>

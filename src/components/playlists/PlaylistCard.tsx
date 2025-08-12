@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { usePlay } from '../../context/PlayContext';
@@ -46,9 +46,14 @@ const { playSong } = usePlay();
       borderRadius: 16,
       padding: 16,
       marginBottom: 16,
+      width: '100%',
+      maxWidth: '100%',
+      overflow: 'hidden',
     },
     header: {
       flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
       marginBottom: 12,
     },
     coverImage: {
@@ -134,6 +139,7 @@ const { playSong } = usePlay();
     actions: {
       flexDirection: 'row',
       gap: 8,
+      flexShrink: 0,
     },
     actionButton: {
       width: 32,
@@ -183,7 +189,7 @@ const { playSong } = usePlay();
   });
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
+    <Pressable style={styles.container} onPress={onPress}>
       <View style={styles.header}>
         <Image
           source={{ uri: playlist.coverUrl }}
@@ -230,18 +236,18 @@ const { playSong } = usePlay();
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.actionButton, styles.playButton]}
-onPress={handlePlayPress}
+onPress={(e) => { e.stopPropagation(); handlePlayPress(); }} hitSlop={8}
           >
             <Ionicons name="play" size={16} color="white" />
-          </TouchableOpacity>
+          </Pressable>
           
-          <TouchableOpacity
+          <Pressable
             style={[styles.actionButton, styles.menuButton]}
-          >
+            onPress={(e) => { e.stopPropagation(); }} hitSlop={8}>
             <Ionicons name="ellipsis-vertical" size={16} color={themeColors.text} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -312,6 +318,6 @@ onPress={handlePlayPress}
           </View>
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }

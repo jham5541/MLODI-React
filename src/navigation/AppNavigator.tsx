@@ -33,6 +33,7 @@ import FavoritesScreen from '../pages/Favorites';
 import AlbumPage from '../pages/AlbumPage';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { SubscriptionManagementScreen } from '../screens/SubscriptionManagementScreen';
+import PurchaseHistoryScreen from '../screens/PurchaseHistoryScreen';
 import Discography from '../screens/Discography';
 import VideoPage from '../screens/VideoPage';
 import VideosScreen from '../screens/VideosScreen';
@@ -41,6 +42,8 @@ import TrendingAllSongs from '../pages/TrendingAllSongs';
 import TrendingAllArtists from '../pages/TrendingAllArtists';
 import GenresAll from '../pages/GenresAll';
 import GenreDetail from '../pages/GenreDetail';
+import FeaturedPlaylistsScreen from '../screens/FeaturedPlaylistsScreen';
+import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -50,12 +53,15 @@ export type RootStackParamList = {
   Videos: { artistId: string };
   Albums: undefined;
   Playlists: undefined;
+  FeaturedPlaylists: undefined;
   RadioAll: undefined;
   ChartsAll: undefined;
   Settings: undefined;
   AccountSettings: undefined;
   Subscription: undefined;
   SubscriptionManagement: undefined;
+  PurchaseHistory: undefined;
+  PaymentMethods: undefined;
   Discography: { artistId: string; artistName: string };
   ArtistSongs: { artistId: string; artistName: string };
   TrendingAllSongs: undefined;
@@ -351,20 +357,38 @@ function AppContent() {
           component={GenreDetail}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="PurchaseHistory" 
+          component={PurchaseHistoryScreen}
+          options={{ 
+            title: 'Purchase History',
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: themeColors.surface,
+            },
+            headerTintColor: themeColors.text,
+          }}
+        />
+        <Stack.Screen 
+          name="FeaturedPlaylists" 
+          component={FeaturedPlaylistsScreen}
+          options={{ title: 'Featured Playlists' }}
+        />
+        <Stack.Screen 
+          name="PaymentMethods" 
+          component={PaymentMethodsScreen}
+          options={{ 
+            title: 'Payment Methods',
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: themeColors.surface,
+            },
+            headerTintColor: themeColors.text,
+          }}
+        />
       </Stack.Navigator>
       
       <SearchModal />
-      
-      <PlayBar
-        currentSong={currentSong}
-        isPlaying={isPlaying}
-        isVisible={isPlayBarVisible}
-        onPlayPause={togglePlayPause}
-        onNext={nextSong}
-        onPrevious={previousSong}
-        onClose={closePlayBar}
-        onExpand={expandPlayBar}
-      />
     </NavigationContainer>
   );
 }

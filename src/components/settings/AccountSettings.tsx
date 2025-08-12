@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import Web3AuthService from '../../services/web3auth';
+import { userService } from '../../services/userService';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 
 interface AccountSettingsProps {
@@ -28,9 +31,38 @@ export default function AccountSettings({
 }: AccountSettingsProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { user, updateProfile } = useAuthStore();
+  const { user, profile, updateProfile, checkSession } = useAuthStore();
+  const [address, setAddress] = useState<string | null>(profile?.wallet_address ?? null);
+  const formattedAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
+  
+  // Wallet holdings (sample data for now)
+  const [holdings, setHoldings] = useState({ albums: 0, songs: 0, tickets: 0 });
+
+  // Simulate fetching holdings when wallet address is available
+  React.useEffect(() => {
+    const fetchHoldings = async () => {
+      // TODO: Replace with real fetch from Supabase or on-chain indexer
+      // Sample data for now
+      setHoldings({ albums: 3, songs: 27, tickets: 2 });
+    };
+    if (address) fetchHoldings();
+  }, [address]);
   const navigation = useNavigation();
   
+  // Hydrate form from profile when available
+  React.useEffect(() => {
+    if (!profile) return;
+    setFormData(prev => ({
+      ...prev,
+      displayName: profile.display_name || '',
+      email: profile.email || '',
+      bio: profile.bio || '',
+      location: profile.location || '',
+      website: profile.website_url || '',
+    }));
+    setAddress(profile.wallet_address || null);
+  }, [profile]);
+
   // Mock data for demonstration
   const [walletBalance] = useState(1250); // Wallet points
   const [activeSubscription] = useState({
@@ -78,7 +110,13 @@ export default function AccountSettings({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await updateProfile(formData);
+      await updateProfile({
+        display_name: formData.displayName,
+        bio: formData.bio,
+        location: formData.location,
+        website_url: formData.website,
+      });
+      await checkSession();
       onSave?.(formData);
       Alert.alert('Success', 'Account settings saved successfully');
     } catch (error) {
@@ -279,6 +317,41 @@ export default function AccountSettings({
       color: themeColors.text,
       fontFamily: 'monospace',
       flex: 1,
+    },
+    walletBalance: {
+      marginTop: 12,
+      backgroundColor: themeColors.background,
+      padding: 12,
+      borderRadius: 8,
+    },
+    walletBalanceText: {
+      fontSize: 14,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+    holdingsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      marginTop: 12,
+      backgroundColor: themeColors.background,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    holdingsItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    holdingsNumber: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
+    createWalletButton: {
+      marginTop: 16,
+      backgroundColor: themeColors.primary,
     },
     copyButton: {
       marginLeft: 12,
@@ -649,7 +722,7 @@ addPointsText: {
           </TouchableOpacity>
 
           {/* Payment Methods */}
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PaymentMethods')}>
             <View style={styles.menuItemContent}>
               <View style={styles.menuItemIcon}>
                 <Ionicons name="card" size={20} color={themeColors.primary} />
@@ -696,23 +769,60 @@ addPointsText: {
         {/* Connected Wallet */}
         <View style={styles.walletSection}>
           <Text style={styles.sectionTitle}>Connected Wallet</Text>
-          {user?.address ? (
-            <>
-              <View style={styles.connectedWallet}>
-                <Ionicons name="checkmark-circle" size={16} color={themeColors.success} />
-                <Text style={styles.connectedText}>Wallet Connected</Text>
-              </View>
-              <View style={styles.walletAddress}>
-                <Text style={styles.walletAddressText}>
-                  {user.address.slice(0, 6)}...{user.address.slice(-4)}
-                </Text>
-                <TouchableOpacity style={styles.copyButton}>
-                  <Ionicons name="copy-outline" size={16} color={themeColors.textSecondary} />
+          {user ? (
+            address ? (
+              <>
+                <View style={styles.connectedWallet}>
+                  <Ionicons name="checkmark-circle" size={16} color={themeColors.success} />
+                  <Text style={styles.connectedText}>Wallet Connected</Text>
+                </View>
+                <View style={styles.walletAddress}>
+                  <Text style={styles.walletAddressText}>
+                    {formattedAddress}
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.copyButton}
+                    onPress={() => {
+                      if (address) {
+                        Clipboard.setStringAsync(address);
+                        Alert.alert('Success', 'Wallet address copied to clipboard');
+                      }
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                {/* Holdings summary */}
+                <View style={styles.holdingsRow}>
+                  <View style={styles.holdingsItem}>
+                    <Ionicons name="albums-outline" size={18} color={themeColors.primary} />
+                    <Text style={styles.holdingsNumber}>{holdings.albums}</Text>
+                  </View>
+                  <View style={styles.holdingsItem}>
+                    <Ionicons name="musical-notes-outline" size={18} color={themeColors.primary} />
+                    <Text style={styles.holdingsNumber}>{holdings.songs}</Text>
+                  </View>
+                  <View style={styles.holdingsItem}>
+                    <Ionicons name="pricetag-outline" size={18} color={themeColors.primary} />
+                    <Text style={styles.holdingsNumber}>{holdings.tickets}</Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.switchDescription}>No wallet connected</Text>
+                <TouchableOpacity 
+                  style={[styles.saveButton, styles.createWalletButton, { opacity: 0.5 }]}
+                  onPress={() => {
+                    Alert.alert('Coming Soon', 'Wallet connection is temporarily disabled.');
+                  }}
+                >
+                  <Text style={styles.saveButtonText}>Create Wallet</Text>
                 </TouchableOpacity>
-              </View>
-            </>
+              </>
+            )
           ) : (
-            <Text style={styles.switchDescription}>No wallet connected</Text>
+            <Text style={styles.switchDescription}>Sign in to create a wallet</Text>
           )}
         </View>
 

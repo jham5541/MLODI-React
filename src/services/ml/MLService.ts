@@ -177,6 +177,66 @@ class MLService {
     }
   }
 
+  // Simple wrapper used by Library screen expecting a list of recommended songs
+  // Returns minimal fields used by Library mapping logic
+  async fetchRecommendedSongs(): Promise<Array<{
+    id: string;
+    title: string;
+    artistName?: string;
+    artistId?: string;
+    albumId?: string;
+    price?: number;
+    coverUrl?: string;
+    previewUrl?: string;
+  }>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return [];
+      }
+
+      // Get recommendations
+      const recs = await this.getRecommendations(user.id, 20);
+      const trackIds = recs.map(r => r.trackId).filter(Boolean);
+      if (trackIds.length === 0) return [];
+
+      // Fetch track metadata from public view
+      const { data: tracks, error } = await supabase
+        .from('tracks_public_view')
+        .select('*')
+        .in('id', trackIds);
+
+      if (error || !tracks) return [];
+
+      // Map artist names via artists_public_view
+      const artistIds = [...new Set(tracks.map((t: any) => t.artist_id).filter(Boolean))];
+      let artistMap = new Map<string, any>();
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists_public_view')
+          .select('id, name')
+          .in('id', artistIds);
+        if (artists) {
+          artistMap = new Map(artists.map((a: any) => [a.id, a]));
+        }
+      }
+
+      return tracks.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        artistName: artistMap.get(t.artist_id)?.name,
+        artistId: t.artist_id,
+        albumId: t.album_id,
+        price: 0.99, // default until products are linked per-song
+        coverUrl: t.cover_url || t.image_url,
+        previewUrl: t.preview_url || t.audio_preview_url,
+      }));
+    } catch (err) {
+      console.error('MLService.fetchRecommendedSongs error:', err);
+      return [];
+    }
+  }
+
   private async getUserListeningProfile(userId: string): Promise<UserListeningProfile> {
     const { data: listeningHistory } = await supabase
       .from('listening_history')

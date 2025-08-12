@@ -11,7 +11,8 @@ import ProductCard from '../components/marketplace/ProductCard';
 import { UserLibrary, Product } from '../types/marketplace';
 import MLService from '../services/ml/MLService';
 import { purchaseService } from '../services/purchaseService';
-import { musicService } from '../services/musicService';
+import { currentMusicService as musicService } from '../services/serviceProvider';
+import NFTService from '../services/web3/nftService';
 
 type LibraryFilter = 'all' | 'songs' | 'albums' | 'videos';
 
@@ -93,12 +94,46 @@ export default function LibraryScreen() {
   ];
 
   useEffect(() => {
-    // Allow loading library even without authentication for demo purposes
-    loadLibrary().catch((error) => {
-      console.log('Library loading failed:', error.message);
-      // Fail silently for unauthenticated users
-    });
-  }, [loadLibrary]);
+    const loadData = async () => {
+      try {
+        // Only try to load library if user is authenticated
+        if (user) {
+          await loadLibrary().catch(error => {
+            console.log('Library loading failed:', error.message);
+          });
+        }
+
+        // Load NFT-owned songs from the user's wallet
+        const nftService = NFTService.getInstance();
+        const ownedNFTs = await nftService.getOwnedTokens();
+        
+        // Convert NFTs to Product format
+        const nftProducts = ownedNFTs.map(nft => ({
+          id: nft.id,
+          type: 'song',
+          title: nft.name,
+          artist: nft.artist,
+          artistId: nft.artistId,
+          albumId: nft.albumId,
+          description: nft.description,
+          price: 0, // Already owned
+          image: nft.image,
+          previewUrl: nft.audio_url,
+          isOwned: true,
+        }));
+
+        // Add NFT products to purchasedProducts
+        setPurchasedProducts(prev => [...prev, ...nftProducts]);
+      } catch (error) {
+        console.log('Error loading data:', error.message);
+        // On error, we'll still show sample data
+      } finally {
+        setLoadingPurchased(false);
+      }
+    };
+
+    loadData();
+  }, [loadLibrary, user]);
 
   const [purchasedProducts, setPurchasedProducts] = useState<Product[]>([]);
   const [loadingPurchased, setLoadingPurchased] = useState(true);

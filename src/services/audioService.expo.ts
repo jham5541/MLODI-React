@@ -108,3 +108,20 @@ class MockAudioService {
 
 export const audioService = new MockAudioService();
 export default audioService;
+
+// Premium URL helper with 5-minute cache
+import { supabase } from '../lib/supabase/client';
+const AUDIO_URL_TTL_MS = 5 * 60 * 1000;
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+export async function getPlayableAudioUrl(trackId: string): Promise<string> {
+  const now = Date.now();
+  const cached = signedUrlCache.get(trackId);
+  if (cached && cached.expiresAt > now + 10_000) return cached.url;
+
+  const { data, error } = await supabase.rpc('get_signed_track_url', { p_track_id: trackId });
+  if (error) throw error;
+  const url = data as string;
+  signedUrlCache.set(trackId, { url, expiresAt: now + AUDIO_URL_TTL_MS });
+  return url;
+}

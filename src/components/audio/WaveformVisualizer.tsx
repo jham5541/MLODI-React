@@ -5,10 +5,10 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Animated, 
-  PanGestureHandler,
   Dimensions,
   LayoutChangeEvent
 } from 'react-native';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import Svg, { Path, Rect, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -57,7 +57,7 @@ export default function WaveformVisualizer({
   const [isLoading, setIsLoading] = useState(true);
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 32);
   const animatedProgress = useRef(new Animated.Value(0)).current;
-  const panGestureRef = useRef<any>();
+  const panGestureRef = useRef<any>(null);
 
   const finalWaveColor = waveColor || colors.textSecondary;
   const finalProgressColor = progressColor || colors.primary;
@@ -220,7 +220,7 @@ export default function WaveformVisualizer({
                     styles.loadingBar,
                     {
                       backgroundColor: finalWaveColor,
-                      animationDelay: `${index * 100}ms`,
+                      // animation delay removed for type-safety
                       transform: [{
                         scaleY: animatedProgress.interpolate({
                           inputRange: [0, 1],

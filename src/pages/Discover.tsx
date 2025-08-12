@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Dimensions, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
 import { usePlay } from '../context/PlayContext';
+import { useSearch } from '../context/SearchContext';
 import { StackScreenProps } from '@react-navigation/stack';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from '../navigation/AppNavigator';
 import { purchaseService } from '../services/purchaseService';
 import PurchaseModal from '../components/purchase/PurchaseModal';
-import TrendingArtistService from '../services/TrendingArtistService';
 
 type DiscoverFilter = 'albums' | 'artists' | 'songs' | 'genres';
 type GenreFilter = 'all' | 'pop' | 'rock' | 'hip-hop' | 'electronic' | 'jazz' | 'classical' | 'country' | 'r&b' | 'indie';
@@ -122,18 +122,20 @@ export default function DiscoverScreen({ navigation }: Props) {
   const themeColors = colors[activeTheme];
   const screenWidth = Dimensions.get('window').width;
   const { playSong } = usePlay();
+  const { openSearch, searchQuery } = useSearch();
   
   const [activeFilter, setActiveFilter] = useState<DiscoverFilter>('albums');
   const [selectedGenre, setSelectedGenre] = useState<GenreFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const [showGenreMenu, setShowGenreMenu] = useState(false);
   const [dummyAlbums] = useState(generateDummyAlbums());
   const [dummyArtists] = useState(generateArtists());
   const [dummySongs] = useState(generateSongs());
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [trendingArtists, setTrendingArtists] = useState<TrendingArtist[]>([]);
-  const [loadingTrending, setLoadingTrending] = useState(true);
+  // Use albums for trending content on Discover
+  const [trendingAlbums, setTrendingAlbums] = useState<Album[]>([]);
 
   // Filter data based on selected genre and search query
   const getFilteredData = () => {
@@ -212,32 +214,21 @@ export default function DiscoverScreen({ navigation }: Props) {
     console.log('Refreshing discover data...');
     // In a real app, this would refresh data from API
     // For now, we'll just log that a refresh occurred
-    fetchTrendingArtists();
+    // Shuffle trending albums for a fresh feel
+    const shuffled = [...dummyAlbums].sort(() => Math.random() - 0.5).slice(0, 12);
+    setTrendingAlbums(shuffled);
   };
 
-  const fetchTrendingArtists = async () => {
-    try {
-      setLoadingTrending(true);
-      const artists = await TrendingArtistService.getTrendingArtists(10);
-      
-      // Map trending artists to include dummy images and genres
-      const mappedArtists = artists.map((artist, index) => ({
-        ...artist,
-        imageUrl: `https://picsum.photos/200/200?random=${100 + index}`,
-        genre: ['pop', 'rock', 'hip-hop', 'electronic', 'jazz'][Math.floor(Math.random() * 5)]
-      }));
-      
-      setTrendingArtists(mappedArtists);
-    } catch (error) {
-      console.error('Error fetching trending artists:', error);
-    } finally {
-      setLoadingTrending(false);
-    }
+  // Seed trending albums from available dummy albums
+  const computeTrendingAlbums = () => {
+    // Pick 12 random albums for trending showcase
+    const selected = [...dummyAlbums].sort(() => Math.random() - 0.5).slice(0, 12);
+    setTrendingAlbums(selected);
   };
 
-  // Fetch trending artists on mount
+  // Initialize trending albums on mount
   useEffect(() => {
-    fetchTrendingArtists();
+    computeTrendingAlbums();
   }, []);
 
   // Auto-refresh every 24 hours
@@ -258,6 +249,81 @@ export default function DiscoverScreen({ navigation }: Props) {
       padding: 16,
       paddingBottom: 8,
     },
+    consolidatedBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.surface,
+      borderRadius: 24,
+      paddingHorizontal: 12,
+      height: 48,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    barButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 16,
+    },
+    searchTapArea: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    searchPlaceholder: {
+      marginLeft: 8,
+      color: themeColors.textSecondary,
+      fontSize: 14,
+    },
+    typeButton: {
+      marginRight: 8,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    genreButton: {
+      marginLeft: 8,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    dropdownBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      zIndex: 900,
+    },
+    dropdownPanel: {
+      position: 'absolute',
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+      paddingVertical: 4,
+      minWidth: 160,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 12,
+      zIndex: 1000,
+    },
+    dropdownItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    dropdownItemText: {
+      marginLeft: 8,
+      fontSize: 14,
+      color: themeColors.text,
+    },
     headerTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -271,49 +337,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       fontWeight: 'bold',
       color: themeColors.text,
     },
-    // Search bar styles
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: themeColors.surface,
-      borderRadius: 24,
-      marginHorizontal: 0,
-      marginBottom: 16,
-      paddingHorizontal: 16,
-      height: 48,
-      borderWidth: 1,
-      borderColor: themeColors.border,
-      shadowColor: themeColors.text,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    searchIcon: {
-      marginRight: 8,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 16,
-      color: themeColors.text,
-      paddingVertical: 0,
-    },
-    clearButton: {
-      padding: 4,
-      marginLeft: 8,
-    },
-    filtersContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-around',
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      backgroundColor: themeColors.surface,
-      borderColor: themeColors.border,
-      borderWidth: 1,
-      borderRadius: 10,
-      marginVertical: 10,
-    },
+    // Deprecated individual search/filters styles removed
     filtersList: {
       paddingHorizontal: 16,
     },
@@ -420,82 +444,39 @@ export default function DiscoverScreen({ navigation }: Props) {
       fontSize: 16,
       fontWeight: '600',
     },
-    // Genre filters
-    genreFiltersContainer: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderTopWidth: 0.5,
-      borderBottomWidth: 0.5,
-      borderColor: themeColors.border,
-      backgroundColor: themeColors.background,
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      marginBottom: 8,
-    },
-    genreFilterButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      marginRight: 10,
-      borderRadius: 20,
-      backgroundColor: themeColors.surface,
-      borderWidth: 1,
-      borderColor: themeColors.border,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 2,
-    },
-    activeGenreFilterButton: {
-      backgroundColor: themeColors.secondary,
-      borderColor: themeColors.secondary,
-      elevation: 4,
-      shadowOpacity: 0.15,
-    },
-    genreFilterText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: themeColors.text,
-      letterSpacing: 0.3,
-    },
-    activeGenreFilterText: {
-      color: 'white',
-    },
-    // Album card styles
+    // Deprecated horizontal genre chip styles removed
+    // Album card styles (3-column grid)
     albumCard: {
-      width: (screenWidth - 48) / 2,
-      marginBottom: 16,
+      width: Math.floor((screenWidth - 16 * 2 - 8 * 2) / 3),
+      marginBottom: 12,
       backgroundColor: themeColors.surface,
-      borderRadius: 12,
-      padding: 12,
+      borderRadius: 10,
+      padding: 8,
       shadowColor: themeColors.text,
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      elevation: 2,
     },
     albumCover: {
       width: '100%',
-      height: (screenWidth - 48) / 2 - 24,
+      height: Math.floor((screenWidth - 16 * 2 - 8 * 2) / 3) - 16,
       borderRadius: 8,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     albumTitle: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '600',
       color: themeColors.text,
       marginBottom: 2,
     },
     albumArtist: {
-      fontSize: 12,
+      fontSize: 11,
       color: themeColors.textSecondary,
-      marginBottom: 4,
+      marginBottom: 2,
     },
     albumInfo: {
-      fontSize: 11,
+      fontSize: 10,
       color: themeColors.textSecondary,
     },
     // Artist list styles
@@ -614,7 +595,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       fontSize: 12,
       fontWeight: '700',
     },
-    // Trending Artists Carousel styles
+    // Trending Albums Carousel styles
     trendingSection: {
       paddingTop: 12,
       paddingBottom: 4,
@@ -643,35 +624,35 @@ export default function DiscoverScreen({ navigation }: Props) {
     trendingCarousel: {
       paddingLeft: 16,
     },
-    trendingArtistCard: {
-      marginRight: 8,
+    trendingAlbumCard: {
+      marginRight: 12,
       alignItems: 'center',
-      width: 100,
+      width: 110,
     },
-    trendingArtistImage: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+    trendingAlbumImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 10,
       marginBottom: 8,
       borderWidth: 2,
       borderColor: themeColors.primary,
     },
-    trendingArtistName: {
-      fontSize: 14,
+    trendingAlbumTitle: {
+      fontSize: 12,
       fontWeight: '600',
       color: themeColors.text,
       textAlign: 'center',
       marginBottom: 2,
     },
-    trendingArtistGenre: {
-      fontSize: 12,
+    trendingAlbumArtist: {
+      fontSize: 11,
       color: themeColors.textSecondary,
       textAlign: 'center',
     },
     trendingBadge: {
       position: 'absolute',
       top: 0,
-      right: 10,
+      right: 6,
       backgroundColor: themeColors.primary,
       borderRadius: 12,
       paddingHorizontal: 8,
@@ -687,10 +668,14 @@ export default function DiscoverScreen({ navigation }: Props) {
   });
 
   // Render functions for different view types
-  const renderAlbumCard = ({ item, index }: { item: Album; index: number }) => (
+  const renderAlbumCard = ({ item, index }: { item: Album; index: number }) => {
+    const col = index % 3;
+    const marginLeft = col === 0 ? 16 : 8;
+    const marginRight = col === 2 ? 16 : 8;
+    return (
     <TouchableOpacity 
       key={item.id} 
-      style={[styles.albumCard, { marginLeft: index % 2 === 0 ? 16 : 8, marginRight: index % 2 === 1 ? 16 : 8 }]}
+      style={[styles.albumCard, { marginLeft, marginRight }]}
       onPress={() => navigation?.navigate('AlbumPage', { albumId: item.id })}
     >
       <Image source={{ uri: item.coverUrl }} style={styles.albumCover} />
@@ -699,6 +684,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       <Text style={styles.albumInfo}>{item.year} • {item.trackCount} tracks</Text>
     </TouchableOpacity>
   );
+  };
 
   const renderArtistItem = ({ item }: { item: Artist }) => (
     <TouchableOpacity 
@@ -798,19 +784,19 @@ export default function DiscoverScreen({ navigation }: Props) {
     );
   };
 
-  const renderTrendingArtistCard = ({ item }: { item: TrendingArtist }) => (
+  const renderTrendingAlbumCard = ({ item }: { item: Album }) => (
     <TouchableOpacity 
-      style={styles.trendingArtistCard}
-      onPress={() => navigation?.navigate('ArtistProfile', { artistId: item.artistId })}
+      style={styles.trendingAlbumCard}
+      onPress={() => navigation?.navigate('AlbumPage', { albumId: item.id })}
     >
       <View style={{ position: 'relative' }}>
-        <Image source={{ uri: item.imageUrl }} style={styles.trendingArtistImage} />
+        <Image source={{ uri: item.coverUrl }} style={styles.trendingAlbumImage} />
         <View style={styles.trendingBadge}>
           <Text style={styles.trendingBadgeText}>TRENDING</Text>
         </View>
       </View>
-      <Text style={styles.trendingArtistName} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.trendingArtistGenre}>{item.genre}</Text>
+      <Text style={styles.trendingAlbumTitle} numberOfLines={1}>{item.title}</Text>
+      <Text style={styles.trendingAlbumArtist} numberOfLines={1}>{item.artist}</Text>
     </TouchableOpacity>
   );
 
@@ -839,7 +825,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           data={filteredData as Album[]}
           renderItem={renderAlbumCard}
           keyExtractor={(item) => item.id}
-          numColumns={2}
+          numColumns={3}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
@@ -876,93 +862,108 @@ export default function DiscoverScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        
+        {/* Consolidated bar */}
+        <View style={styles.consolidatedBar}>
+          {/* Type dropdown trigger */}
+          <TouchableOpacity
+            style={[styles.barButton, styles.typeButton]}
+            onPress={() => {
+              setShowTypeMenu((v) => !v);
+              setShowGenreMenu(false);
+            }}
+          >
+            <Ionicons
+              name={activeFilter === 'albums' ? 'albums-outline' : activeFilter === 'artists' ? 'person-outline' : 'musical-notes-outline'}
+              size={18}
+              color={themeColors.text}
+            />
+            <Ionicons name={showTypeMenu ? 'chevron-up' : 'chevron-down'} size={16} color={themeColors.textSecondary} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={themeColors.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${activeFilter}...`}
-            placeholderTextColor={themeColors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color={themeColors.textSecondary} />
-            </TouchableOpacity>
-          )}
+          {/* Search tap area */}
+          <TouchableOpacity
+            style={styles.searchTapArea}
+            onPress={() => openSearch()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search" size={20} color={themeColors.textSecondary} />
+            <Text style={styles.searchPlaceholder}>Search {activeFilter}...</Text>
+          </TouchableOpacity>
+
+          {/* Genre dropdown trigger */}
+          <TouchableOpacity
+            style={[styles.barButton, styles.genreButton]}
+            onPress={() => {
+              setShowGenreMenu((v) => !v);
+              setShowTypeMenu(false);
+            }}
+          >
+            <Ionicons name="funnel-outline" size={18} color={themeColors.text} />
+            <Ionicons name={showGenreMenu ? 'chevron-up' : 'chevron-down'} size={16} color={themeColors.textSecondary} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.filtersContainer}>
+      </View>
+
+      {/* Global dropdown overlays */}
+      {(showTypeMenu || showGenreMenu) && (
+        <TouchableOpacity
+          style={styles.dropdownBackdrop}
+          onPress={() => {
+            setShowTypeMenu(false);
+            setShowGenreMenu(false);
+          }}
+        />
+      )}
+
+      {showTypeMenu && (
+        <View style={[styles.dropdownPanel, { right: 16, top: 90 }]}>
           {filters.map((filter) => (
             <TouchableOpacity
               key={filter.key}
-              style={[
-                styles.filterButton,
-                activeFilter === filter.key && styles.activeFilterButton,
-              ]}
-              onPress={() => setActiveFilter(filter.key as DiscoverFilter)}
+              style={styles.dropdownItem}
+              onPress={() => {
+                setActiveFilter(filter.key as DiscoverFilter);
+                setShowTypeMenu(false);
+              }}
             >
-              <Ionicons
-                name={filter.icon as any}
-                size={16}
-                color={activeFilter === filter.key ? 'white' : themeColors.text}
-                style={styles.filterIcon}
-              />
-              <Text
-                style={[
-                  styles.filterText,
-                  activeFilter === filter.key && styles.activeFilterText,
-                ]}
-              >
+              <Ionicons name={filter.icon as any} size={18} color={activeFilter === filter.key ? themeColors.primary : themeColors.text} />
+              <Text style={[styles.dropdownItemText, { color: activeFilter === filter.key ? themeColors.primary : themeColors.text }]}>
                 {filter.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      )}
 
-      {/* Genre Filters */}
-      <View style={styles.genreFiltersContainer}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-        >
+      {showGenreMenu && (
+        <View style={[styles.dropdownPanel, { right: 16, top: 90 }]}>
           {genres.map((genre) => (
             <TouchableOpacity
               key={genre.key}
-              style={[
-                styles.genreFilterButton,
-                selectedGenre === genre.key && styles.activeGenreFilterButton,
-              ]}
-              onPress={() => setSelectedGenre(genre.key as GenreFilter)}
+              style={styles.dropdownItem}
+              onPress={() => {
+                setSelectedGenre(genre.key as GenreFilter);
+                setShowGenreMenu(false);
+              }}
             >
-              <Text
-                style={[
-                  styles.genreFilterText,
-                  selectedGenre === genre.key && styles.activeGenreFilterText,
-                ]}
-              >
-                {genre.label}
-              </Text>
+              <Ionicons name={selectedGenre === genre.key ? 'radio-button-on' : 'radio-button-off'} size={18} color={selectedGenre === genre.key ? themeColors.primary : themeColors.textSecondary} />
+              <Text style={styles.dropdownItemText}>{genre.label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-      </View>
-
-      {/* Trending Artists Carousel */}
-      {!loadingTrending && trendingArtists.length > 0 && (
+        </View>
+      )}
+      {/* Trending Albums Carousel */}
+      {trendingAlbums.length > 0 && (
         <View style={styles.trendingSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending Artists</Text>
+            <Text style={styles.sectionTitle}>Trending Albums</Text>
           </View>
           <FlatList
-            data={trendingArtists}
+            data={trendingAlbums}
             horizontal
-            renderItem={renderTrendingArtistCard}
-            keyExtractor={(item) => item.artistId}
+            renderItem={renderTrendingAlbumCard}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.trendingCarousel}
             showsHorizontalScrollIndicator={false}
           />

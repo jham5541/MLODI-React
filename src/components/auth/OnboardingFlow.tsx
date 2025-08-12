@@ -170,13 +170,21 @@ const PreferencesStep: React.FC<StepProps> = ({ onNext }) => {
   );
 };
 
-export const OnboardingFlow: React.FC = () => {
+interface OnboardingFlowProps {
+  onClose?: () => void;
+}
+
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onClose }) => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const { completeOnboardingStep } = useAuthStore();
 
-  const handleNext = async (step: OnboardingStep) => {
+const handleNext = async (step: OnboardingStep) => {
     await completeOnboardingStep(step);
-    setCurrentStep(step);
+    if (step === 'completed') {
+      onClose?.();
+    } else {
+      setCurrentStep(step);
+    }
   };
 
   const renderStep = () => {

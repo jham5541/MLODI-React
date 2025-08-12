@@ -21,6 +21,7 @@ import { usePlaylistStore } from '../store/playlistStore';
 import Top10ArtistCard from '../components/home/Top10ArtistCard';
 import { useMarketplaceStore } from '../store/marketplaceStore';
 import { createCommonStyles, LoadingState, EmptyState } from '../utils/uiHelpers';
+import { sampleSongs } from '../data/sampleData';
 import { useBatchAsyncOperations } from '../hooks/useAsyncOperation';
 import MLService from '../services/ml/MLServiceLite';
 import { TrackRecommendation, EmergingArtist } from '../services/ml/types';
@@ -465,6 +466,18 @@ export default function HomeScreen() {
     },
   });
 
+  // Start playback for a selected Daily Mix
+  const handleDailyMixPlay = (playlist: any) => {
+    try {
+      // For now, Daily Mixes use sample songs as a queue
+      const queue = sampleSongs.slice(0, 15);
+      playSong(queue[0], queue);
+    } catch (e) {
+      const fallback = sampleSongs.slice(0, 10);
+      playSong(fallback[0], fallback);
+    }
+  };
+
   return (
     <ScrollView 
       style={styles.container}
@@ -532,7 +545,7 @@ export default function HomeScreen() {
           title="Daily Mixes"
           playlists={mockDailyMixes}
           onPlaylistPress={handlePlaylistPress}
-          onPlayPress={(playlist) => console.log('Play daily mix:', playlist.name)}
+          onPlayPress={handleDailyMixPlay}
         />
 
         

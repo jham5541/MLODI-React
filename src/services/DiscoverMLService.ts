@@ -205,7 +205,7 @@ export class DiscoverMLService {
       const genreRecommendations = await Promise.all(
         genres.map(async (genre) => {
           const { data: genreTracks } = await supabase
-            .from('songs')
+            .from('tracks_public_view')
             .select('*')
             .eq('genre', genre)
             .order('play_count', { ascending: false })

@@ -115,7 +115,7 @@ export default function ProductCard({
     },
     image: {
       width: '100%',
-      height: 200,
+      height: 150,
     },
     typeLabel: {
       position: 'absolute',
@@ -154,8 +154,19 @@ export default function ProductCard({
       right: 12,
       backgroundColor: 'rgba(0,0,0,0.7)',
       borderRadius: 20,
-      width: 40,
-      height: 40,
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    cartButton: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      backgroundColor: themeColors.primary + '80',
+      borderRadius: 20,
+      width: 32,
+      height: 32,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -166,7 +177,7 @@ export default function ProductCard({
       marginBottom: 8,
     },
     title: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: 'bold',
       color: themeColors.text,
       marginBottom: 4,
@@ -196,7 +207,7 @@ export default function ProductCard({
       flex: 1,
     },
     price: {
-      fontSize: 20,
+      fontSize: 16,
       fontWeight: 'bold',
       color: themeColors.primary,
     },
@@ -205,37 +216,6 @@ export default function ProductCard({
       color: themeColors.textSecondary,
       textDecorationLine: 'line-through',
       marginLeft: 8,
-    },
-    addToCartButton: {
-      backgroundColor: themeColors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginLeft: 12,
-    },
-    addToCartButtonText: {
-      color: 'white',
-      fontSize: 14,
-      fontWeight: '600',
-      marginLeft: 4,
-    },
-    tagsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginTop: 8,
-      gap: 6,
-    },
-    tag: {
-      backgroundColor: themeColors.background,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
-    },
-    tagText: {
-      fontSize: 11,
-      color: themeColors.textSecondary,
     },
   });
 
@@ -259,6 +239,17 @@ export default function ProductCard({
           </View>
         )}
 
+        <TouchableOpacity 
+          style={styles.cartButton} 
+          onPress={handleAddToCart}
+        >
+          <Ionicons 
+            name="cart" 
+            size={16} 
+            color="white" 
+          />
+        </TouchableOpacity>
+
         {product.type === 'song' && (
           <TouchableOpacity 
             style={styles.playButton} 
@@ -266,7 +257,7 @@ export default function ProductCard({
           >
             <Ionicons 
               name={isPlaying ? 'pause' : 'play'} 
-              size={20} 
+              size={16} 
               color="white" 
             />
           </TouchableOpacity>
@@ -292,14 +283,6 @@ export default function ProductCard({
           </Text>
         )}
 
-        <View style={styles.tagsContainer}>
-          {product.tags?.slice(0, 3).map((tag, index) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>#{tag}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.priceContainer}>
           <View style={styles.priceInfo}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -313,16 +296,6 @@ export default function ProductCard({
               )}
             </View>
           </View>
-
-          {showAddToCart && (
-            <TouchableOpacity
-              style={styles.addToCartButton}
-              onPress={handleAddToCart}
-            >
-              <Ionicons name="cart" size={16} color="white" />
-              <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     </TouchableOpacity>

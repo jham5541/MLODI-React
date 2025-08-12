@@ -14,6 +14,7 @@ interface Fan {
   points: number;
   rank: number;
   fan_since: string;
+  last_week_rank: number | null;
   badges: Array<{
     id: string;
     name: string;
@@ -54,7 +55,7 @@ useEffect(() => {
     };
   }, [artistId, currentPeriod]);
 
-  const loadFans = async () => {
+const loadFans = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -64,8 +65,12 @@ useEffect(() => {
       if (!artistId || true) { // Force empty state while feature is in development
         data = [];
       } else {
-      const { data: leaderboardData } = await databaseService.getArtistLeaderboard(artistId, ITEMS_PER_PAGE);
-      data = leaderboardData || [];
+        const leaderboardResponse = await databaseService.getArtistLeaderboard(artistId, ITEMS_PER_PAGE);
+        data = leaderboardResponse.map(item => ({
+          ...item,
+          avatar: '🎵', // Default emoji avatar
+          last_week_rank: item.last_week_rank || null
+        }));
       }
 
       setFans(data);
@@ -159,23 +164,28 @@ useEffect(() => {
           <Text style={[styles.rankNumber, isTopThree && styles.topThreeRank]}>
             {item.rank}
           </Text>
-          <View style={[
-            styles.positionChange,
-            positionChange.type === 'up' ? styles.upChange :
-            positionChange.type === 'down' ? styles.downChange :
-            positionChange.type === 'new' ? styles.newChange :
-            styles.sameChange
-          ]}>
-            <Text style={[
-              styles.positionChangeText,
-              positionChange.type === 'up' ? styles.upText :
-              positionChange.type === 'down' ? styles.downText :
-              positionChange.type === 'new' ? styles.newText :
-              styles.sameText
-            ]}>
-              {positionChange.text}
-            </Text>
-          </View>
+          {(() => {
+            const posChange = getPositionChange(item.rank, item.last_week_rank);
+            return (
+              <View style={[
+                styles.positionChange,
+                posChange.type === 'up' ? styles.upChange :
+                posChange.type === 'down' ? styles.downChange :
+                posChange.type === 'new' ? styles.newChange :
+                styles.sameChange
+              ]}>
+                <Text style={[
+                  styles.positionChangeText,
+                  posChange.type === 'up' ? styles.upText :
+                  posChange.type === 'down' ? styles.downText :
+                  posChange.type === 'new' ? styles.newText :
+                  styles.sameText
+                ]}>
+                  {posChange.text}
+                </Text>
+              </View>
+            );
+          })()} 
         </View>
 
         {/* Fan Avatar */}

@@ -217,9 +217,9 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           });
       }
 
-      // Update user's subscription tier
+      // Update user's subscription tier on profiles
       await supabase
-        .from('users')
+        .from('profiles')
         .update({ 
           subscription_tier: selectedPlan.tier,
           updated_at: new Date().toISOString()
@@ -263,7 +263,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
-          .from('users')
+          .from('profiles')
           .update({ 
             subscription_tier: 'free',
             updated_at: new Date().toISOString()
