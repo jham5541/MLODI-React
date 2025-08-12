@@ -19,6 +19,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import { OnboardingFlow } from './OnboardingFlow';
+import SimpleWalletService from '../../services/SimpleWalletService';
 
 interface AuthModalProps {
   isVisible: boolean;
@@ -28,49 +29,11 @@ interface AuthModalProps {
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
-  const { profile } = useAuthStore();
-
-  useBackHandler(() => {
-    if (isVisible) {
-      onClose();
-      return true;
-    }
-    return false;
-  });
-
-  // Show onboarding flow if profile exists but onboarding not completed
-  if (profile && !profile.onboarding_completed) {
-    return (
-      <Modal
-        isVisible={isVisible}
-        style={styles.modalContainer}
-        avoidKeyboard
-      >
-        <OnboardingFlow />
-      </Modal>
-    );
-  }
+  const { profile, user } = useAuthStore();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const [authMode, setAuthMode] = useState<AuthMode>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [focusedInput, setFocusedInput] = useState<string | null>(null);
-  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
-  
-  const { signIn, signUp, signInWithApple, loading, error } = useAuthStore();
 
-  useEffect(() => {
-    checkAppleAuthAvailability();
-  }, []);
-
-  const checkAppleAuthAvailability = async () => {
-    const isAvailable = await AppleAuthentication.isAvailableAsync();
-    setIsAppleAuthAvailable(isAvailable);
-  };
-
+  // Define styles at the beginning
   const styles = StyleSheet.create({
     modalContainer: {
       justifyContent: 'center',
@@ -298,6 +261,47 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
     },
   });
 
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
+  
+  const { signIn, signUp, signInWithApple, loading, error } = useAuthStore();
+
+  useBackHandler(() => {
+    if (isVisible) {
+      onClose();
+      return true;
+    }
+    return false;
+  });
+
+  // Show onboarding flow if profile exists but onboarding not completed
+  if (profile && !profile.onboarding_completed) {
+    return (
+      <Modal
+        isVisible={isVisible}
+        style={styles.modalContainer}
+        avoidKeyboard
+      >
+        <OnboardingFlow onClose={onClose} />
+      </Modal>
+    );
+  }
+
+  useEffect(() => {
+    checkAppleAuthAvailability();
+  }, []);
+
+  const checkAppleAuthAvailability = async () => {
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    setIsAppleAuthAvailable(isAvailable);
+  };
+
+
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -334,11 +338,24 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
       if (authMode === 'signup') {
         const { success } = await signUp(email, password);
         if (success) {
-          Alert.alert(
-            'Success!', 
-            'Account created successfully!',
-            [{ text: 'OK', onPress: onClose }]
-          );
+          try {
+            // Create a local wallet for the user
+            const walletService = SimpleWalletService.getInstance();
+            const addr = await walletService.createWallet();
+
+            Alert.alert(
+              'Success!',
+              'Account created and wallet generated successfully. You can view it in Account Settings.',
+              [{ text: 'OK', onPress: onClose }]
+            );
+          } catch (error) {
+            console.error('Error creating wallet:', error);
+            Alert.alert(
+              'Warning',
+              'Account created but wallet creation failed. You can try again later from Account Settings.',
+              [{ text: 'OK', onPress: onClose }]
+            );
+          }
         }
       } else {
         const { success } = await signIn(email, password);
