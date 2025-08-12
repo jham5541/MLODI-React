@@ -1,6 +1,6 @@
-# M3lodi Mobile - React Native
+# Mlodi Mobile - React Native
 
-This is the React Native version of M3lodi, a Web3-enabled music streaming platform.
+This is the React Native version of Mlodi, a Web3-enabled music streaming platform.
 
 ## 🚀 Features
 
