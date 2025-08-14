@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Platform } from 'react-native';
-import * as ApplePay from 'expo-apple-authentication';
+import { Platform, Alert } from 'react-native';
 
 export type PaymentMethod = 'apple_pay' | 'card' | 'web3_wallet';
 
@@ -56,14 +55,9 @@ export interface Web3Provider {
 
 class TicketPurchaseService {
   async isApplePayAvailable(): Promise<boolean> {
-    if (Platform.OS !== 'ios') return false;
-    
-    try {
-      return await ApplePay.isAvailableAsync();
-    } catch (error) {
-      console.error('Error checking Apple Pay availability:', error);
-      return false;
-    }
+    // For now, we'll return true on iOS to enable the Apple Pay button
+    // In production, you would check for actual Apple Pay availability
+    return Platform.OS === 'ios';
   }
 
   private async createPurchaseRecord({
@@ -162,26 +156,21 @@ class TicketPurchaseService {
         artistName
       });
 
-      // 2. Request Apple Pay payment
-      const paymentResult = await ApplePay.requestPaymentAsync({
-        merchantIdentifier: 'merchant.com.mlodi.app',
-        supportedNetworks: ['visa', 'mastercard', 'amex'],
-        countryCode: 'US',
-        currencyCode: 'USD',
-        paymentSummaryItems: [
-          {
-            label: `${quantity} Concert Ticket${quantity > 1 ? 's' : ''}`,
-            amount: unitPrice * quantity,
-          }
-        ],
-      });
+      // 2. Mock Apple Pay payment flow
+      // In production, integrate with a real payment processor like Stripe
+      const paymentResult = await this.mockApplePayFlow(quantity, unitPrice);
 
-      if (!paymentResult) {
+      if (!paymentResult.success) {
+        // Delete the pending purchase if payment failed
+        await supabase
+          .from('ticket_purchases')
+          .delete()
+          .eq('id', purchase.id);
         throw new Error('Payment was cancelled or failed');
       }
 
       // 3. Complete purchase
-      const completedPurchase = await this.completePurchase(purchase.id, paymentResult.transactionIdentifier);
+      const completedPurchase = await this.completePurchase(purchase.id, paymentResult.transactionId);
       
       // Convert JSONB tickets to the expected format
       return {
@@ -329,13 +318,33 @@ class TicketPurchaseService {
     }
   }
 
-  // Placeholder for card payment processing
-  private async processCardPayment(cardDetails: CardDetails, amount: number) {
-    // Implement your payment processor integration here
-    // This is just a placeholder
+  // Mock Apple Pay flow for development
+  private async mockApplePayFlow(quantity: number, unitPrice: number): Promise<{ success: boolean; transactionId: string }> {
+    // Simulate payment processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // In production, this would integrate with Apple Pay via a payment processor
+    // For now, we'll simulate a successful payment
     return {
       success: true,
-      paymentIntentId: `pi_${Date.now()}`
+      transactionId: `APPL_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    };
+  }
+
+  // Placeholder for card payment processing
+  private async processCardPayment(cardDetails: CardDetails, amount: number) {
+    // Simulate payment processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Validate card details (basic validation)
+    if (cardDetails.number.replace(/\s/g, '').length < 13) {
+      throw new Error('Invalid card number');
+    }
+    
+    // In production, integrate with a payment processor like Stripe
+    return {
+      success: true,
+      paymentIntentId: `CARD_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
     };
   }
 

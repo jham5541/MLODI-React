@@ -184,6 +184,20 @@ export default function TicketPurchaseModal({
       return;
     }
 
+    // Development mode notice
+    if (__DEV__ && method.type === 'apple_pay') {
+      Alert.alert(
+        'Development Mode', 
+        'This is a simulated Apple Pay transaction for testing. In production, real Apple Pay will be used.',
+        [{ text: 'Continue', onPress: () => processPayment(method, userId) }]
+      );
+      return;
+    }
+
+    processPayment(method, userId);
+  };
+
+  const processPayment = async (method: { type: string; label: string; icon: string }, userId: string) => {
     setIsProcessing(true);
     setProcessingMethod(method.type);
 

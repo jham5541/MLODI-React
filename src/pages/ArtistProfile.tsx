@@ -248,6 +248,38 @@ export default function ArtistProfileScreen({ route }: Props) {
       fontWeight: '700',
       color: themeColors.primary,
     },
+    sizeSection: {
+      marginBottom: 24,
+    },
+    sizeOptions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 12,
+      gap: 8,
+    },
+    sizeButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: themeColors.border,
+      marginRight: 8,
+      marginBottom: 8,
+      minWidth: 50,
+      alignItems: 'center',
+    },
+    sizeButtonSelected: {
+      borderColor: themeColors.primary,
+      backgroundColor: themeColors.primary + '20',
+    },
+    sizeButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
+    sizeButtonTextSelected: {
+      color: themeColors.primary,
+    },
     sectionTitle: {
       fontSize: 18,
       fontWeight: '600',
@@ -373,6 +405,7 @@ export default function ArtistProfileScreen({ route }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState('apple');
+  const [selectedSize, setSelectedSize] = useState('');
   const [shippingInfo, setShippingInfo] = useState({
     fullName: '',
     address: '',
@@ -380,6 +413,7 @@ export default function ArtistProfileScreen({ route }: Props) {
     state: '',
     zipCode: '',
     country: '',
+    phone: '',
   });
 
   const [merchandise, setMerchandise] = useState<Merchandise[]>([]);
@@ -493,14 +527,18 @@ export default function ArtistProfileScreen({ route }: Props) {
 
   const toggleModal = () => {
     setModalVisible(!modalVisible);
+    if (!modalVisible) {
+      // Reset size when opening modal
+      setSelectedSize('');
+    }
   };
 
   const handlePurchase = async () => {
     try {
       // Validate shipping information
       if (!shippingInfo.fullName || !shippingInfo.address || !shippingInfo.city || 
-          !shippingInfo.state || !shippingInfo.zipCode || !shippingInfo.country) {
-        Alert.alert('Missing Information', 'Please fill in all shipping address fields.');
+          !shippingInfo.state || !shippingInfo.zipCode || !shippingInfo.country || !shippingInfo.phone) {
+        Alert.alert('Missing Information', 'Please fill in all shipping address fields including phone number.');
         return;
       }
 
@@ -509,33 +547,36 @@ export default function ArtistProfileScreen({ route }: Props) {
         return;
       }
 
-      // Map payment method to expected format
-      const paymentMethodMap = {
-        'apple': 'apple_pay',
-        'card': 'credit_card', 
-        'web3': 'crypto'
-      } as const;
+      if (!selectedSize) {
+        Alert.alert('Select Size', 'Please select a size for your item.');
+        return;
+      }
 
-      const order = await merchandiseService.createOrder({
+      // Create the order using the new createMerchOrder function
+      const result = await merchandiseService.createMerchOrder({
         user_id: user?.id || '',
-        merchandise_id: selectedItem.id,
+        artist_id: artistId,
+        product_id: selectedItem.id,
+        product_name: selectedItem.name,
+        size: selectedSize,
         quantity: 1,
         price: selectedItem.price,
-        status: 'pending',
-        shipping_address: {
-          full_name: shippingInfo.fullName,
+        total: selectedItem.price,
+        shipping_info: {
+          fullName: shippingInfo.fullName,
           address: shippingInfo.address,
           city: shippingInfo.city,
           state: shippingInfo.state,
-          zip_code: shippingInfo.zipCode,
+          zipCode: shippingInfo.zipCode,
           country: shippingInfo.country,
+          phone: shippingInfo.phone,
         },
-        payment_method: paymentMethodMap[selectedPayment]
+        status: 'pending'
       });
       
       Alert.alert(
         'Order Confirmed!',
-        `Your ${selectedItem.name} order has been placed and will be shipped to ${shippingInfo.fullName} at ${shippingInfo.address}. Order ID: ${order.id}`,
+        `Your ${selectedItem.name} (Size: ${selectedSize}) order has been placed and will be shipped to ${shippingInfo.fullName} at ${shippingInfo.address}.`,
         [{ text: 'OK', onPress: () => toggleModal() }]
       );
       
@@ -547,7 +588,9 @@ export default function ArtistProfileScreen({ route }: Props) {
         state: '',
         zipCode: '',
         country: '',
+        phone: '',
       });
+      setSelectedSize('');
       
     } catch (error) {
       console.error('Purchase failed:', error);
@@ -654,7 +697,7 @@ export default function ArtistProfileScreen({ route }: Props) {
                           setModalVisible(true);
                         }}
                       >
-                        <Text style={styles.buyButtonText}>ADD TO CART</Text>
+                        <Text style={styles.buyButtonText}>BUY NOW</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -685,15 +728,40 @@ export default function ArtistProfileScreen({ route }: Props) {
             </View>
 
             {selectedItem && (
-              <View style={styles.orderSummary}>
-                <View style={styles.orderItem}>
-                  <Image source={{ uri: selectedItem.image_url }} style={styles.orderItemImage} />
-                  <View style={styles.orderItemDetails}>
-                    <Text style={styles.orderItemName}>{selectedItem.name}</Text>
-                    <Text style={styles.orderItemPrice}>${selectedItem.price.toFixed(2)}</Text>
+              <>
+                <View style={styles.orderSummary}>
+                  <View style={styles.orderItem}>
+                    <Image source={{ uri: selectedItem.image_url }} style={styles.orderItemImage} />
+                    <View style={styles.orderItemDetails}>
+                      <Text style={styles.orderItemName}>{selectedItem.name}</Text>
+                      <Text style={styles.orderItemPrice}>${selectedItem.price.toFixed(2)}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+
+                <View style={styles.sizeSection}>
+                  <Text style={styles.sectionTitle}>Select Size</Text>
+                  <View style={styles.sizeOptions}>
+                    {['OS', 'XS', 'S', 'M', 'L', 'XL', '2XL'].map((size) => (
+                      <TouchableOpacity
+                        key={size}
+                        style={[
+                          styles.sizeButton,
+                          selectedSize === size && styles.sizeButtonSelected
+                        ]}
+                        onPress={() => setSelectedSize(size)}
+                      >
+                        <Text style={[
+                          styles.sizeButtonText,
+                          selectedSize === size && styles.sizeButtonTextSelected
+                        ]}>
+                          {size}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
             )}
 
             <View style={styles.shippingForm}>
@@ -760,6 +828,17 @@ export default function ArtistProfileScreen({ route }: Props) {
                     placeholder="USA"
                   />
                 </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={shippingInfo.phone}
+                  onChangeText={(text) => setShippingInfo({...shippingInfo, phone: text})}
+                  placeholder="(555) 123-4567"
+                  keyboardType="phone-pad"
+                />
               </View>
             </View>
 
