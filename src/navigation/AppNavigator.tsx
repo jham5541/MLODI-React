@@ -44,6 +44,7 @@ import GenresAll from '../pages/GenresAll';
 import GenreDetail from '../pages/GenreDetail';
 import FeaturedPlaylistsScreen from '../screens/FeaturedPlaylistsScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
+import FansLeaderboardScreen from '../screens/FansLeaderboardScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -68,6 +69,7 @@ export type RootStackParamList = {
   TrendingAllArtists: undefined;
   GenresAll: undefined;
   GenreDetail: { genre: string };
+  FansLeaderboard: { artistId: string };
 };
 
 // Add navigation prop types
@@ -373,6 +375,11 @@ function AppContent() {
           name="FeaturedPlaylists" 
           component={FeaturedPlaylistsScreen}
           options={{ title: 'Featured Playlists' }}
+        />
+        <Stack.Screen 
+          name="FansLeaderboard" 
+          component={FansLeaderboardScreen}
+          options={{ title: 'Top Fans' }}
         />
         <Stack.Screen 
           name="PaymentMethods" 

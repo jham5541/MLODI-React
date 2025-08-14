@@ -24,7 +24,7 @@ const FullScreenLeaderboard = ({ artistId }: FullScreenLeaderboardProps) => {
     <View style={styles.container}>
       <TopFansLeaderboard 
         artistId={artistId}
-        compact={false}
+        fullScreen={true}
       />
     </View>
   );

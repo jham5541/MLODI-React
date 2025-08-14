@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
@@ -28,22 +28,31 @@ interface Fan {
   avatar: string;
 }
 
+import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../../navigation/AppNavigator';
+
 interface TopFansLeaderboardProps {
   artistId: string;
+  maxItems?: number; // if provided, show only this many fans (e.g. 3)
+  fullScreen?: boolean; // when true, extend to fill page height
 }
 
 const ITEMS_PER_PAGE = 50;
 
-const TopFansLeaderboard = ({ artistId }: TopFansLeaderboardProps) => {
+const TopFansLeaderboard = ({ artistId, maxItems, fullScreen }: TopFansLeaderboardProps) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const listRef = useRef<FlatList>(null);
   const { user } = useAuthStore();
+  const navigation = useNavigation<RootStackNavigationProp<'ArtistProfile'>>();
 
   const [fans, setFans] = useState<Fan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<'all_time' | 'monthly' | 'weekly'>('all_time');
+
+  // Only render up to maxItems if provided
+  const displayedFans = useMemo(() => (maxItems ? fans.slice(0, maxItems) : fans), [fans, maxItems]);
 
 useEffect(() => {
     loadFans();
@@ -383,26 +392,33 @@ const loadFans = async () => {
   };
 
   const autoScrollToUser = (userIndex: number) => {
-    if (listRef.current && userIndex !== -1) {
-      // Delay scroll to ensure the list is rendered
-      setTimeout(() => {
+    if (!listRef.current) return;
+    if (userIndex < 0) return;
+    const upperBound = displayedFans.length - 1;
+    if (upperBound < 0) return;
+    const safeIndex = Math.min(userIndex, upperBound);
+    // Delay scroll to ensure the list is rendered
+    setTimeout(() => {
+      try {
         listRef.current?.scrollToIndex({
-          index: userIndex,
+          index: safeIndex,
           animated: true,
-          viewPosition: 0.5 // Center the user's position in view
+          viewPosition: 0.5,
         });
-      }, 500);
-    }
+      } catch (e) {
+        // ignore; will be handled by onScrollToIndexFailed
+      }
+    }, 300);
   };
 
   useEffect(() => {
-    if (user && fans.length > 0) {
-      const userIndex = fans.findIndex(fan => fan.user_id === user.id);
+    if (user && displayedFans.length > 0) {
+      const userIndex = displayedFans.findIndex(fan => fan.user_id === user.id);
       if (userIndex !== -1) {
         autoScrollToUser(userIndex);
       }
     }
-  }, [fans, user]);
+  }, [displayedFans, user]);
 
   const formatPoints = (points: number) => {
     if (points >= 1000) {
@@ -550,15 +566,18 @@ const loadFans = async () => {
   const styles = StyleSheet.create({
     container: {
       backgroundColor: themeColors.surface,
-      marginHorizontal: 16,
-      marginVertical: 8,
-      borderRadius: 16,
+      marginHorizontal: fullScreen ? 0 : 16,
+      marginVertical: fullScreen ? 0 : 8,
+      borderRadius: fullScreen ? 0 : 16,
       shadowColor: themeColors.text,
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-      maxHeight: 520, // Allow space for all content
+      shadowOpacity: fullScreen ? 0 : 0.1,
+      shadowRadius: fullScreen ? 0 : 8,
+      elevation: fullScreen ? 0 : 4,
+      height: fullScreen ? undefined : 480, // No fixed height for full screen
+      flex: fullScreen ? 1 : undefined, // Take full available space when fullScreen
+      overflow: 'hidden', // Prevent visual overflow into next section
+      marginBottom: fullScreen ? 0 : 12, // No margin bottom for full screen
     },
     header: {
       paddingHorizontal: 16,
@@ -594,8 +613,8 @@ const loadFans = async () => {
     },
     chartContainer: {
       flex: 1,
-      maxHeight: 450, // Flexible height to show all fans with scrolling
-      overflow: 'hidden',
+      height: fullScreen ? undefined : 380, // No fixed height for full screen
+      backgroundColor: themeColors.background,
     },
     chartHeader: {
       flexDirection: 'row',
@@ -771,11 +790,10 @@ const loadFans = async () => {
     },
     scrollableList: {
       flex: 1,
-      maxHeight: 400, // Allows scrolling through all fans
     },
     listContainer: {
-      paddingBottom: 16, // Extra padding at bottom for better scrolling
-      flexGrow: 1,
+      paddingBottom: 20, // Extra padding at bottom for better scrolling
+      paddingTop: 4,
     },
     loadingFooter: {
       paddingVertical: 20,
@@ -828,13 +846,19 @@ const loadFans = async () => {
         <View style={styles.titleRow}>
           <View style={styles.titleContainer}>
             <Ionicons name="trophy" size={20} color="#FFD700" />
-            <Text style={styles.title}>Top Fans Chart</Text>
+            <Text style={styles.title}>Top Fans</Text>
           </View>
-          <Text style={styles.weekLabel}>This Week</Text>
+          {!fullScreen && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('FansLeaderboard', { artistId })}
+            >
+              <Text style={styles.weekLabel}>See All</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      <View style={styles.chartContainer}>
+      <View style={[styles.chartContainer, maxItems && !fullScreen ? { height: 230 } : {}]}>
         {fans.length > 0 && (
           <View style={styles.chartHeader}>
             <Text style={[styles.chartHeaderText, { width: 55, textAlign: 'left' }]}>Rank</Text>
@@ -844,29 +868,47 @@ const loadFans = async () => {
           </View>
         )}
 
-          <FlatList
-            data={fans}
-            renderItem={renderFan}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={true}
-            style={styles.scrollableList}
-            contentContainerStyle={styles.listContainer}
-            nestedScrollEnabled={true}
-            scrollEnabled={true}
-            refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={handleRefresh}
-                tintColor={themeColors.primary}
-              />
-            }
-            ListEmptyComponent={error ? renderError() : renderEmptyState()}
-            getItemLayout={(data, index) => ({
-              length: 65, // Updated to match height of fanRow
-              offset: 65 * index,
-              index,
-            })}
-          />
+            <FlatList
+              ref={listRef}
+              data={displayedFans}
+              renderItem={renderFan}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={true}
+              style={styles.scrollableList}
+              contentContainerStyle={styles.listContainer}
+              nestedScrollEnabled={true}
+              scrollEnabled={true}
+              bounces={true}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={handleRefresh}
+                  tintColor={themeColors.primary}
+                />
+              }
+              ListEmptyComponent={error ? renderError() : renderEmptyState()}
+              getItemLayout={(data, index) => ({
+                length: 65,
+                offset: 65 * index,
+                index,
+              })}
+              onScrollToIndexFailed={(info) => {
+                // Ensure we don't crash if layout isn't computed yet
+                const wait = new Promise((resolve) => setTimeout(resolve, 300));
+                wait.then(() => {
+                  if (!listRef.current) return;
+                  const clampedIndex = Math.min(info.index, displayedFans.length - 1);
+                  if (clampedIndex >= 0) {
+                    listRef.current?.scrollToIndex({ index: clampedIndex, animated: true });
+                  }
+                });
+              }}
+            />
       </View>
     </View>
   );
