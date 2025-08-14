@@ -52,7 +52,10 @@ export default function TicketViewModal({
 
   const viewabilityConfig = {
     itemVisiblePercentThreshold: 50,
+    minimumViewTime: 200,
   };
+
+  const ITEM_WIDTH = screenWidth * 0.9; // Fixed width for each ticket page
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -172,7 +175,7 @@ export default function TicketViewModal({
       borderRadius: 20,
       width: '95%',
       maxWidth: 420,
-      maxHeight: '85%',
+      maxHeight: '90%',
       overflow: 'hidden',
       flex: 1,
     },
@@ -193,11 +196,12 @@ export default function TicketViewModal({
       padding: 4,
     },
     eventInfo: {
-      paddingVertical: 20,
+      paddingVertical: 15,
       alignItems: 'center',
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
-      marginBottom: 20,
+      marginBottom: 15,
+      width: '100%',
     },
     venue: {
       fontSize: 18,
@@ -213,18 +217,20 @@ export default function TicketViewModal({
       lineHeight: 20,
     },
     ticketPage: {
-      width: screenWidth * 0.95,
-      maxWidth: 420,
-      flex: 1,
+      width: screenWidth * 0.9,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     ticketScrollContent: {
-      flex: 1,
+      flexGrow: 0,
+      height: '100%',
     },
     ticketScrollContainer: {
-      flexGrow: 1,
       alignItems: 'center',
-      paddingVertical: 20,
-      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingHorizontal: 15,
+      paddingBottom: 20,
+      minHeight: '100%',
     },
     ticketCard: {
       backgroundColor: themeColors.background,
@@ -411,10 +417,12 @@ export default function TicketViewModal({
     instructionContainer: {
       backgroundColor: themeColors.primary + '15',
       borderRadius: 16,
-      padding: 20,
-      marginTop: 20,
+      padding: 15,
+      marginTop: 15,
+      marginBottom: 10,
       borderLeftWidth: 4,
       borderLeftColor: themeColors.primary,
+      width: '100%',
     },
     instructionText: {
       fontSize: 14,
@@ -462,11 +470,17 @@ export default function TicketViewModal({
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             keyExtractor={(item) => item.id}
-            decelerationRate="fast"
-            snapToAlignment="center"
-            snapToInterval={screenWidth * 0.95}
-            contentInset={{ left: 0, right: 0 }}
-            contentOffset={{ x: 0, y: 0 }}
+            snapToInterval={ITEM_WIDTH}
+            snapToAlignment="start"
+            decelerationRate={0}
+            overScrollMode="never"
+            disableIntervalMomentum
+            contentContainerStyle={{ paddingHorizontal: (screenWidth - ITEM_WIDTH) / 2 }}
+            getItemLayout={(data, index) => ({
+              length: ITEM_WIDTH,
+              offset: ITEM_WIDTH * index,
+              index,
+            })}
             renderItem={({ item: ticket, index }) => (
               <View style={styles.ticketPage}>
                 <ScrollView 
@@ -474,9 +488,11 @@ export default function TicketViewModal({
                   contentContainerStyle={styles.ticketScrollContainer}
                   showsVerticalScrollIndicator={false}
                   bounces={true}
-                  alwaysBounceVertical={true}
-                  decelerationRate="normal"
+                  alwaysBounceVertical={false}
+                  decelerationRate={0.85}
                   scrollEventThrottle={16}
+                  overScrollMode="never"
+                  fadingEdgeLength={5}
                 >
                   <View style={styles.eventInfo}>
                     <Text style={styles.venue} numberOfLines={2}>
