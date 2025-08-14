@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { ticketPurchaseService } from '../../services/ticketPurchaseService';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface TicketPurchaseModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ interface TicketPurchaseModalProps {
   time: string;
   price: number;
   onPurchaseComplete: (quantity: number) => void;
+  onTicketsReady: (tickets: { id: string; qrCode: string; seatInfo?: string }[]) => void;
 }
 
 export default function TicketPurchaseModal({
@@ -37,6 +39,7 @@ export default function TicketPurchaseModal({
   time,
   price,
   onPurchaseComplete,
+  onTicketsReady,
 }: TicketPurchaseModalProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -91,6 +94,16 @@ export default function TicketPurchaseModal({
     return (price * quantity).toFixed(2);
   };
 
+  const getCurrentUserId = async (): Promise<string | null> => {
+    if (user?.id) return user.id;
+    try {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      return u?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleCardSubmit = async () => {
     if (!cardNumber || !cardExpiry || !cardCvc) {
       Alert.alert('Error', 'Please fill in all card details');
@@ -104,10 +117,16 @@ export default function TicketPurchaseModal({
     }
 
     try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('Error', 'Please sign in to purchase tickets');
+        return;
+      }
+
       const result = await ticketPurchaseService.purchaseTicketsWithCard({
         showId: tourDateId,
         quantity,
-        userId: user.id,
+        userId: userId,
         unitPrice: price,
         cardDetails: {
           number: cardNumber.replace(/\s/g, ''),
@@ -116,6 +135,15 @@ export default function TicketPurchaseModal({
           cvc: cardCvc
         }
       });
+
+      // Fetch newly created tickets and notify parent to display them
+      try {
+        const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+        const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
+        onTicketsReady(mapped);
+      } catch (e) {
+        console.warn('Could not fetch tickets after purchase:', e);
+      }
 
       Alert.alert(
         'Purchase Successful!',
@@ -143,8 +171,12 @@ export default function TicketPurchaseModal({
   };
 
   const handlePurchase = async (method: { type: string; label: string; icon: string }) => {
-    if (!user) {
+    // Resolve user at runtime to avoid context timing or multi-client issues
+    const userId = await getCurrentUserId();
+    if (!userId) {
       Alert.alert('Error', 'Please sign in to purchase tickets');
+      setIsProcessing(false);
+      setProcessingMethod(null);
       return;
     }
 
@@ -173,10 +205,19 @@ export default function TicketPurchaseModal({
         const result = await ticketPurchaseService.purchaseTicketsWithWeb3({
           showId: tourDateId,
           quantity,
-          userId: user.id,
+          userId: userId,
           unitPrice: price,
           web3Provider
         });
+
+        // Fetch newly created tickets and notify parent to display them
+        try {
+          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+          const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
+          onTicketsReady(mapped);
+        } catch (e) {
+          console.warn('Could not fetch tickets after web3 purchase:', e);
+        }
 
         Alert.alert(
           'Purchase Successful!',
@@ -197,9 +238,18 @@ export default function TicketPurchaseModal({
       const result = await ticketPurchaseService.purchaseTicketsWithApplePay({
         showId: tourDateId,
         quantity,
-        userId: user.id,
+        userId: userId,
         unitPrice: price
       });
+
+      // Fetch newly created tickets and notify parent to display them
+      try {
+        const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+        const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
+        onTicketsReady(mapped);
+      } catch (e) {
+        console.warn('Could not fetch tickets after Apple Pay purchase:', e);
+      }
 
       Alert.alert(
         'Purchase Successful!',

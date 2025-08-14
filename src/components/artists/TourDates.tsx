@@ -44,6 +44,7 @@ export default function TourDates({
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedTourDate, setSelectedTourDate] = useState<TourDateDisplay | null>(null);
   const [ticketViewModalVisible, setTicketViewModalVisible] = useState(false);
+  const [viewTickets, setViewTickets] = useState<{ id: string; qrCode: string; seatInfo?: string }[] | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +116,11 @@ export default function TourDates({
     // Refresh the user's library to show the new ticket purchase
     await loadLibrary();
     setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
+  };
+
+  const handleTicketsReady = (tickets: { id: string; qrCode: string; seatInfo?: string }[]) => {
+    setViewTickets(tickets);
+    setTicketViewModalVisible(true);
   };
 
   const handleViewTickets = (date: TourDateDisplay) => {
@@ -426,6 +432,7 @@ export default function TourDates({
           time={selectedTourDate.time}
           price={selectedTourDate.price}
           onPurchaseComplete={handlePurchaseComplete}
+          onTicketsReady={handleTicketsReady}
         />
       )}
 
@@ -436,12 +443,13 @@ export default function TourDates({
           onClose={() => {
             setTicketViewModalVisible(false);
             setSelectedTourDate(null);
+            setViewTickets(null);
           }}
           venue={selectedTourDate.venue}
           city={selectedTourDate.city}
           date={selectedTourDate.date}
           time={selectedTourDate.time}
-          tickets={purchaseService.getTickets(selectedTourDate.id)}
+          tickets={viewTickets ?? purchaseService.getTickets(selectedTourDate.id)}
         />
       )}
     </View>

@@ -27,7 +27,8 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
     updateQuantity, 
     removeFromCart, 
     clearCart, 
-    getCartTotal 
+    getCartTotal,
+    getCartItemCount,
   } = useCartStore();
   
   const [showCheckout, setShowCheckout] = useState(false);
@@ -317,7 +318,7 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
         <View style={styles.modalContent}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
-              Shopping Cart ({cart?.items.length || 0})
+              Shopping Cart ({getCartItemCount()})
             </Text>
             <View style={styles.headerActions}>
               {cart && cart.items.length > 0 && (

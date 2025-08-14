@@ -187,7 +187,7 @@ class PlaylistService {
     if (options?.include_owner && data && data.length > 0) {
       const ownerIds = [...new Set(data.map(p => p.owner_id))];
       const { data: owners } = await supabase
-        .from('user_profiles')
+        .from('users_metadata')
         .select('id, username, display_name, avatar_url')
         .in('id', ownerIds);
       
@@ -214,7 +214,7 @@ class PlaylistService {
     // Fetch owner details if requested
     if (includeDetails && data) {
       const { data: owner } = await supabase
-        .from('user_profiles')
+        .from('users_metadata')
         .select('id, username, display_name, avatar_url')
         .eq('id', data.owner_id)
         .single();
@@ -272,8 +272,7 @@ class PlaylistService {
       .from('playlist_songs')
       .select(`
         *,
-        songs(*, artists(*)),
-        user_profiles:added_by(id, username, display_name, avatar_url)
+        songs(*, artists(*))
       `)
       .eq('playlist_id', playlistId)
       .order('position', { ascending: true });

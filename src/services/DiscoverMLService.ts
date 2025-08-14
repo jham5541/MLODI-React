@@ -86,11 +86,9 @@ export class DiscoverMLService {
   ): Promise<TrackRecommendation[]> {
     try {
       // Get user's play history
-      const { data: playHistory } = await supabase
-        .from('play_history')
-        .select('song_id')
-        .eq('user_id', userId)
-        .limit(100);
+      // Mock play history for now - play_history table doesn't exist
+      const playHistory: any[] = [];
+      // TODO: Implement when play_history table is created
 
       if (!playHistory?.length) return [];
 
@@ -108,17 +106,9 @@ export class DiscoverMLService {
       if (!similarUsers?.length) return [];
 
       // Get recommendations from similar users' play history
-      const { data: recommendations } = await supabase
-        .from('play_history')
-        .select(`
-          song_id,
-          songs (
-            id, title, artist_name, genre, play_count
-          )
-        `)
-        .in('user_id', similarUsers.map(u => u.user_id))
-        .not('song_id', 'in', `(${songIds.join(',')})`)
-        .limit(limit * 2);
+      // Mock recommendations for now - play_history table doesn't exist
+      const recommendations: any[] = [];
+      // TODO: Implement when play_history table is created
 
       return (recommendations || [])
         .map((rec: any) => ({
@@ -143,16 +133,12 @@ export class DiscoverMLService {
     try {
       const windowDays = timeWindow === 'daily' ? 1 : timeWindow === 'weekly' ? 7 : 30;
       
+      // For now, get popular tracks directly from songs table
       const { data: popularTracks } = await supabase
-        .from('play_history')
-        .select(`
-          song_id,
-          songs (
-            id, title, artist_name, genre, play_count
-          )
-        `)
-        .gte('played_at', new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString())
-        .limit(limit * 3);
+        .from('songs')
+        .select('*')
+        .order('play_count', { ascending: false })
+        .limit(limit);
 
       if (!popularTracks) return [];
 

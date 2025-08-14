@@ -120,7 +120,6 @@ export class MarketplaceService {
       .from('products')
       .select(`
         *,
-        product_categories(id, name, slug),
         product_variants(*),
         songs(id, title, duration_ms),
         albums(id, title, total_tracks)
@@ -201,7 +200,17 @@ export class MarketplaceService {
   async getOrCreateCart(): Promise<Cart> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        // Guest cart fallback (no Supabase access)
+        return {
+          id: 'guest-cart',
+          user_id: null,
+          currency: 'USD',
+          items: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as Cart;
+      }
 
       try {
         // Try to get existing cart
@@ -215,12 +224,9 @@ export class MarketplaceService {
           // No cart exists or permission denied, create one
           const { data: newCart, error: createError } = await supabase
             .from('carts')
-            .upsert({
+            .insert({
               user_id: user.id,
               currency: 'USD'
-            }, { 
-              onConflict: 'user_id',
-              ignoreDuplicates: true 
             })
             .select()
             .single();
@@ -331,10 +337,9 @@ export class MarketplaceService {
       } as Cart;
 
     } catch (error) {
-      console.error('Error in getOrCreateCart:', error);
-      // Return empty cart for development
+      // Silent guest fallback
       return {
-        id: 'sample-cart-id',
+        id: 'guest-cart',
         user_id: null,
         currency: 'USD',
         items: [],

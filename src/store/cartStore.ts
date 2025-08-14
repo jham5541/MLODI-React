@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Cart, CartItem, Product, Order, UserLibrary } from '../types/marketplace';
 import { marketplaceService } from '../services/marketplaceService';
+import { useAuthStore } from './authStore';
 
 interface CartStore {
   cart: Cart | null;
@@ -61,13 +62,55 @@ export const useCartStore = create<CartStore>()(
           set({ error: (error as Error).message, isLoading: false });
         }
       },
-
       addToCart: async (product: Product, variantId?: string, quantity = 1) => {
+        const user = useAuthStore.getState().user;
         try {
           set({ isLoading: true, error: null });
+
+          if (!user) {
+            // Guest cart: update local state only
+            set((state) => {
+              const existingCart = state.cart || {
+                id: 'guest-cart',
+                user_id: null,
+                currency: 'USD',
+                items: [],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } as unknown as Cart;
+
+              // Find existing item match by product and variant
+              const items = [...(existingCart.items || [])];
+              const idx = items.findIndex((it: any) =>
+                it.product_id === product.id && ((variantId ? it.variant_id === variantId : !it.variant_id))
+              );
+
+              if (idx >= 0) {
+                items[idx] = { ...items[idx], quantity: items[idx].quantity + quantity };
+              } else {
+                const variant = variantId
+                  ? product.product_variants?.find((v: any) => v.id === variantId)
+                  : undefined;
+                const price = variant?.price || product.price || 0;
+                items.push({
+                  id: `guest-item-${product.id}-${variantId || 'base'}`,
+                  cart_id: existingCart.id,
+                  product_id: product.id,
+                  variant_id: variantId || null,
+                  quantity,
+                  price,
+                  // Attach denormalized refs for UI
+                  products: product as any,
+                  product_variants: variant as any,
+                } as unknown as CartItem);
+              }
+
+              return { cart: { ...existingCart, items }, isLoading: false } as any;
+            });
+            return;
+          }
+
           await marketplaceService.addToCart(product.id, variantId, quantity);
-          
-          // Refresh cart after adding
           const cart = await marketplaceService.getOrCreateCart();
           set({ cart, isLoading: false });
         } catch (error) {
@@ -76,13 +119,23 @@ export const useCartStore = create<CartStore>()(
           throw error;
         }
       },
-
       updateQuantity: async (itemId: string, quantity: number) => {
+        const user = useAuthStore.getState().user;
         try {
           set({ isLoading: true, error: null });
+
+          if (!user) {
+            set((state) => {
+              if (!state.cart) return { isLoading: false } as any;
+              const items = (state.cart.items || []).map((it: any) =>
+                it.id === itemId ? { ...it, quantity: Math.max(0, quantity) } : it
+              ).filter((it: any) => it.quantity > 0);
+              return { cart: { ...state.cart!, items }, isLoading: false } as any;
+            });
+            return;
+          }
+
           await marketplaceService.updateCartItem(itemId, quantity);
-          
-          // Refresh cart after update
           const cart = await marketplaceService.getOrCreateCart();
           set({ cart, isLoading: false });
         } catch (error) {
@@ -91,13 +144,21 @@ export const useCartStore = create<CartStore>()(
           throw error;
         }
       },
-
       removeFromCart: async (itemId: string) => {
+        const user = useAuthStore.getState().user;
         try {
           set({ isLoading: true, error: null });
+
+          if (!user) {
+            set((state) => {
+              if (!state.cart) return { isLoading: false } as any;
+              const items = (state.cart.items || []).filter((it: any) => it.id !== itemId);
+              return { cart: { ...state.cart!, items }, isLoading: false } as any;
+            });
+            return;
+          }
+
           await marketplaceService.removeFromCart(itemId);
-          
-          // Refresh cart after removal
           const cart = await marketplaceService.getOrCreateCart();
           set({ cart, isLoading: false });
         } catch (error) {
@@ -106,13 +167,20 @@ export const useCartStore = create<CartStore>()(
           throw error;
         }
       },
-
       clearCart: async () => {
+        const user = useAuthStore.getState().user;
         try {
           set({ isLoading: true, error: null });
+
+          if (!user) {
+            set((state) => {
+              if (!state.cart) return { isLoading: false } as any;
+              return { cart: { ...state.cart, items: [] }, isLoading: false } as any;
+            });
+            return;
+          }
+
           await marketplaceService.clearCart();
-          
-          // Refresh cart after clearing
           const cart = await marketplaceService.getOrCreateCart();
           set({ cart, isLoading: false });
         } catch (error) {
@@ -121,10 +189,15 @@ export const useCartStore = create<CartStore>()(
           throw error;
         }
       },
-
       refreshCart: async () => {
+        const user = useAuthStore.getState().user;
         try {
           set({ isLoading: true, error: null });
+          if (!user) {
+            // Keep current guest cart without hitting network
+            set({ isLoading: false });
+            return;
+          }
           const cart = await marketplaceService.getOrCreateCart();
           set({ cart, isLoading: false });
         } catch (error) {

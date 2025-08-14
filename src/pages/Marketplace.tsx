@@ -10,7 +10,8 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
-  Modal
+  Modal,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
@@ -54,6 +55,32 @@ export default function MarketplaceScreen() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
+
+  // Cart count animation
+  const cartCount = (cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0);
+  const cartCountPrevRef = React.useRef<number>(cartCount);
+  const cartBadgeScale = React.useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const prev = cartCountPrevRef.current;
+    if (cartCount > prev) {
+      Animated.sequence([
+        Animated.spring(cartBadgeScale, {
+          toValue: 1.25,
+          useNativeDriver: true,
+          friction: 5,
+          tension: 200,
+        }),
+        Animated.spring(cartBadgeScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 5,
+          tension: 200,
+        }),
+      ]).start();
+    }
+    cartCountPrevRef.current = cartCount;
+  }, [cartCount, cartBadgeScale]);
 
   // Sample upcoming drops data
   const upcomingDrops = [
@@ -280,6 +307,7 @@ export default function MarketplaceScreen() {
       height: 20,
       justifyContent: 'center',
       alignItems: 'center',
+      paddingHorizontal: 4,
     },
     cartBadgeText: {
       color: 'white',
@@ -496,10 +524,10 @@ export default function MarketplaceScreen() {
           <Text style={styles.title}>Marketplace</Text>
           <TouchableOpacity style={styles.cartButton} onPress={() => setShowCart(true)}>
             <Ionicons name="cart" size={24} color={themeColors.text} />
-            {getCartItemCount() > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
-              </View>
+            {cartCount > 0 && (
+              <Animated.View style={[styles.cartBadge, { transform: [{ scale: cartBadgeScale }] }]}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </Animated.View>
             )}
           </TouchableOpacity>
         </View>

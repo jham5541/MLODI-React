@@ -21,7 +21,7 @@ export class TrendingArtistService {
     async getTrendingArtists(limit: number = 10): Promise<TrendingArtist[]> {
         try {
             const { data: artistScores, error } = await supabase
-                .rpc('calculate_trending_artists', { limit });
+                .rpc('calculate_trending_artists', { limit_param: limit });
 
             if (error) {
                 console.error('Error fetching trending artists:', error);

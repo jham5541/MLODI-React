@@ -59,7 +59,7 @@ class UserService {
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('users_metadata')
       .select('*')
       .eq('id', userId)
       .single();
@@ -127,9 +127,9 @@ class UserService {
    */
   async searchUsers(query: string, limit: number = 10): Promise<UserProfile[]> {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('users_metadata')
       .select('*')
-      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+      .or(`username.ilike.%${query}%, display_name.ilike.%${query}%`)
       .limit(limit);
 
     if (error) {

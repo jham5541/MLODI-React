@@ -53,19 +53,25 @@ export async function verifyDatabaseSchema() {
     'songs',
     'playlists',
     'users',
-    'user_follows',
     'user_likes',
-    'play_history',
-    'fan_scores',
-    'engagements',
     'products',
     'carts',
     'orders'
   ];
   
+  // These tables are optional or not yet implemented
+  const optionalTables = [
+    'play_history',
+    'fan_scores',
+    'engagements',
+    'user_follows'  // Changed to user_likes in current schema
+  ];
+  
   const missingTables: string[] = [];
   const existingTables: string[] = [];
+  const missingOptional: string[] = [];
   
+  // Check required tables
   for (const table of requiredTables) {
     try {
       const { error } = await supabase
@@ -73,7 +79,7 @@ export async function verifyDatabaseSchema() {
         .select('id')
         .limit(1);
         
-      if (error && error.code === '42P01') { // Table doesn't exist
+      if (error && (error.code === '42P01' || error.code === '42501')) { // Table doesn't exist or permission denied
         missingTables.push(table);
       } else if (!error) {
         existingTables.push(table);
@@ -83,11 +89,33 @@ export async function verifyDatabaseSchema() {
     }
   }
   
+  // Check optional tables (don't report as errors)
+  for (const table of optionalTables) {
+    try {
+      const { error } = await supabase
+        .from(table)
+        .select('id')
+        .limit(1);
+        
+      if (error) {
+        missingOptional.push(table);
+      } else {
+        existingTables.push(table);
+      }
+    } catch (error) {
+      // Silently ignore optional table errors
+    }
+  }
+  
   console.log('📊 Database Schema Status:');
   console.log(`✅ Existing tables (${existingTables.length}):`, existingTables.join(', '));
   
+  if (missingOptional.length > 0) {
+    console.log(`ℹ️  Optional tables not yet implemented (${missingOptional.length}):`, missingOptional.join(', '));
+  }
+  
   if (missingTables.length > 0) {
-    console.error(`❌ Missing tables (${missingTables.length}):`, missingTables.join(', '));
+    console.error(`❌ Missing required tables (${missingTables.length}):`, missingTables.join(', '));
     console.log('\n🔧 To fix this issue:');
     console.log('1. Go to your Supabase dashboard');
     console.log('2. Navigate to the SQL Editor');

@@ -77,7 +77,7 @@ class TicketPurchaseService {
       .from('ticket_purchases')
       .insert({
         user_id: userId,
-        show_id: showId,
+        event_id: showId, // Using event_id instead of show_id
         quantity,
         total_amount: quantity * unitPrice,
         status: 'pending',
@@ -93,7 +93,7 @@ class TicketPurchaseService {
   private async generateTickets(purchaseId: string, showId: string, userId: string, quantity: number) {
     const tickets: Partial<Ticket>[] = Array(quantity).fill(null).map(() => ({
       purchase_id: purchaseId,
-      show_id: showId,
+      event_id: showId, // Using event_id instead of show_id
       user_id: userId,
       qr_code: generateQRCode(),
       status: 'valid'
