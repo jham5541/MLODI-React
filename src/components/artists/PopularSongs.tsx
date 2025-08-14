@@ -81,11 +81,9 @@ export default function PopularSongs({
           genre,
           play_count,
           created_at,
-          profiles!inner(
-            id,
-            display_name,
-            username
-          )
+          profiles!inner(id, display_name, username),
+          track_reactions(id, reaction_type),
+          track_comments(id)
         `)
         .eq('artist_id', artistId)
         .order('play_count', { ascending: false })
@@ -102,6 +100,7 @@ export default function PopularSongs({
       } else if (tracks && tracks.length > 0) {
         // Transform the data to match our Song interface
         const transformedSongs = tracks.map(track => ({
+          ...track,
           id: track.id,
           title: track.title,
           artist: track.profiles?.display_name || artistName || 'Unknown Artist',
@@ -110,11 +109,12 @@ export default function PopularSongs({
           coverUrl: track.cover_url || 'https://picsum.photos/400/400?random=' + Math.random(),
           duration: track.duration || 240,
           audioUrl: track.audio_url || '',
+          play_count: track.play_count || 0,
+          popularity: track.play_count || 0, // Keep popularity for backward compatibility
           supply: {
             total: 1000,
             available: Math.floor(Math.random() * 500) + 500
-          },
-          popularity: track.play_count || 0
+          }
         }));
         setSongs(transformedSongs);
       } else {
@@ -194,6 +194,17 @@ export default function PopularSongs({
     });
   };
 
+  const getBadge = (song: { created_at: string; play_count: number; genre: string }) => {
+    const createdAt = new Date(song.created_at);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff <= 3) return { text: 'NEW', icon: '🔥' };
+    if (song.play_count > 10000) return { text: 'TRENDING', icon: '📈' };
+    if (song.genre === 'Lo-fi Hip Hop') return { text: 'CHILL', icon: '☕' };
+    return null;
+  };
+
   const styles = StyleSheet.create({
     container: {
       marginBottom: 16,
@@ -224,6 +235,11 @@ export default function PopularSongs({
       marginBottom: 8,
       marginHorizontal: 16,
       borderRadius: 12,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
     },
     songItemPurchased: {
       backgroundColor: themeColors.primary + '20',
@@ -253,6 +269,7 @@ export default function PopularSongs({
     songInfo: {
       flex: 1,
       marginRight: 12,
+      justifyContent: 'center',
     },
     songTitle: {
       fontSize: 16,
@@ -268,6 +285,9 @@ export default function PopularSongs({
     songMeta: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 4,
+      marginTop: 4,
     },
     songDuration: {
       fontSize: 12,
@@ -277,16 +297,31 @@ export default function PopularSongs({
     popularityBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: themeColors.primary + '20',
+      backgroundColor: themeColors.primary + '15',
       paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: themeColors.primary + '30',
     },
     popularityText: {
       fontSize: 10,
       color: themeColors.primary,
       fontWeight: '600',
       marginLeft: 2,
+    },
+    badge: {
+      backgroundColor: themeColors.primary + '15',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: themeColors.primary + '30',
+    },
+    badgeText: {
+      fontSize: 10,
+      color: themeColors.primary,
+      fontWeight: '600',
     },
     buyButton: {
       backgroundColor: themeColors.primary,
@@ -359,14 +394,29 @@ export default function PopularSongs({
           <Text style={styles.songArtist} numberOfLines={1}>
             {item.artist || artistName || 'Unknown Artist'}
           </Text>
-          <View style={styles.songMeta}>
+        <View style={styles.songMeta}>
             <Text style={styles.songDuration}>
               {formatDuration(item.duration)}
             </Text>
-            {item.popularity && (
-              <View style={styles.popularityBadge}>
-                <Ionicons name="trending-up" size={10} color={themeColors.primary} />
-                <Text style={styles.popularityText}>{formatNumber(item.popularity)}</Text>
+            <View style={styles.popularityBadge}>
+              <Ionicons name="play" size={10} color={themeColors.primary} />
+              <Text style={styles.popularityText}>{formatNumber(item.play_count || 0)}</Text>
+            </View>
+            {item.track_reactions?.length > 0 && (
+              <View style={[styles.popularityBadge, { marginLeft: 8 }]}>
+                <Ionicons name="heart" size={10} color={themeColors.primary} />
+                <Text style={styles.popularityText}>{item.track_reactions.length}</Text>
+              </View>
+            )}
+            {item.track_comments?.length > 0 && (
+              <View style={[styles.popularityBadge, { marginLeft: 8 }]}>
+                <Ionicons name="chatbubble" size={10} color={themeColors.primary} />
+                <Text style={styles.popularityText}>{item.track_comments.length}</Text>
+              </View>
+            )}
+            {getBadge(item) && (
+              <View style={[styles.badge, { marginLeft: 8 }]}>
+                <Text style={styles.badgeText}>{getBadge(item)?.icon} {getBadge(item)?.text}</Text>
               </View>
             )}
           </View>

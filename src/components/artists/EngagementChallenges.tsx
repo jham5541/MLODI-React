@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { challengeProgressService } from '../../services/challengeProgressService';
 
 interface Challenge {
   id: string;
@@ -71,8 +72,69 @@ export default function EngagementChallenges({
   const [progressAnimations, setProgressAnimations] = useState<{ [key: string]: Animated.Value }>({});
 
   useEffect(() => {
-    loadChallenges();
-    loadChallengeSets();
+    // Load challenges and initialize progress tracking
+    const initializeChallenges = async () => {
+      // Load basic challenge data
+      loadChallenges();
+      loadChallengeSets();
+
+      // Get current progress for each challenge
+      const updatedChallenges = await Promise.all(
+        challenges.map(async (challenge) => {
+          const progress = await challengeProgressService.getProgress(challenge.id);
+          if (progress) {
+            return {
+              ...challenge,
+              progress: progress.currentValue,
+              isCompleted: progress.status === 'completed'
+            };
+          }
+          return challenge;
+        })
+      );
+
+      setChallenges(updatedChallenges);
+
+      // Set up listeners for each active challenge
+      updatedChallenges.forEach(challenge => {
+        if (!challenge.isCompleted && !challenge.isLocked) {
+          challengeProgressService.addActionListener(challenge.id, (action) => {
+            console.log('Challenge action:', action);
+            
+            // Update local state
+            setChallenges(prev => prev.map(c => {
+              if (c.id === challenge.id) {
+                return {
+                  ...c,
+                  progress: action.progress.currentValue,
+                  isCompleted: action.progress.status === 'completed'
+                };
+              }
+              return c;
+            }));
+
+            // Start animation
+            const anim = progressAnimations[challenge.id];
+            if (anim) {
+              Animated.timing(anim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: false,
+              }).start();
+            }
+          });
+        }
+      });
+    };
+
+    initializeChallenges();
+
+    // Cleanup listeners
+    return () => {
+      challenges.forEach(challenge => {
+        challengeProgressService.removeActionListener(challenge.id, () => {});
+      });
+    };
   }, [artistId, userLevel]);
 
   useEffect(() => {
@@ -273,16 +335,69 @@ export default function EngagementChallenges({
     setShowDetailModal(true);
   };
 
-  const handleStartChallenge = (challengeId: string) => {
-    if (onStartChallenge) {
-      onStartChallenge(challengeId);
+  const handleStartChallenge = async (challengeId: string) => {
+    try {
+      // Find the challenge
+      const challenge = challenges.find(c => c.id === challengeId);
+      if (!challenge) {
+        Alert.alert('Error', 'Challenge not found');
+        return;
+      }
+
+      // Reset progress animation
+      const animation = progressAnimations[challengeId];
+      if (animation) {
+        animation.setValue(0);
+      }
+
+      // Start challenge in service
+      await challengeProgressService.startChallenge(challengeId, challenge.target);
+
+      // Add listener for actions
+      challengeProgressService.addActionListener(challengeId, (action) => {
+        console.log('Challenge action:', action);
+        
+        // Update local state
+        setChallenges(prev => prev.map(c => {
+          if (c.id === challengeId) {
+            return {
+              ...c,
+              progress: action.progress.currentValue,
+              isCompleted: action.progress.status === 'completed'
+            };
+          }
+          return c;
+        }));
+
+        // Start animation
+        const anim = progressAnimations[challengeId];
+        if (anim) {
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: false,
+          }).start();
+        }
+      });
+
+      // Call parent callback if provided
+      if (onStartChallenge) {
+        onStartChallenge(challengeId);
+      }
+      
+      Alert.alert(
+        'Challenge Started!',
+        'Your progress will be tracked automatically. Good luck!',
+        [{ text: 'Got it!', style: 'default' }]
+      );
+    } catch (error) {
+      console.error('Error starting challenge:', error);
+      Alert.alert(
+        'Error',
+        'Failed to start challenge. Please try again.',
+        [{ text: 'OK', style: 'default' }]
+      );
     }
-    
-    Alert.alert(
-      'Challenge Started!',
-      'Your progress will be tracked automatically. Good luck!',
-      [{ text: 'Got it!', style: 'default' }]
-    );
   };
 
   const handleClaimReward = (challenge: Challenge) => {
