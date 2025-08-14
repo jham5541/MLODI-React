@@ -451,7 +451,8 @@ const loadFans = async () => {
       borderRadius: 8,
     },
     chartContainer: {
-      height: 400, // Fixed height for contained scrolling
+      maxHeight: 280, // Show ~4-5 fans at once with scrolling
+      overflow: 'hidden',
     },
     chartHeader: {
       flexDirection: 'row',
@@ -472,10 +473,11 @@ const loadFans = async () => {
     fanRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border + '30',
+      minHeight: 56,
     },
     topThreeRow: {
       backgroundColor: activeTheme === 'dark' ? themeColors.surface + '40' : '#fefbf3',
@@ -486,8 +488,9 @@ const loadFans = async () => {
       borderLeftColor: themeColors.primary,
     },
     rankSection: {
-      width: 50,
+      width: 45,
       alignItems: 'center',
+      flexShrink: 0,
     },
     rankNumber: {
       fontSize: 18,
@@ -535,14 +538,15 @@ const loadFans = async () => {
       color: themeColors.textSecondary,
     },
     avatarSection: {
-      width: 60,
+      width: 50,
       alignItems: 'center',
       position: 'relative',
+      flexShrink: 0,
     },
     avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       backgroundColor: themeColors.background,
       justifyContent: 'center',
       alignItems: 'center',
@@ -554,7 +558,7 @@ const loadFans = async () => {
       borderWidth: 2,
     },
     avatarEmoji: {
-      fontSize: 18,
+      fontSize: 16,
     },
     topBadge: {
       position: 'absolute',
@@ -575,6 +579,8 @@ const loadFans = async () => {
     fanInfoSection: {
       flex: 1,
       marginLeft: 8,
+      marginRight: 8,
+      minWidth: 0, // Allow text truncation
     },
     username: {
       fontSize: 14,
@@ -616,9 +622,10 @@ const loadFans = async () => {
     },
     scrollableList: {
       flex: 1,
+      maxHeight: 240, // Ensure list doesn't overflow
     },
     listContainer: {
-      paddingBottom: 8,
+      paddingBottom: 4,
     },
     loadingFooter: {
       paddingVertical: 20,
@@ -692,6 +699,8 @@ const loadFans = async () => {
             showsVerticalScrollIndicator={true}
             style={styles.scrollableList}
             contentContainerStyle={styles.listContainer}
+            nestedScrollEnabled={true}
+            scrollEnabled={true}
             refreshControl={
               <RefreshControl
                 refreshing={loading}
@@ -701,8 +710,8 @@ const loadFans = async () => {
             }
             ListEmptyComponent={error ? renderError() : renderEmptyState()}
             getItemLayout={(data, index) => ({
-              length: 60,
-              offset: 60 * index,
+              length: 56, // Updated to match minHeight of fanRow
+              offset: 56 * index,
               index,
             })}
           />
