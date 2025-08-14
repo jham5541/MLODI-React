@@ -442,13 +442,51 @@ class PurchaseService {
     return this.purchasedTickets;
   }
 
-  getTicketPurchaseCount(tourDateId: string): number {
-    const purchased = this.purchasedTickets.get(tourDateId);
-    return purchased ? purchased.quantity : 0;
+  async getTicketPurchaseCount(eventId: string): Promise<number> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return 0;
+      
+      const { data, error } = await supabase
+        .from('ticket_purchases')
+        .select('quantity')
+        .eq('user_id', user.id)
+        .eq('event_id', eventId);
+      
+      if (error) {
+        console.error('Error getting ticket count:', error);
+        return 0;
+      }
+      
+      return data?.reduce((total, purchase) => total + (purchase.quantity || 0), 0) || 0;
+    } catch (error) {
+      console.error('Error getting ticket count:', error);
+      return 0;
+    }
   }
 
-  isTicketPurchased(tourDateId: string): boolean {
-    return this.purchasedTickets.has(tourDateId);
+  async isTicketPurchased(eventId: string): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      
+      const { data, error } = await supabase
+        .from('ticket_purchases')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', eventId)
+        .limit(1);
+      
+      if (error) {
+        console.error('Error checking ticket purchase:', error);
+        return false;
+      }
+      
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error checking ticket purchase:', error);
+      return false;
+    }
   }
 
   getTickets(tourDateId: string): { id: string; qrCode: string; seatInfo?: string }[] {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { usePlay } from './PlayContext';
 import { databaseService } from '../services/databaseServiceProvider';
+import { listeningRewardsService } from '../services/listeningRewardsService';
 
 interface PlaySession {
   songId: string;
@@ -59,6 +60,9 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
 
       setCurrentSession(newSession);
 
+      // Start listening rewards tracking
+      listeningRewardsService.startSession(currentSong.id, currentSong.artistId);
+
       // Initialize artist stats if not exists
       setArtistPlayStats(prev => {
         if (!prev[currentSong.artistId]) {
@@ -76,6 +80,9 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
       });
     } else if (!currentSong || !isPlaying) {
       // End current session
+      if (currentSession) {
+        listeningRewardsService.endSession(currentSession.songId);
+      }
       setCurrentSession(null);
     }
   }, [currentSong, isPlaying]);
@@ -86,8 +93,15 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
     const updatedSession = { ...currentSession, currentProgress: progress };
     setCurrentSession(updatedSession);
 
-    // Check if 50% threshold is reached and play hasn't been counted yet
+    // Calculate progress percentage
     const progressPercentage = (progress / currentSession.duration) * 100;
+    
+    // Update listening rewards service (awards at 80% completion)
+    await listeningRewardsService.updateProgress(
+      currentSession.songId,
+      progressPercentage / 100, // Convert to 0-1 range
+      currentSession.duration
+    );
     
     if (progressPercentage >= 50 && !currentSession.hasCountedPlay) {
       console.log('PlayTracking: 50% threshold reached, counting play for', currentSession.songId);

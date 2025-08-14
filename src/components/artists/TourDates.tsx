@@ -14,6 +14,8 @@ import { useTheme, colors } from '../../context/ThemeContext';
 import { purchaseService } from '../../services/purchaseService';
 import { useCartStore } from '../../store/cartStore';
 import { tourService, Tour, Show } from '../../services/tourService';
+import { ticketPurchaseService } from '../../services/ticketPurchaseService';
+import { supabase } from '../../lib/supabase';
 import TicketPurchaseModal from '../purchase/TicketPurchaseModal';
 import TicketViewModal from '../tickets/TicketViewModal';
 
@@ -48,6 +50,8 @@ export default function TourDates({
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchasedEvents, setPurchasedEvents] = useState<Set<string>>(new Set());
+  const [ticketCounts, setTicketCounts] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     // Using sample data for development
@@ -101,11 +105,27 @@ export default function TourDates({
 
     setLoading(true);
     // Simulate API call
-    setTimeout(() => {
+    setTimeout(async () => {
       setTourDates(sampleTourDates);
+      
+      // Check purchase status for each tour date
+      const purchased = new Set<string>();
+      const counts = new Map<string, number>();
+      
+      for (const date of sampleTourDates) {
+        const isPurchased = await purchaseService.isTicketPurchased(date.id);
+        if (isPurchased) {
+          purchased.add(date.id);
+          const count = await purchaseService.getTicketPurchaseCount(date.id);
+          counts.set(date.id, count);
+        }
+      }
+      
+      setPurchasedEvents(purchased);
+      setTicketCounts(counts);
       setLoading(false);
     }, 1000);
-  }, [artistId]);
+  }, [artistId, refreshKey]);
 
   const handleBuyTickets = (date: TourDateDisplay) => {
     setSelectedTourDate(date);
@@ -113,19 +133,60 @@ export default function TourDates({
   };
 
   const handlePurchaseComplete = async (quantity: number) => {
+    // Immediately update the local state to reflect the purchase
+    if (selectedTourDate) {
+      setPurchasedEvents(prev => new Set([...prev, selectedTourDate.id]));
+      setTicketCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get(selectedTourDate.id) || 0;
+        newCounts.set(selectedTourDate.id, currentCount + quantity);
+        return newCounts;
+      });
+    }
+    
     // Refresh the user's library to show the new ticket purchase
     await loadLibrary();
-    setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
+    // Note: We're not triggering a full reload anymore since we've updated the state
   };
 
   const handleTicketsReady = (tickets: { id: string; qrCode: string; seatInfo?: string }[]) => {
+    console.log('[TourDates] handleTicketsReady called with tickets:', tickets);
+    console.log('[TourDates] Setting viewTickets and opening modal');
     setViewTickets(tickets);
     setTicketViewModalVisible(true);
+    console.log('[TourDates] ticketViewModalVisible should now be true');
   };
 
-  const handleViewTickets = (date: TourDateDisplay) => {
+  const handleViewTickets = async (date: TourDateDisplay) => {
     setSelectedTourDate(date);
-    setTicketViewModalVisible(true);
+    
+    // Fetch tickets from database
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please sign in to view tickets');
+        return;
+      }
+      
+      const tickets = await ticketPurchaseService.getTicketsForShow(date.id, user.id);
+      console.log('Fetched tickets for viewing:', tickets);
+      
+      if (tickets && tickets.length > 0) {
+        // Convert to the format expected by TicketViewModal
+        const formattedTickets = tickets.map(ticket => ({
+          id: ticket.id,
+          qrCode: ticket.qr_code,
+          seatInfo: ticket.seat_info?.section || 'General Admission'
+        }));
+        setViewTickets(formattedTickets);
+        setTicketViewModalVisible(true);
+      } else {
+        Alert.alert('No Tickets Found', 'No tickets found for this event.');
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      Alert.alert('Error', 'Failed to load tickets. Please try again.');
+    }
   };
 
   const styles = StyleSheet.create({
@@ -378,8 +439,8 @@ export default function TourDates({
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {tourDates.map((date) => {
-          const isPurchased = purchaseService.isTicketPurchased(date.id);
-          const ticketCount = purchaseService.getTicketPurchaseCount(date.id);
+          const isPurchased = purchasedEvents.has(date.id);
+          const ticketCount = ticketCounts.get(date.id) || 0;
 
           return (
             <View key={`${date.id}-${refreshKey}`} style={styles.tourCard}>

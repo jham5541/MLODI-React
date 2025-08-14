@@ -85,7 +85,7 @@ export default function TicketPurchaseModal({
 
   const handleQuantityChange = (change: number) => {
     const newQuantity = quantity + change;
-    if (newQuantity >= 1 && newQuantity <= 10) {
+    if (newQuantity >= 1 && newQuantity <= 2) {
       setQuantity(newQuantity);
     }
   };
@@ -140,28 +140,32 @@ export default function TicketPurchaseModal({
         artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
       });
 
-      // Fetch newly created tickets and notify parent to display them
-      try {
-        const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-        const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
-        onTicketsReady(mapped);
-      } catch (e) {
-        console.warn('Could not fetch tickets after purchase:', e);
-      }
-
-      Alert.alert(
-        'Purchase Successful!',
-        `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onPurchaseComplete(quantity);
-              onClose();
-            },
-          },
-        ]
-      );
+      console.log('[TicketPurchaseModal] Card purchase successful, closing modal');
+      
+      // Update the purchase status first
+      onPurchaseComplete(quantity);
+      
+      // Close the purchase modal
+      onClose();
+      
+      // Small delay to ensure modal closes properly before opening the ticket view modal
+      setTimeout(async () => {
+        try {
+          console.log('[TicketPurchaseModal] Fetching tickets for show:', tourDateId);
+          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+          console.log('[TicketPurchaseModal] Fetched tickets:', created);
+          const mapped = created.map(t => ({ 
+            id: t.id, 
+            qrCode: t.qr_code, 
+            seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
+          }));
+          console.log('[TicketPurchaseModal] Mapped tickets ready:', mapped);
+          onTicketsReady(mapped);
+        } catch (e) {
+          console.error('[TicketPurchaseModal] Error fetching tickets after purchase:', e);
+          Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
+        }
+      }, 500); // Increased delay to 500ms
     } catch (error) {
       Alert.alert(
         'Purchase Failed',
@@ -232,28 +236,27 @@ export default function TicketPurchaseModal({
           artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
         });
 
-        // Fetch newly created tickets and notify parent to display them
-        try {
-          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-          const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
-          onTicketsReady(mapped);
-        } catch (e) {
-          console.warn('Could not fetch tickets after web3 purchase:', e);
-        }
-
-        Alert.alert(
-          'Purchase Successful!',
-          `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                onPurchaseComplete(quantity);
-                onClose();
-              },
-            },
-          ]
-        );
+        // Close the purchase modal first
+        onClose();
+        
+        // Small delay to ensure modal closes properly
+        setTimeout(async () => {
+          try {
+            const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+            const mapped = created.map(t => ({ 
+              id: t.id, 
+              qrCode: t.qr_code, 
+              seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
+            }));
+            console.log('Tickets ready:', mapped);
+            onTicketsReady(mapped);
+          } catch (e) {
+            console.error('Error fetching tickets after web3 purchase:', e);
+            Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
+          }
+          // Update the purchase status
+          onPurchaseComplete(quantity);
+        }, 300);
         return;
       }
 
@@ -268,28 +271,32 @@ export default function TicketPurchaseModal({
         artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
       });
 
-      // Fetch newly created tickets and notify parent to display them
-      try {
-        const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-        const mapped = created.map(t => ({ id: t.id, qrCode: t.qr_code, seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined }));
-        onTicketsReady(mapped);
-      } catch (e) {
-        console.warn('Could not fetch tickets after Apple Pay purchase:', e);
-      }
-
-      Alert.alert(
-        'Purchase Successful!',
-        `You have successfully purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${venue}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onPurchaseComplete(quantity);
-              onClose();
-            },
-          },
-        ]
-      );
+      console.log('[TicketPurchaseModal] Apple Pay purchase successful, closing modal');
+      
+      // Update the purchase status first
+      onPurchaseComplete(quantity);
+      
+      // Close the purchase modal
+      onClose();
+      
+      // Small delay to ensure modal closes properly before opening the ticket view modal
+      setTimeout(async () => {
+        try {
+          console.log('[TicketPurchaseModal] Fetching tickets for show:', tourDateId);
+          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
+          console.log('[TicketPurchaseModal] Fetched tickets:', created);
+          const mapped = created.map(t => ({ 
+            id: t.id, 
+            qrCode: t.qr_code, 
+            seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
+          }));
+          console.log('[TicketPurchaseModal] Mapped tickets ready:', mapped);
+          onTicketsReady(mapped);
+        } catch (e) {
+          console.error('[TicketPurchaseModal] Error fetching tickets after Apple Pay purchase:', e);
+          Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
+        }
+      }, 500); // Increased delay to 500ms
     } catch (error) {
       Alert.alert(
         'Purchase Failed',
@@ -514,6 +521,13 @@ export default function TicketPurchaseModal({
     processingIndicator: {
       marginLeft: 12,
     },
+    quantityLimit: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
   });
 
   return (
@@ -572,14 +586,17 @@ export default function TicketPurchaseModal({
               <TouchableOpacity
                 style={[
                   styles.quantityButton,
-                  quantity >= 10 && styles.quantityButtonDisabled,
+                  quantity >= 2 && styles.quantityButtonDisabled,
                 ]}
                 onPress={() => handleQuantityChange(1)}
-                disabled={quantity >= 10 || isProcessing}
+                disabled={quantity >= 2 || isProcessing}
               >
                 <Text style={styles.quantityButtonText}>+</Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.quantityLimit}>
+              Maximum 2 tickets per purchase
+            </Text>
           </View>
 
           <View style={styles.totalSection}>

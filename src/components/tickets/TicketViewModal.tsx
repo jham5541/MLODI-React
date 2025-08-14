@@ -462,12 +462,21 @@ export default function TicketViewModal({
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             keyExtractor={(item) => item.id}
+            decelerationRate="fast"
+            snapToAlignment="center"
+            snapToInterval={screenWidth * 0.95}
+            contentInset={{ left: 0, right: 0 }}
+            contentOffset={{ x: 0, y: 0 }}
             renderItem={({ item: ticket, index }) => (
               <View style={styles.ticketPage}>
                 <ScrollView 
                   style={styles.ticketScrollContent}
                   contentContainerStyle={styles.ticketScrollContainer}
                   showsVerticalScrollIndicator={false}
+                  bounces={true}
+                  alwaysBounceVertical={true}
+                  decelerationRate="normal"
+                  scrollEventThrottle={16}
                 >
                   <View style={styles.eventInfo}>
                     <Text style={styles.venue} numberOfLines={2}>

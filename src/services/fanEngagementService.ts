@@ -571,6 +571,42 @@ class FanEngagementService {
       completedMilestones: milestoneProgress.filter(m => m.reward_claimed).length,
     };
   }
+
+  // Get total points across all artists for user-wide level calculation
+  async getTotalUserPoints(): Promise<number> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+
+    try {
+      // Get sum of points from all fan tiers
+      const { data, error } = await supabase
+        .from('fan_tiers')
+        .select('points')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching total user points:', error);
+        return 0;
+      }
+
+      const totalPoints = data?.reduce((sum, tier) => sum + (tier.points || 0), 0) || 0;
+      return totalPoints;
+    } catch (error) {
+      console.error('Error calculating total user points:', error);
+      return 0;
+    }
+  }
+
+  // Helper method to get user points for a specific artist
+  async getArtistPoints(artistId: string): Promise<number> {
+    try {
+      const fanTier = await this.getFanTier(artistId);
+      return fanTier?.points || 0;
+    } catch (error) {
+      console.error('Error fetching artist points:', error);
+      return 0;
+    }
+  }
 }
 
 export const fanEngagementService = new FanEngagementService();
