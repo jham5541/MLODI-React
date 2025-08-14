@@ -46,6 +46,27 @@ export interface MerchandiseOrder {
   updated_at: string;
 }
 
+export interface MerchOrderInput {
+  user_id: string;
+  artist_id: string;
+  product_id: string;
+  product_name: string;
+  size: string;
+  quantity: number;
+  price: number;
+  total: number;
+  shipping_info: {
+    fullName: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    phone: string;
+  };
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+}
+
 export const merchandiseService = {
   async getArtistMerchandise(artistId: string): Promise<Merchandise[]> {
     const { data, error } = await supabase
@@ -158,6 +179,96 @@ export const merchandiseService = {
         filter: `id=eq.${orderId}`
       }, callback)
       .subscribe();
+  },
+
+  async createMerchOrder(order: MerchOrderInput): Promise<any> {
+    try {
+      // First, create the merchandise order
+      const orderData = {
+        user_id: order.user_id,
+        merchandise_id: order.product_id,
+        quantity: order.quantity,
+        price: order.price,
+        status: order.status,
+        shipping_address: {
+          full_name: order.shipping_info.fullName,
+          address: order.shipping_info.address,
+          city: order.shipping_info.city,
+          state: order.shipping_info.state,
+          zip_code: order.shipping_info.zipCode,
+          country: order.shipping_info.country,
+          phone: order.shipping_info.phone
+        },
+        payment_method: 'credit_card' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: merchOrder, error: orderError } = await supabase
+        .from('merchandise_orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Error creating merchandise order:', orderError);
+        // Continue anyway to try artist_fan_orders
+      }
+
+      // Then, create the artist fan order record
+      const fanOrderData = {
+        artist_id: order.artist_id,
+        fan_user_id: order.user_id,
+        order_id: merchOrder?.id || crypto.randomUUID(),
+        size: order.size,
+        shipping_snapshot: {
+          fullName: order.shipping_info.fullName,
+          address: order.shipping_info.address,
+          city: order.shipping_info.city,
+          state: order.shipping_info.state,
+          zipCode: order.shipping_info.zipCode,
+          country: order.shipping_info.country,
+          phone: order.shipping_info.phone,
+          productName: order.product_name,
+          quantity: order.quantity,
+          price: order.price,
+          total: order.total,
+          orderDate: new Date().toISOString()
+        },
+        created_at: new Date().toISOString()
+      };
+
+      const { data: fanOrder, error: fanOrderError } = await supabase
+        .from('artist_fan_orders')
+        .insert(fanOrderData)
+        .select()
+        .single();
+
+      if (fanOrderError) {
+        console.error('Error creating artist fan order:', fanOrderError);
+        throw fanOrderError;
+      }
+
+      return { merchOrder, fanOrder };
+    } catch (error) {
+      console.error('Error in createMerchOrder:', error);
+      throw error;
+    }
+  },
+
+  async getArtistOrders(artistId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('artist_fan_orders')
+      .select('*')
+      .eq('artist_id', artistId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching artist orders:', error);
+      throw error;
+    }
+
+    return data || [];
   }
 };
 

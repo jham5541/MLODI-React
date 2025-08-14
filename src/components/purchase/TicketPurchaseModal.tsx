@@ -133,7 +133,11 @@ export default function TicketPurchaseModal({
           expMonth: parseInt(expMonth, 10),
           expYear: parseInt('20' + expYear, 10),
           cvc: cardCvc
-        }
+        },
+        venue: venue,
+        city: city,
+        date: date,
+        artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
       });
 
       // Fetch newly created tickets and notify parent to display them
@@ -207,7 +211,11 @@ export default function TicketPurchaseModal({
           quantity,
           userId: userId,
           unitPrice: price,
-          web3Provider
+          web3Provider,
+          venue: venue,
+          city: city,
+          date: date,
+          artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
         });
 
         // Fetch newly created tickets and notify parent to display them
@@ -239,7 +247,11 @@ export default function TicketPurchaseModal({
         showId: tourDateId,
         quantity,
         userId: userId,
-        unitPrice: price
+        unitPrice: price,
+        venue: venue,
+        city: city,
+        date: date,
+        artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
       });
 
       // Fetch newly created tickets and notify parent to display them

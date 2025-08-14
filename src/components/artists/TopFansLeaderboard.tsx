@@ -529,8 +529,13 @@ const loadFans = async () => {
                 {item.level}
               </Text>
             </View>
-            <Text style={styles.pointsText}>{formatPoints(item.points)} pts</Text>
           </View>
+        </View>
+        
+        {/* Points Column */}
+        <View style={styles.pointsSection}>
+          <Text style={styles.pointsValue}>{formatPoints(item.points)}</Text>
+          <Text style={styles.pointsLabel}>pts</Text>
         </View>
       </View>
     );
@@ -749,6 +754,22 @@ const loadFans = async () => {
       minWidth: 0, // Allow text truncation
       justifyContent: 'center',
     },
+    pointsSection: {
+      width: 80,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      paddingRight: 16,
+    },
+    pointsValue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    pointsLabel: {
+      fontSize: 11,
+      color: themeColors.textSecondary,
+      marginTop: 2,
+    },
     username: {
       fontSize: 15,
       fontWeight: '600',
@@ -762,6 +783,7 @@ const loadFans = async () => {
     detailsRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      marginTop: 2,
     },
     fanLevelBadge: {
       paddingHorizontal: 8,
@@ -773,11 +795,6 @@ const loadFans = async () => {
       fontSize: 11,
       fontWeight: '700',
       letterSpacing: 0.5,
-    },
-    pointsText: {
-      fontSize: 13,
-      color: themeColors.textSecondary,
-      fontWeight: '600',
     },
     trendSection: {
       width: 60,
@@ -864,7 +881,7 @@ const loadFans = async () => {
             <Text style={[styles.chartHeaderText, { width: 55, textAlign: 'left' }]}>Rank</Text>
             <Text style={[styles.chartHeaderText, { width: 55, textAlign: 'center' }]}></Text>
             <Text style={[styles.chartHeaderText, { flex: 1, textAlign: 'left', marginLeft: 10 }]}>Top Fans</Text>
-            <Text style={[styles.chartHeaderText, { width: 80, textAlign: 'right' }]}>Points</Text>
+            <Text style={[styles.chartHeaderText, { width: 80, textAlign: 'right', paddingRight: 16 }]}>Points</Text>
           </View>
         )}
 

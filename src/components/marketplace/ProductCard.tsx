@@ -10,6 +10,7 @@ interface ProductCardProps {
   onAddToCart?: (product: Product, variantId?: string) => void;
   onPlayPreview?: (product: Product) => void;
   showAddToCart?: boolean;
+  onBuyNow?: (product: Product) => void;
 }
 
 export default function ProductCard({ 
@@ -17,7 +18,8 @@ export default function ProductCard({
   onPress, 
   onAddToCart, 
   onPlayPreview,
-  showAddToCart = true 
+  showAddToCart = true,
+  onBuyNow 
 }: ProductCardProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -25,21 +27,10 @@ export default function ProductCard({
 
   const handleAddToCart = () => {
     if (product.type === 'merch') {
-      if (product.product_variants && product.product_variants.length > 1) {
-        // Show variant selector
-        Alert.alert(
-          'Select Variant',
-          'This product has multiple options. Please select a variant.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'View Options', onPress: () => onPress?.() }
-          ]
-        );
-        return;
-      } else if (product.product_variants && product.product_variants.length === 1) {
-        onAddToCart?.(product, product.product_variants[0].id);
-      }
+      // For merch items, trigger Buy Now modal
+      onBuyNow?.(product);
     } else {
+      // For non-merch items, add to cart
       onAddToCart?.(product);
     }
   };
@@ -165,10 +156,18 @@ export default function ProductCard({
       left: 12,
       backgroundColor: themeColors.primary + '80',
       borderRadius: 20,
-      width: 32,
+      width: product.type === 'merch' ? 'auto' : 32,
       height: 32,
+      paddingHorizontal: product.type === 'merch' ? 12 : 0,
       justifyContent: 'center',
       alignItems: 'center',
+      flexDirection: 'row',
+    },
+    buyNowText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '600',
+      marginLeft: 4,
     },
     content: {
       padding: 16,
@@ -243,11 +242,22 @@ export default function ProductCard({
           style={styles.cartButton} 
           onPress={handleAddToCart}
         >
-          <Ionicons 
-            name="cart" 
-            size={16} 
-            color="white" 
-          />
+          {product.type === 'merch' ? (
+            <>
+              <Ionicons 
+                name="wallet" 
+                size={16} 
+                color="white" 
+              />
+              <Text style={styles.buyNowText}>Buy Now</Text>
+            </>
+          ) : (
+            <Ionicons 
+              name="cart" 
+              size={16} 
+              color="white" 
+            />
+          )}
         </TouchableOpacity>
 
         {product.type === 'song' && (

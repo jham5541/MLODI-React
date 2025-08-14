@@ -71,17 +71,40 @@ class TicketPurchaseService {
     quantity,
     userId,
     unitPrice,
-    paymentMethod
-  }: PurchaseTicketsParams & { paymentMethod: PaymentMethod }) {
+    paymentMethod,
+    venue = 'Concert Venue',
+    city = 'City',
+    date = new Date().toISOString(),
+    artistName = 'Artist'
+  }: PurchaseTicketsParams & { 
+    paymentMethod: PaymentMethod,
+    venue?: string,
+    city?: string,
+    date?: string,
+    artistName?: string
+  }) {
+    // Generate tickets with QR codes
+    const tickets = Array(quantity).fill(null).map(() => ({
+      id: `TICKET-${Math.random().toString(36).substring(2)}-${Date.now()}`,
+      qrCode: generateQRCode(),
+      status: 'valid',
+      seatInfo: 'General Admission'
+    }));
+
     const { data: purchase, error: purchaseError } = await supabase
       .from('ticket_purchases')
       .insert({
         user_id: userId,
-        event_id: showId, // Using event_id instead of show_id
+        event_id: showId,
+        event_name: `${artistName} Live`,
+        artist_name: artistName,
+        venue: venue,
+        event_date: date,
         quantity,
-        total_amount: quantity * unitPrice,
-        status: 'pending',
-        payment_method: paymentMethod
+        total_price: quantity * unitPrice,
+        purchase_date: new Date().toISOString(),
+        payment_method: paymentMethod,
+        tickets: tickets // Store tickets directly in JSONB field
       })
       .select()
       .single();
@@ -91,35 +114,19 @@ class TicketPurchaseService {
   }
 
   private async generateTickets(purchaseId: string, showId: string, userId: string, quantity: number) {
-    const tickets: Partial<Ticket>[] = Array(quantity).fill(null).map(() => ({
-      purchase_id: purchaseId,
-      event_id: showId, // Using event_id instead of show_id
-      user_id: userId,
-      qr_code: generateQRCode(),
-      status: 'valid'
-    }));
-
-    const { data: createdTickets, error: ticketsError } = await supabase
-      .from('tickets')
-      .insert(tickets)
-      .select();
-
-    if (ticketsError) throw ticketsError;
-    return createdTickets;
+    // This method is no longer needed since tickets are stored in JSONB field
+    // Keeping for backward compatibility but returning empty array
+    return [];
   }
 
   private async completePurchase(purchaseId: string, paymentIntentId?: string) {
     const { data: updatedPurchase, error: updateError } = await supabase
       .from('ticket_purchases')
       .update({ 
-        status: 'completed',
-        payment_intent_id: paymentIntentId 
+        transaction_hash: paymentIntentId 
       })
       .eq('id', purchaseId)
-      .select(`
-        *,
-        tickets (*)
-      `)
+      .select()
       .single();
 
     if (updateError) throw updateError;
@@ -130,16 +137,29 @@ class TicketPurchaseService {
     showId,
     quantity,
     userId,
-    unitPrice
-  }: PurchaseTicketsParams): Promise<TicketPurchase> {
+    unitPrice,
+    venue = 'Concert Venue',
+    city = 'City',
+    date = new Date().toISOString(),
+    artistName = 'Artist'
+  }: PurchaseTicketsParams & {
+    venue?: string,
+    city?: string,
+    date?: string,
+    artistName?: string
+  }): Promise<TicketPurchase> {
     try {
-      // 1. Create pending purchase record
+      // 1. Create purchase record with tickets
       const purchase = await this.createPurchaseRecord({
         showId,
         quantity,
         userId,
         unitPrice,
-        paymentMethod: 'apple_pay'
+        paymentMethod: 'apple_pay',
+        venue,
+        city,
+        date,
+        artistName
       });
 
       // 2. Request Apple Pay payment
@@ -157,24 +177,18 @@ class TicketPurchaseService {
       });
 
       if (!paymentResult) {
-        // Update purchase status to failed
-        await supabase
-          .from('ticket_purchases')
-          .update({ status: 'failed' })
-          .eq('id', purchase.id);
-
         throw new Error('Payment was cancelled or failed');
       }
 
-      // 3. Process the payment with your payment processor
-      // Here you would typically send the payment token to your server
-      // and process it with your payment provider
-
-      // 4. Generate tickets
-      await this.generateTickets(purchase.id, showId, userId, quantity);
-
-      // 5. Complete purchase
-      return await this.completePurchase(purchase.id, paymentResult.transactionIdentifier);
+      // 3. Complete purchase
+      const completedPurchase = await this.completePurchase(purchase.id, paymentResult.transactionIdentifier);
+      
+      // Convert JSONB tickets to the expected format
+      return {
+        ...completedPurchase,
+        status: 'completed',
+        tickets: completedPurchase.tickets || []
+      } as TicketPurchase;
     } catch (error) {
       console.error('Error processing ticket purchase:', error);
       throw error;
@@ -184,15 +198,26 @@ class TicketPurchaseService {
   async getPurchaseHistory(userId: string): Promise<TicketPurchase[]> {
     const { data, error } = await supabase
       .from('ticket_purchases')
-      .select(`
-        *,
-        tickets (*)
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+    
+    // Convert JSONB tickets to the expected format
+    return data.map(purchase => ({
+      ...purchase,
+      id: purchase.id,
+      user_id: purchase.user_id,
+      show_id: purchase.event_id,
+      quantity: purchase.quantity,
+      total_amount: purchase.total_price,
+      status: 'completed',
+      payment_method: purchase.payment_method,
+      payment_intent_id: purchase.transaction_hash,
+      created_at: purchase.created_at,
+      tickets: purchase.tickets || []
+    })) as TicketPurchase[];
   }
 
   async purchaseTicketsWithCard({
@@ -200,27 +225,45 @@ class TicketPurchaseService {
     quantity,
     userId,
     unitPrice,
-    cardDetails
-  }: PurchaseTicketsParams & { cardDetails: CardDetails }): Promise<TicketPurchase> {
+    cardDetails,
+    venue = 'Concert Venue',
+    city = 'City',
+    date = new Date().toISOString(),
+    artistName = 'Artist'
+  }: PurchaseTicketsParams & { 
+    cardDetails: CardDetails,
+    venue?: string,
+    city?: string,
+    date?: string,
+    artistName?: string
+  }): Promise<TicketPurchase> {
     try {
-      // 1. Create pending purchase record
+      // 1. Create purchase record with tickets
       const purchase = await this.createPurchaseRecord({
         showId,
         quantity,
         userId,
         unitPrice,
-        paymentMethod: 'card'
+        paymentMethod: 'card',
+        venue,
+        city,
+        date,
+        artistName
       });
 
       // 2. Process card payment (implement your payment processor integration here)
       // This is a placeholder for your actual payment processing logic
       const paymentResult = await this.processCardPayment(cardDetails, quantity * unitPrice);
 
-      // 3. Generate tickets
-      await this.generateTickets(purchase.id, showId, userId, quantity);
-
-      // 4. Complete purchase
-      return await this.completePurchase(purchase.id, paymentResult.paymentIntentId);
+      // 3. Complete purchase
+      const completedPurchase = await this.completePurchase(purchase.id, paymentResult.paymentIntentId);
+      
+      // Convert JSONB tickets to the expected format
+      return {
+        ...completedPurchase,
+        status: 'completed',
+        tickets: completedPurchase.tickets || []
+      } as TicketPurchase;
     } catch (error) {
       console.error('Error processing card payment:', error);
       throw error;
@@ -232,20 +275,34 @@ class TicketPurchaseService {
     quantity,
     userId,
     unitPrice,
-    web3Provider
-  }: PurchaseTicketsParams & { web3Provider: Web3Provider }): Promise<TicketPurchase> {
+    web3Provider,
+    venue = 'Concert Venue',
+    city = 'City',
+    date = new Date().toISOString(),
+    artistName = 'Artist'
+  }: PurchaseTicketsParams & { 
+    web3Provider: Web3Provider,
+    venue?: string,
+    city?: string,
+    date?: string,
+    artistName?: string
+  }): Promise<TicketPurchase> {
     try {
       if (!web3Provider.isConnected) {
         throw new Error('Web3 wallet not connected');
       }
 
-      // 1. Create pending purchase record
+      // 1. Create purchase record with tickets
       const purchase = await this.createPurchaseRecord({
         showId,
         quantity,
         userId,
         unitPrice,
-        paymentMethod: 'web3_wallet'
+        paymentMethod: 'web3_wallet',
+        venue,
+        city,
+        date,
+        artistName
       });
 
       // 2. Calculate ETH amount (you should implement proper price conversion)
@@ -257,11 +314,15 @@ class TicketPurchaseService {
         value: ethAmount
       });
 
-      // 4. Generate tickets
-      await this.generateTickets(purchase.id, showId, userId, quantity);
-
-      // 5. Complete purchase
-      return await this.completePurchase(purchase.id, transaction.hash);
+      // 4. Complete purchase
+      const completedPurchase = await this.completePurchase(purchase.id, transaction.hash);
+      
+      // Convert JSONB tickets to the expected format
+      return {
+        ...completedPurchase,
+        status: 'completed',
+        tickets: completedPurchase.tickets || []
+      } as TicketPurchase;
     } catch (error) {
       console.error('Error processing Web3 payment:', error);
       throw error;
@@ -280,14 +341,37 @@ class TicketPurchaseService {
 
   async getTicketsForShow(showId: string, userId: string): Promise<Ticket[]> {
     const { data, error } = await supabase
-      .from('tickets')
+      .from('ticket_purchases')
       .select('*')
-      .eq('show_id', showId)
-      .eq('user_id', userId)
-      .eq('status', 'valid');
+      .eq('event_id', showId)
+      .eq('user_id', userId);
 
     if (error) throw error;
-    return data;
+    
+    // Extract tickets from JSONB field
+    const allTickets: Ticket[] = [];
+    data?.forEach(purchase => {
+      if (purchase.tickets && Array.isArray(purchase.tickets)) {
+        purchase.tickets.forEach((ticket: any) => {
+          allTickets.push({
+            id: ticket.id || `TICKET-${Date.now()}`,
+            purchase_id: purchase.id,
+            show_id: showId,
+            user_id: userId,
+            qr_code: ticket.qrCode || ticket.qr_code || generateQRCode(),
+            status: ticket.status || 'valid',
+            seat_info: ticket.seatInfo ? {
+              section: ticket.seatInfo,
+              row: '',
+              seat: ''
+            } : undefined,
+            created_at: purchase.created_at
+          });
+        });
+      }
+    });
+    
+    return allTickets;
   }
 }
 

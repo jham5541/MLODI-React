@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import ProductCard from '../components/marketplace/ProductCard';
 import CartModal from '../components/marketplace/CartModal';
+import MerchModal from '../components/marketplace/MerchModal';
 import MarketplaceHeader from '../components/marketplace/MarketplaceHeader';
 import MarketplaceStats from '../components/marketplace/MarketplaceStats';
 import MarketplaceStatsView from '../components/marketplace/MarketplaceStatsView';
@@ -52,6 +53,8 @@ export default function MarketplaceScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
+  const [showMerchModal, setShowMerchModal] = useState(false);
+  const [selectedMerchProduct, setSelectedMerchProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
@@ -225,6 +228,15 @@ export default function MarketplaceScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to add item to cart. Please try again.');
     }
+  };
+
+  const handleBuyNow = (product: Product) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to make a purchase.');
+      return;
+    }
+    setSelectedMerchProduct(product);
+    setShowMerchModal(true);
   };
 
   const handlePlayPreview = async (product: Product) => {
@@ -607,6 +619,7 @@ export default function MarketplaceScreen() {
                 key={product.id}
                 product={product}
                 onAddToCart={handleAddToCart}
+                onBuyNow={handleBuyNow}
                 onPlayPreview={handlePlayPreview}
                 showAddToCart={!isOwned(product.id)}
               />
@@ -629,6 +642,19 @@ export default function MarketplaceScreen() {
       <CartModal
         isVisible={showCart}
         onClose={() => setShowCart(false)}
+      />
+
+      <MerchModal
+        visible={showMerchModal}
+        product={selectedMerchProduct}
+        onClose={() => {
+          setShowMerchModal(false);
+          setSelectedMerchProduct(null);
+        }}
+        onPurchaseComplete={() => {
+          // Optionally refresh products or show success message
+          loadProducts();
+        }}
       />
     </View>
   );
