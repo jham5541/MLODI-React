@@ -62,7 +62,7 @@ const loadFans = async () => {
 
       let data: Fan[];
       
-      // Use mock data for now
+      // Use extended mock data to show scrolling
       const mockFans: Fan[] = [
         {
           id: '1',
@@ -203,6 +203,147 @@ const loadFans = async () => {
           badges: [],
           user: { username: 'TuneTaster', avatar_url: '' },
           avatar: '🎼'
+        },
+        // Additional fans to demonstrate scrolling
+        {
+          id: '11',
+          user_id: 'user-11',
+          username: 'AudiophileX',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 1200,
+          rank: 11,
+          fan_since: '2023-10-15',
+          last_week_rank: 12,
+          badges: [],
+          user: { username: 'AudiophileX', avatar_url: '' },
+          avatar: '🎙️'
+        },
+        {
+          id: '12',
+          user_id: 'user-12',
+          username: 'BassBooster',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 1100,
+          rank: 12,
+          fan_since: '2023-10-20',
+          last_week_rank: 11,
+          badges: [],
+          user: { username: 'BassBooster', avatar_url: '' },
+          avatar: '🔊'
+        },
+        {
+          id: '13',
+          user_id: 'user-13',
+          username: 'SonicWave',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 950,
+          rank: 13,
+          fan_since: '2023-11-01',
+          last_week_rank: 14,
+          badges: [],
+          user: { username: 'SonicWave', avatar_url: '' },
+          avatar: '📻'
+        },
+        {
+          id: '14',
+          user_id: 'user-14',
+          username: 'MixMaster',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 850,
+          rank: 14,
+          fan_since: '2023-11-10',
+          last_week_rank: 13,
+          badges: [],
+          user: { username: 'MixMaster', avatar_url: '' },
+          avatar: '🎚️'
+        },
+        {
+          id: '15',
+          user_id: 'user-15',
+          username: 'EchoEcho',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 750,
+          rank: 15,
+          fan_since: '2023-11-15',
+          last_week_rank: null,
+          badges: [],
+          user: { username: 'EchoEcho', avatar_url: '' },
+          avatar: '🔈'
+        },
+        {
+          id: '16',
+          user_id: 'user-16',
+          username: 'FrequencyFan',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 650,
+          rank: 16,
+          fan_since: '2023-11-20',
+          last_week_rank: 17,
+          badges: [],
+          user: { username: 'FrequencyFan', avatar_url: '' },
+          avatar: '📡'
+        },
+        {
+          id: '17',
+          user_id: 'user-17',
+          username: 'AcousticLove',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 550,
+          rank: 17,
+          fan_since: '2023-11-25',
+          last_week_rank: 16,
+          badges: [],
+          user: { username: 'AcousticLove', avatar_url: '' },
+          avatar: '🎸'
+        },
+        {
+          id: '18',
+          user_id: 'user-18',
+          username: 'NoteNinja',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 450,
+          rank: 18,
+          fan_since: '2023-12-01',
+          last_week_rank: null,
+          badges: [],
+          user: { username: 'NoteNinja', avatar_url: '' },
+          avatar: '🥷'
+        },
+        {
+          id: '19',
+          user_id: 'user-19',
+          username: 'HarmonyHero',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 350,
+          rank: 19,
+          fan_since: '2023-12-05',
+          last_week_rank: 20,
+          badges: [],
+          user: { username: 'HarmonyHero', avatar_url: '' },
+          avatar: '🦸'
+        },
+        {
+          id: '20',
+          user_id: 'user-20',
+          username: 'NewListener',
+          avatar_url: '',
+          level: 'Bronze',
+          points: 250,
+          rank: 20,
+          fan_since: '2023-12-10',
+          last_week_rank: 19,
+          badges: [],
+          user: { username: 'NewListener', avatar_url: '' },
+          avatar: '🆕'
         }
       ];
       
@@ -417,10 +558,11 @@ const loadFans = async () => {
       shadowOpacity: 0.1,
       shadowRadius: 8,
       elevation: 4,
+      maxHeight: 520, // Allow space for all content
     },
     header: {
       paddingHorizontal: 16,
-      paddingTop: 20,
+      paddingTop: 16,
       paddingBottom: 12,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
@@ -436,48 +578,47 @@ const loadFans = async () => {
       alignItems: 'center',
     },
     title: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: '700',
       color: themeColors.text,
       marginLeft: 6,
     },
     weekLabel: {
-      fontSize: 12,
+      fontSize: 11,
       color: themeColors.textSecondary,
-      fontWeight: '500',
+      fontWeight: '600',
       backgroundColor: themeColors.background,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 8,
     },
     chartContainer: {
-      maxHeight: 280, // Show ~4-5 fans at once with scrolling
+      flex: 1,
+      maxHeight: 450, // Flexible height to show all fans with scrolling
       overflow: 'hidden',
     },
     chartHeader: {
       flexDirection: 'row',
       paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingVertical: 10,
       backgroundColor: themeColors.background,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.border,
     },
     chartHeaderText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '600',
       color: themeColors.textSecondary,
       textTransform: 'uppercase',
-      flex: 1,
-      textAlign: 'center',
     },
     fanRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: themeColors.border + '30',
-      minHeight: 56,
+      borderBottomColor: themeColors.border + '20',
+      height: 65,
     },
     topThreeRow: {
       backgroundColor: activeTheme === 'dark' ? themeColors.surface + '40' : '#fefbf3',
@@ -488,25 +629,27 @@ const loadFans = async () => {
       borderLeftColor: themeColors.primary,
     },
     rankSection: {
-      width: 45,
+      width: 55,
       alignItems: 'center',
       flexShrink: 0,
+      justifyContent: 'center',
     },
     rankNumber: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '700',
       color: themeColors.text,
       marginBottom: 2,
     },
     topThreeRank: {
       color: '#FFD700',
-      fontSize: 20,
+      fontSize: 24,
+      fontWeight: '800',
     },
     positionChange: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 8,
-      minWidth: 32,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 6,
+      minWidth: 35,
       alignItems: 'center',
     },
     upChange: {
@@ -522,7 +665,7 @@ const loadFans = async () => {
       backgroundColor: themeColors.background,
     },
     positionChangeText: {
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: '600',
     },
     upText: {
@@ -538,15 +681,16 @@ const loadFans = async () => {
       color: themeColors.textSecondary,
     },
     avatarSection: {
-      width: 50,
+      width: 55,
       alignItems: 'center',
       position: 'relative',
       flexShrink: 0,
+      marginHorizontal: 4,
     },
     avatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: themeColors.background,
       justifyContent: 'center',
       alignItems: 'center',
@@ -556,9 +700,12 @@ const loadFans = async () => {
     topThreeAvatar: {
       borderColor: '#FFD700',
       borderWidth: 2,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
     },
     avatarEmoji: {
-      fontSize: 16,
+      fontSize: 20,
     },
     topBadge: {
       position: 'absolute',
@@ -578,15 +725,16 @@ const loadFans = async () => {
     },
     fanInfoSection: {
       flex: 1,
-      marginLeft: 8,
-      marginRight: 8,
+      marginLeft: 10,
+      marginRight: 10,
       minWidth: 0, // Allow text truncation
+      justifyContent: 'center',
     },
     username: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: '600',
       color: themeColors.text,
-      marginBottom: 3,
+      marginBottom: 4,
     },
     currentUserText: {
       color: themeColors.primary,
@@ -597,19 +745,20 @@ const loadFans = async () => {
       alignItems: 'center',
     },
     fanLevelBadge: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
       marginRight: 8,
     },
     fanLevelText: {
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.5,
     },
     pointsText: {
-      fontSize: 12,
+      fontSize: 13,
       color: themeColors.textSecondary,
-      fontWeight: '500',
+      fontWeight: '600',
     },
     trendSection: {
       width: 60,
@@ -622,10 +771,11 @@ const loadFans = async () => {
     },
     scrollableList: {
       flex: 1,
-      maxHeight: 240, // Ensure list doesn't overflow
+      maxHeight: 400, // Allows scrolling through all fans
     },
     listContainer: {
-      paddingBottom: 4,
+      paddingBottom: 16, // Extra padding at bottom for better scrolling
+      flexGrow: 1,
     },
     loadingFooter: {
       paddingVertical: 20,
@@ -685,12 +835,14 @@ const loadFans = async () => {
       </View>
 
       <View style={styles.chartContainer}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartHeaderText}>Rank</Text>
-          <Text style={styles.chartHeaderText}>Last Week</Text>
-          <Text style={styles.chartHeaderText}>Fan</Text>
-          <Text style={styles.chartHeaderText}>Trend</Text>
-        </View>
+        {fans.length > 0 && (
+          <View style={styles.chartHeader}>
+            <Text style={[styles.chartHeaderText, { width: 55, textAlign: 'left' }]}>Rank</Text>
+            <Text style={[styles.chartHeaderText, { width: 55, textAlign: 'center' }]}></Text>
+            <Text style={[styles.chartHeaderText, { flex: 1, textAlign: 'left', marginLeft: 10 }]}>Top Fans</Text>
+            <Text style={[styles.chartHeaderText, { width: 80, textAlign: 'right' }]}>Points</Text>
+          </View>
+        )}
 
           <FlatList
             data={fans}
@@ -710,8 +862,8 @@ const loadFans = async () => {
             }
             ListEmptyComponent={error ? renderError() : renderEmptyState()}
             getItemLayout={(data, index) => ({
-              length: 56, // Updated to match minHeight of fanRow
-              offset: 56 * index,
+              length: 65, // Updated to match height of fanRow
+              offset: 65 * index,
               index,
             })}
           />
