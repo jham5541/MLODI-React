@@ -142,30 +142,18 @@ export default function TicketPurchaseModal({
 
       console.log('[TicketPurchaseModal] Card purchase successful, closing modal');
       
-      // Update the purchase status first
+      // Update the purchase status
       onPurchaseComplete(quantity);
       
       // Close the purchase modal
       onClose();
       
-      // Small delay to ensure modal closes properly before opening the ticket view modal
-      setTimeout(async () => {
-        try {
-          console.log('[TicketPurchaseModal] Fetching tickets for show:', tourDateId);
-          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-          console.log('[TicketPurchaseModal] Fetched tickets:', created);
-          const mapped = created.map(t => ({ 
-            id: t.id, 
-            qrCode: t.qr_code, 
-            seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
-          }));
-          console.log('[TicketPurchaseModal] Mapped tickets ready:', mapped);
-          onTicketsReady(mapped);
-        } catch (e) {
-          console.error('[TicketPurchaseModal] Error fetching tickets after purchase:', e);
-          Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
-        }
-      }, 500); // Increased delay to 500ms
+      // Show success message
+      Alert.alert(
+        'Purchase Successful!',
+        'Your tickets have been purchased. You can view them by clicking the "View Tickets" button.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       Alert.alert(
         'Purchase Failed',
@@ -236,27 +224,18 @@ export default function TicketPurchaseModal({
           artistName: venue.split(' ')[0] // Extract artist name from venue or pass it separately
         });
 
-        // Close the purchase modal first
+        // Update the purchase status
+        onPurchaseComplete(quantity);
+        
+        // Close the purchase modal
         onClose();
         
-        // Small delay to ensure modal closes properly
-        setTimeout(async () => {
-          try {
-            const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-            const mapped = created.map(t => ({ 
-              id: t.id, 
-              qrCode: t.qr_code, 
-              seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
-            }));
-            console.log('Tickets ready:', mapped);
-            onTicketsReady(mapped);
-          } catch (e) {
-            console.error('Error fetching tickets after web3 purchase:', e);
-            Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
-          }
-          // Update the purchase status
-          onPurchaseComplete(quantity);
-        }, 300);
+        // Show success message
+        Alert.alert(
+          'Purchase Successful!',
+          'Your tickets have been purchased. You can view them by clicking the "View Tickets" button.',
+          [{ text: 'OK' }]
+        );
         return;
       }
 
@@ -273,30 +252,18 @@ export default function TicketPurchaseModal({
 
       console.log('[TicketPurchaseModal] Apple Pay purchase successful, closing modal');
       
-      // Update the purchase status first
+      // Update the purchase status
       onPurchaseComplete(quantity);
       
       // Close the purchase modal
       onClose();
       
-      // Small delay to ensure modal closes properly before opening the ticket view modal
-      setTimeout(async () => {
-        try {
-          console.log('[TicketPurchaseModal] Fetching tickets for show:', tourDateId);
-          const created = await ticketPurchaseService.getTicketsForShow(tourDateId, userId);
-          console.log('[TicketPurchaseModal] Fetched tickets:', created);
-          const mapped = created.map(t => ({ 
-            id: t.id, 
-            qrCode: t.qr_code, 
-            seatInfo: t.seat_info ? `${t.seat_info.section || ''} ${t.seat_info.row || ''} ${t.seat_info.seat || ''}`.trim() : undefined 
-          }));
-          console.log('[TicketPurchaseModal] Mapped tickets ready:', mapped);
-          onTicketsReady(mapped);
-        } catch (e) {
-          console.error('[TicketPurchaseModal] Error fetching tickets after Apple Pay purchase:', e);
-          Alert.alert('Error', 'Tickets purchased successfully but unable to display. Please check your tickets from the View Tickets button.');
-        }
-      }, 500); // Increased delay to 500ms
+      // Show success message
+      Alert.alert(
+        'Purchase Successful!',
+        'Your tickets have been purchased. You can view them by clicking the "View Tickets" button.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       Alert.alert(
         'Purchase Failed',

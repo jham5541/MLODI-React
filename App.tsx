@@ -14,6 +14,7 @@ import { RadioProvider } from './src/context/RadioContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
 import PlayBar from './src/components/PlayBar';
+import { PointsNotification } from './src/components/notifications/PointsNotification';
 
 function PlayBarWrapper() {
   const {
@@ -63,6 +64,7 @@ function AppContent() {
         <StatusBar style={activeTheme === 'dark' ? 'light' : 'dark'} />
         <AppNavigator />
         <PlayBarWrapper />
+        <PointsNotification />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

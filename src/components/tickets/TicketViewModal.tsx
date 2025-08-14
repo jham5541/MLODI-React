@@ -217,7 +217,7 @@ export default function TicketViewModal({
       lineHeight: 20,
     },
     ticketPage: {
-      width: screenWidth * 0.9,
+      width: ITEM_WIDTH,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -227,10 +227,10 @@ export default function TicketViewModal({
     },
     ticketScrollContainer: {
       alignItems: 'center',
+      justifyContent: 'flex-start',
       paddingTop: 10,
       paddingHorizontal: 15,
       paddingBottom: 20,
-      minHeight: '100%',
     },
     ticketCard: {
       backgroundColor: themeColors.background,
@@ -260,12 +260,13 @@ export default function TicketViewModal({
     qrCodeContainer: {
       backgroundColor: '#ffffff',
       borderRadius: 16,
-      padding: 20,
+      padding: 16,
       marginBottom: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      width: 160,
-      height: 160,
+      width: 140,
+      height: 140,
+      alignSelf: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.1,
@@ -475,7 +476,10 @@ export default function TicketViewModal({
             decelerationRate={0}
             overScrollMode="never"
             disableIntervalMomentum
-            contentContainerStyle={{ paddingHorizontal: (screenWidth - ITEM_WIDTH) / 2 }}
+            contentContainerStyle={{ 
+              alignItems: 'center',
+              paddingHorizontal: 0 
+            }}
             getItemLayout={(data, index) => ({
               length: ITEM_WIDTH,
               offset: ITEM_WIDTH * index,

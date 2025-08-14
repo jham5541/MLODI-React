@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import { Song as MusicSong } from '../../types/music';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { purchaseService } from '../../services/purchaseService';
 import { demoSongs } from '../../data/demoMusic';
+import { supabase } from '../../lib/supabase/client';
 import PurchaseModal from '../purchase/PurchaseModal';
 
 interface Song {
@@ -55,16 +57,86 @@ export default function PopularSongs({
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Filter songs for the current artist, sort by popularity, and limit them
-    const artistSongs = demoSongs
-      .filter(song => song.artistId === artistId)
-      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-      .slice(0, limit);
-
-    setSongs(artistSongs);
+    fetchPopularSongs();
   }, [artistId, limit]);
+
+  const fetchPopularSongs = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch tracks from the database for the specific artist
+      const { data: tracks, error } = await supabase
+        .from('tracks')
+        .select(`
+          id,
+          title,
+          artist_id,
+          description,
+          duration,
+          audio_url,
+          cover_url,
+          genre,
+          play_count,
+          created_at,
+          profiles!inner(
+            id,
+            display_name,
+            username
+          )
+        `)
+        .eq('artist_id', artistId)
+        .order('play_count', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Error fetching tracks:', error);
+        // Fall back to demo songs if there's an error
+        const artistSongs = demoSongs
+          .filter(song => song.artistId === artistId)
+          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+          .slice(0, limit);
+        setSongs(artistSongs);
+      } else if (tracks && tracks.length > 0) {
+        // Transform the data to match our Song interface
+        const transformedSongs = tracks.map(track => ({
+          id: track.id,
+          title: track.title,
+          artist: track.profiles?.display_name || artistName || 'Unknown Artist',
+          artistId: track.artist_id,
+          album: 'Album', // Default album name
+          coverUrl: track.cover_url || 'https://picsum.photos/400/400?random=' + Math.random(),
+          duration: track.duration || 240,
+          audioUrl: track.audio_url || '',
+          supply: {
+            total: 1000,
+            available: Math.floor(Math.random() * 500) + 500
+          },
+          popularity: track.play_count || 0
+        }));
+        setSongs(transformedSongs);
+      } else {
+        // If no tracks in database, use demo songs
+        const artistSongs = demoSongs
+          .filter(song => song.artistId === artistId)
+          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+          .slice(0, limit);
+        setSongs(artistSongs);
+      }
+    } catch (error) {
+      console.error('Error in fetchPopularSongs:', error);
+      // Fall back to demo songs
+      const artistSongs = demoSongs
+        .filter(song => song.artistId === artistId)
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+        .slice(0, limit);
+      setSongs(artistSongs);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -335,6 +407,20 @@ export default function PopularSongs({
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Popular Songs</Text>
+        </View>
+        <View style={[styles.emptyState, { paddingVertical: 60 }]}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
+          <Text style={[styles.emptyText, { marginTop: 16 }]}>Loading songs...</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (songs.length === 0) {
     return (
       <View style={styles.container}>
@@ -342,7 +428,9 @@ export default function PopularSongs({
           <Text style={styles.title}>Popular Songs</Text>
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No songs available</Text>
+          <Ionicons name="musical-notes-outline" size={48} color={themeColors.textSecondary} />
+          <Text style={[styles.emptyText, { marginTop: 16 }]}>No songs available yet</Text>
+          <Text style={[styles.emptyText, { fontSize: 14, marginTop: 8 }]}>Check back soon for new music!</Text>
         </View>
       </View>
     );
