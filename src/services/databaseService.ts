@@ -178,7 +178,7 @@ class DatabaseService {
       .from('fan_scores')
       .select(`
         *,
-        users(username, avatar_url)
+        user_profiles(username, avatar_url)
       `)
       .eq('artist_id', artistId)
       .order('points', { ascending: false })
@@ -192,8 +192,8 @@ class DatabaseService {
     return (data || []).map((row, index) => ({
       userId: row.user_id,
       artistId: row.artist_id,
-      username: row.users?.username || `User${row.user_id.slice(0, 8)}`,
-      profilePicture: row.users?.avatar_url,
+      username: row.user_profiles?.username || `User${row.user_id.slice(0, 8)}`,
+      profilePicture: row.user_profiles?.avatar_url,
       fanScore: row.points,
       rank: offset + index + 1,
       badges: [], // Will be calculated separately

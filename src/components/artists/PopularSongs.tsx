@@ -13,12 +13,16 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { usePlay } from '../../context/PlayContext';
+import { usePlayTracking } from '../../context/PlayTrackingContext';
 import { Song as MusicSong } from '../../types/music';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { purchaseService } from '../../services/purchaseService';
 import { demoSongs } from '../../data/demoMusic';
+import { sampleSongs } from '../../data/sampleData';
 import { supabase } from '../../lib/supabase/client';
 import PurchaseModal from '../purchase/PurchaseModal';
+import PurchaseSuccessAnimation from '../purchase/PurchaseSuccessAnimation';
+import { getCommonContainerStyle, getCommonTitleStyle } from '../../styles/artistProfileStyles';
 
 interface Song {
   id: string;
@@ -52,16 +56,24 @@ export default function PopularSongs({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { playSong, currentSong, isPlaying } = usePlay();
+  const { songPlayCounts, getSongPlayCount } = usePlayTracking();
   const navigation = useNavigation<NavigationProp>();
   const [songs, setSongs] = useState<Song[]>([]);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedSongForPurchase, setSelectedSongForPurchase] = useState<Song | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  const [purchasedSongTitle, setPurchasedSongTitle] = useState('');
 
   useEffect(() => {
     fetchPopularSongs();
   }, [artistId, limit]);
+
+  // Force re-render when song play counts change
+  useEffect(() => {
+    // This will trigger a re-render when songPlayCounts updates
+  }, [songPlayCounts]);
 
   const fetchPopularSongs = async () => {
     try {
@@ -91,11 +103,19 @@ export default function PopularSongs({
 
       if (error) {
         console.error('Error fetching tracks:', error);
-        // Fall back to demo songs if there's an error
-        const artistSongs = demoSongs
+        // Fall back to sample songs first, then demo songs
+        let artistSongs = sampleSongs
           .filter(song => song.artistId === artistId)
           .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
           .slice(0, limit);
+        
+        // If no songs found in sampleSongs, try demoSongs
+        if (artistSongs.length === 0) {
+          artistSongs = demoSongs
+            .filter(song => song.artistId === artistId)
+            .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+            .slice(0, limit);
+        }
         setSongs(artistSongs);
       } else if (tracks && tracks.length > 0) {
         // Transform the data to match our Song interface
@@ -118,20 +138,36 @@ export default function PopularSongs({
         }));
         setSongs(transformedSongs);
       } else {
-        // If no tracks in database, use demo songs
-        const artistSongs = demoSongs
+        // If no tracks in database, use sample songs first, then demo songs
+        let artistSongs = sampleSongs
           .filter(song => song.artistId === artistId)
           .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
           .slice(0, limit);
+        
+        // If no songs found in sampleSongs, try demoSongs
+        if (artistSongs.length === 0) {
+          artistSongs = demoSongs
+            .filter(song => song.artistId === artistId)
+            .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+            .slice(0, limit);
+        }
         setSongs(artistSongs);
       }
     } catch (error) {
       console.error('Error in fetchPopularSongs:', error);
-      // Fall back to demo songs
-      const artistSongs = demoSongs
+      // Fall back to sample songs first, then demo songs
+      let artistSongs = sampleSongs
         .filter(song => song.artistId === artistId)
         .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
         .slice(0, limit);
+      
+      // If no songs found in sampleSongs, try demoSongs
+      if (artistSongs.length === 0) {
+        artistSongs = demoSongs
+          .filter(song => song.artistId === artistId)
+          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+          .slice(0, limit);
+      }
       setSongs(artistSongs);
     } finally {
       setLoading(false);
@@ -185,6 +221,10 @@ export default function PopularSongs({
 
   const handlePurchaseComplete = () => {
     setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
+    if (selectedSongForPurchase) {
+      setPurchasedSongTitle(selectedSongForPurchase.title);
+      setShowPurchaseSuccess(true);
+    }
   };
 
   const handleViewAll = () => {
@@ -205,21 +245,21 @@ export default function PopularSongs({
     return null;
   };
 
+  const commonStyles = getCommonContainerStyle(themeColors);
+  const titleStyles = getCommonTitleStyle(themeColors);
+  
   const styles = StyleSheet.create({
     container: {
-      marginBottom: 16,
+      ...commonStyles.container,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
-      paddingHorizontal: 16,
+      marginBottom: 16,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: themeColors.text,
+      ...titleStyles.sectionTitle,
     },
     viewAllText: {
       fontSize: 14,
@@ -231,15 +271,11 @@ export default function PopularSongs({
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: themeColors.surface,
+      backgroundColor: themeColors.background,
       marginBottom: 8,
-      marginHorizontal: 16,
       borderRadius: 12,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 2,
+      borderWidth: 1,
+      borderColor: themeColors.border,
     },
     songItemPurchased: {
       backgroundColor: themeColors.primary + '20',
@@ -400,7 +436,7 @@ export default function PopularSongs({
             </Text>
             <View style={styles.popularityBadge}>
               <Ionicons name="play" size={10} color={themeColors.primary} />
-              <Text style={styles.popularityText}>{formatNumber(item.play_count || 0)}</Text>
+              <Text style={styles.popularityText}>{formatNumber((item.play_count || 0) + getSongPlayCount(item.id))}</Text>
             </View>
             {item.track_reactions?.length > 0 && (
               <View style={[styles.popularityBadge, { marginLeft: 8 }]}>
@@ -515,6 +551,15 @@ export default function PopularSongs({
           onPurchaseComplete={handlePurchaseComplete}
         />
       )}
+      
+      <PurchaseSuccessAnimation
+        visible={showPurchaseSuccess}
+        songTitle={purchasedSongTitle}
+        onAnimationComplete={() => {
+          setShowPurchaseSuccess(false);
+          setPurchasedSongTitle('');
+        }}
+      />
     </View>
   );
 }

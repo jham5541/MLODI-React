@@ -74,57 +74,9 @@ export default function EngagementChallenges({
   useEffect(() => {
     // Load challenges and initialize progress tracking
     const initializeChallenges = async () => {
-      // Load basic challenge data
-      loadChallenges();
-      loadChallengeSets();
-
-      // Get current progress for each challenge
-      const updatedChallenges = await Promise.all(
-        challenges.map(async (challenge) => {
-          const progress = await challengeProgressService.getProgress(challenge.id);
-          if (progress) {
-            return {
-              ...challenge,
-              progress: progress.currentValue,
-              isCompleted: progress.status === 'completed'
-            };
-          }
-          return challenge;
-        })
-      );
-
-      setChallenges(updatedChallenges);
-
-      // Set up listeners for each active challenge
-      updatedChallenges.forEach(challenge => {
-        if (!challenge.isCompleted && !challenge.isLocked) {
-          challengeProgressService.addActionListener(challenge.id, (action) => {
-            console.log('Challenge action:', action);
-            
-            // Update local state
-            setChallenges(prev => prev.map(c => {
-              if (c.id === challenge.id) {
-                return {
-                  ...c,
-                  progress: action.progress.currentValue,
-                  isCompleted: action.progress.status === 'completed'
-                };
-              }
-              return c;
-            }));
-
-            // Start animation
-            const anim = progressAnimations[challenge.id];
-            if (anim) {
-              Animated.timing(anim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: false,
-              }).start();
-            }
-          });
-        }
-      });
+      // Load challenges from database
+      await loadChallenges();
+      await loadChallengeSets();
     };
 
     initializeChallenges();
@@ -159,8 +111,92 @@ export default function EngagementChallenges({
     }, 300);
   }, [challenges]);
 
-  const loadChallenges = () => {
-    // Mock daily challenges
+  const loadChallenges = async () => {
+    try {
+      // Load challenges from Supabase
+      const { supabase } = await import('../../lib/supabase');
+      const { data: dbChallenges, error } = await supabase
+        .from('challenges')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('Error loading challenges:', error);
+        // Fall back to mock data if needed
+        loadMockChallenges();
+        return;
+      }
+
+      // Transform database challenges to component format
+      const transformedChallenges: Challenge[] = await Promise.all(
+        (dbChallenges || []).map(async (dbChallenge) => {
+          // Get user progress for this challenge
+          const progress = await challengeProgressService.getProgress(dbChallenge.id);
+          
+          return {
+            id: dbChallenge.id,
+            title: dbChallenge.title,
+            description: dbChallenge.description,
+            icon: dbChallenge.icon,
+            category: dbChallenge.category,
+            difficulty: dbChallenge.difficulty,
+            progress: progress?.currentValue || 0,
+            target: dbChallenge.target_value,
+            pointsReward: dbChallenge.points_reward,
+            badgeReward: dbChallenge.badge_reward,
+            expiresAt: dbChallenge.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            isCompleted: progress?.status === 'completed' || false,
+            completedAt: progress?.status === 'completed' ? progress.updatedAt : undefined,
+            requirements: Array.isArray(dbChallenge.requirements) ? dbChallenge.requirements : [],
+            tips: Array.isArray(dbChallenge.tips) ? dbChallenge.tips : [],
+            unlockLevel: dbChallenge.unlock_level,
+            isLocked: userLevel < dbChallenge.unlock_level,
+            challenge_type: dbChallenge.challenge_type, // Store the challenge type for filtering
+          } as Challenge & { challenge_type?: string };
+        })
+      );
+
+      setChallenges(transformedChallenges);
+
+      // Set up listeners for each active challenge
+      transformedChallenges.forEach(challenge => {
+        if (!challenge.isCompleted && !challenge.isLocked) {
+          challengeProgressService.addActionListener(challenge.id, (action) => {
+            console.log('Challenge action:', action);
+            
+            // Update local state
+            setChallenges(prev => prev.map(c => {
+              if (c.id === challenge.id) {
+                return {
+                  ...c,
+                  progress: action.progress.currentValue,
+                  isCompleted: action.progress.status === 'completed'
+                };
+              }
+              return c;
+            }));
+
+            // Start animation
+            const anim = progressAnimations[challenge.id];
+            if (anim) {
+              Animated.timing(anim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: false,
+              }).start();
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in loadChallenges:', error);
+      // Fall back to mock data
+      loadMockChallenges();
+    }
+  };
+
+  const loadMockChallenges = () => {
+    // Mock daily challenges as fallback
     const mockChallenges: Challenge[] = [
       {
         id: 'daily_1',
@@ -350,8 +386,9 @@ export default function EngagementChallenges({
         animation.setValue(0);
       }
 
-      // Start challenge in service
-      await challengeProgressService.startChallenge(challengeId, challenge.target);
+      // Start challenge in service with artist-specific metadata
+      const metadata = challenge.category === 'listening' ? { artistId } : undefined;
+      await challengeProgressService.startChallenge(challengeId, challenge.target, artistId, metadata);
 
       // Add listener for actions
       challengeProgressService.addActionListener(challengeId, (action) => {
@@ -420,9 +457,39 @@ export default function EngagementChallenges({
     setShowDetailModal(false);
   };
 
-  const getDailyChallenges = () => challenges.filter(c => c.id.startsWith('daily_'));
-  const getWeeklyChallenges = () => challenges.filter(c => c.id.startsWith('weekly_'));
-  const getSpecialChallenges = () => challenges.filter(c => c.id.startsWith('special_') || c.id.startsWith('legendary_'));
+  const getDailyChallenges = () => {
+    // For database challenges, we need to check the challenge_type from the backend
+    // For mock challenges, we check the id prefix
+    return challenges.filter(c => {
+      // Check if this is a database challenge with challenge_type
+      const challengeData = c as any;
+      if (challengeData.challenge_type) {
+        return challengeData.challenge_type === 'daily';
+      }
+      // Fallback to id-based filtering for mock data
+      return c.id.startsWith('daily_');
+    });
+  };
+
+  const getWeeklyChallenges = () => {
+    return challenges.filter(c => {
+      const challengeData = c as any;
+      if (challengeData.challenge_type) {
+        return challengeData.challenge_type === 'weekly';
+      }
+      return c.id.startsWith('weekly_');
+    });
+  };
+
+  const getSpecialChallenges = () => {
+    return challenges.filter(c => {
+      const challengeData = c as any;
+      if (challengeData.challenge_type) {
+        return challengeData.challenge_type === 'special' || challengeData.challenge_type === 'seasonal';
+      }
+      return c.id.startsWith('special_') || c.id.startsWith('legendary_');
+    });
+  };
 
   const getCurrentChallenges = () => {
     switch (activeTab) {

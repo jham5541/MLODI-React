@@ -60,7 +60,8 @@ export interface PaymentMethod {
   description?: string;
 }
 
-import { supabase } from './databaseService';
+import { Alert } from 'react-native';
+import { supabase } from '../lib/supabase';
 
 class PurchaseService {
   private purchasedSongs: Map<string, PurchasedSong> = new Map();
@@ -202,7 +203,21 @@ class PurchaseService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       console.error('User must be logged in to make purchases');
-      return false;
+      
+      // Demo mode: Allow purchases without authentication in development
+      if (__DEV__) {
+        console.log('Demo mode: Processing purchase without authentication');
+        // Continue with demo purchase
+      } else {
+        Alert.alert(
+          'Authentication Required',
+          'Please sign in to purchase songs',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+        return false;
+      }
     }
     try {
       // Mock Apple Pay implementation
@@ -226,25 +241,30 @@ class PurchaseService {
       // Store in local map
       this.purchasedSongs.set(songId, purchasedSong);
 
-      // Store in Supabase
-      const { error } = await supabase
-        .from('song_purchases')
-        .insert([
-          {
-            song_id: songId,
-            user_id: user.id,
-            song_title: 'Song Title', // TODO: Get actual song title
-            artist_name: 'Artist Name', // TODO: Get actual artist name
-            count: purchasedSong.count,
-            purchase_date: purchasedSong.purchaseDate.toISOString(),
-            payment_method: purchasedSong.paymentMethod,
-            price: purchasedSong.price
-          }
-        ]);
+      // Store in Supabase only if user is authenticated
+      if (user) {
+        const { error } = await supabase
+          .from('song_purchases')
+          .insert([
+            {
+              song_id: songId,
+              user_id: user.id,
+              song_title: 'Song Title', // TODO: Get actual song title
+              artist_name: 'Artist Name', // TODO: Get actual artist name
+              count: purchasedSong.count,
+              purchase_date: purchasedSong.purchaseDate.toISOString(),
+              payment_method: purchasedSong.paymentMethod,
+              price: purchasedSong.price
+            }
+          ]);
 
-      if (error) {
-        console.error('Failed to store song purchase:', error);
-        return false;
+        if (error) {
+          console.error('Failed to store song purchase:', error);
+          // In demo mode, continue anyway
+          if (!__DEV__) {
+            return false;
+          }
+        }
       }
 
       return true;
@@ -259,7 +279,21 @@ class PurchaseService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       console.error('User must be logged in to make purchases');
-      return false;
+      
+      // Demo mode: Allow purchases without authentication in development
+      if (__DEV__) {
+        console.log('Demo mode: Processing purchase without authentication');
+        // Continue with demo purchase
+      } else {
+        Alert.alert(
+          'Authentication Required',
+          'Please sign in to purchase songs',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+        return false;
+      }
     }
     try {
       // Mock Web3 wallet implementation

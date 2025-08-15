@@ -4,11 +4,13 @@ interface ChallengeProgress {
   id: string;
   userId: string;
   challengeId: string;
+  artistId?: string; // Add artist tracking
   currentValue: number;
   targetValue: number;
   startedAt: string;
   updatedAt: string;
   status: 'active' | 'completed' | 'expired';
+  metadata?: Record<string, any>; // Store additional data like song IDs
 }
 
 interface ChallengeActionLog {
@@ -26,7 +28,7 @@ class ChallengeProgressService {
   private initialized = false;
 
   private async ensureInitialized() {
-    if (!initialized) {
+    if (!this.initialized) {
       await this.loadActiveProgress();
       this.initialized = true;
     }
@@ -61,7 +63,7 @@ class ChallengeProgressService {
     });
   }
 
-  async startChallenge(challengeId: string, targetValue: number) {
+  async startChallenge(challengeId: string, targetValue: number, artistId?: string, metadata?: Record<string, any>) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User must be authenticated to start a challenge');
@@ -75,24 +77,29 @@ class ChallengeProgressService {
       id: `prog_${Date.now()}`,
       userId: user.id,
       challengeId,
+      artistId,
       currentValue: 0,
       targetValue,
       startedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      status: 'active'
+      status: 'active',
+      metadata: metadata || {}
     };
 
-    // Save to database
+// Save to database with upsert
     const { error } = await supabase
       .from('challenge_progress')
-      .insert({
+      .upsert({
         user_id: user.id,
         challenge_id: challengeId,
         current_value: 0,
         target_value: targetValue,
         started_at: progress.startedAt,
         updated_at: progress.updatedAt,
-        status: 'active'
+        status: 'active',
+        metadata: metadata || {}
+      }, {
+        onConflict: ['user_id', 'challenge_id', 'status']
       });
 
     if (error) {

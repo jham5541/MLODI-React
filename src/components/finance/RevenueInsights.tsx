@@ -8,6 +8,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase/client';
+import artistAnalyticsService from '../../services/artistAnalyticsService';
+import { getCommonContainerStyle, getCommonTitleStyle } from '../../styles/artistProfileStyles';
 
 interface RevenueData {
   totalRevenue: number;
@@ -24,11 +26,13 @@ interface RevenueData {
 interface RevenueInsightsProps {
   artistId: string;
   artistName?: string;
+  refreshKey?: number;
 }
 
 export default function RevenueInsights({
   artistId,
   artistName = 'Artist',
+  refreshKey = 0,
 }: RevenueInsightsProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -40,22 +44,53 @@ export default function RevenueInsights({
       try {
         setLoading(true);
         
-        // Using mock data to demonstrate UI changes
-        const mockData = {
-          totalRevenue: 25.5, // 25.5% increase in artist interest
-          monthlyGrowth: 25.5,
-          streamingRevenue: 1000, // 1000 total streams
-          merchandiseRevenue: {
-            available: 100, // 100 items available
-            total: 380, // out of 380 total items
-          },
-          ticketSales: 220, // 220 tickets sold
-          subscriptions: 25, // 25 active subscribers
-        };
+        // Fetch real analytics data
+        const [analytics, breakdown] = await Promise.all([
+          artistAnalyticsService.getArtistAnalytics(artistId),
+          artistAnalyticsService.getArtistMetricBreakdown(artistId)
+        ]);
 
-        setRevenueData(mockData);
+        if (analytics && breakdown) {
+          setRevenueData({
+            totalRevenue: analytics.interestChangePercentage,
+            monthlyGrowth: analytics.monthlyGrowth,
+            streamingRevenue: breakdown.streaming.plays,
+            merchandiseRevenue: breakdown.merchandise,
+            ticketSales: breakdown.tickets.sold,
+            subscriptions: breakdown.subscriptions.active,
+          });
+        } else {
+          // Fallback to empty data if no real data available
+          setRevenueData({
+            totalRevenue: 0,
+            monthlyGrowth: 0,
+            streamingRevenue: 0,
+            merchandiseRevenue: {
+              available: 0,
+              total: 0
+            },
+            ticketSales: 0,
+            subscriptions: 0
+          });
+        }
+        
+        // Trigger analytics aggregation for future use
+        artistAnalyticsService.triggerAnalyticsAggregation(artistId).catch(console.error);
       } catch (error) {
         console.error('Error fetching revenue data:', error);
+        // Fallback to mock data on error
+        const mockData = {
+          totalRevenue: 25.5,
+          monthlyGrowth: 25.5,
+          streamingRevenue: 1000,
+          merchandiseRevenue: {
+            available: 100,
+            total: 380,
+          },
+          ticketSales: 220,
+          subscriptions: 25,
+        };
+        setRevenueData(mockData);
       } finally {
         setLoading(false);
       }
@@ -64,7 +99,7 @@ export default function RevenueInsights({
     if (artistId) {
       fetchRevenueData();
     }
-  }, [artistId]);
+  }, [artistId, refreshKey]);
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -78,13 +113,13 @@ export default function RevenueInsights({
   const formatPercentage = (percentage: number): string => {
     return `${percentage > 0 ? '+' : ''}${percentage.toFixed(1)}%`;
   };
+  
+  const commonStyles = getCommonContainerStyle(themeColors);
+  const titleStyles = getCommonTitleStyle(themeColors);
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: themeColors.surface,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
+      ...commonStyles.container,
     },
     header: {
       flexDirection: 'row',
@@ -93,9 +128,7 @@ export default function RevenueInsights({
       marginBottom: 20,
     },
     title: {
-      fontSize: 20,
-      fontWeight: '800',
-      color: themeColors.text,
+      ...titleStyles.sectionTitle,
     },
     totalRevenueSection: {
       alignItems: 'center',
@@ -160,6 +193,19 @@ export default function RevenueInsights({
       fontWeight: '700',
       color: themeColors.text,
     },
+    breakdownRight: {
+      alignItems: 'flex-end',
+    },
+    breakdownRevenue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    breakdownCount: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      marginTop: 2,
+    },
     emptyState: {
       alignItems: 'center',
       paddingVertical: 40,
@@ -175,7 +221,7 @@ export default function RevenueInsights({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Revenue Insights</Text>
+          <Text style={styles.title}>Insights</Text>
         </View>
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Loading data...</Text>
@@ -188,10 +234,10 @@ export default function RevenueInsights({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Revenue Insights</Text>
+          <Text style={styles.title}>Insights</Text>
         </View>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No revenue data available</Text>
+          <Text style={styles.emptyText}>No data available</Text>
         </View>
       </View>
     );
@@ -252,7 +298,7 @@ export default function RevenueInsights({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Revenue Insights</Text>
+        <Text style={styles.title}>Insights</Text>
       </View>
 
       {/* Total Revenue */}

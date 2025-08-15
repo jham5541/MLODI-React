@@ -22,11 +22,13 @@ interface ArtistPlayStats {
 
 interface PlayTrackingContextType {
   artistPlayStats: Record<string, ArtistPlayStats>;
+  songPlayCounts: Record<string, number>;
   currentSession: PlaySession | null;
   updateProgress: (progress: number) => Promise<void>;
   getArtistTotalPlays: (artistId: string) => number;
   getArtistSongPlays: (artistId: string) => number;
   getArtistVideoPlays: (artistId: string) => number;
+  getSongPlayCount: (songId: string) => number;
 }
 
 const PlayTrackingContext = createContext<PlayTrackingContextType | undefined>(undefined);
@@ -37,6 +39,7 @@ interface PlayTrackingProviderProps {
 
 export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ children }) => {
   const [artistPlayStats, setArtistPlayStats] = useState<Record<string, ArtistPlayStats>>({});
+  const [songPlayCounts, setSongPlayCounts] = useState<Record<string, number>>({});
   const [currentSession, setCurrentSession] = useState<PlaySession | null>(null);
   const { currentSong, isPlaying } = usePlay();
 
@@ -145,6 +148,16 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
           [currentSession.artistId]: updatedStats,
         };
       });
+
+      // Update song play counts
+      setSongPlayCounts(prev => {
+        const currentCount = prev[currentSession.songId] || 0;
+        console.log('PlayTracking: Updated play count for song', currentSession.songId, currentCount + 1);
+        return {
+          ...prev,
+          [currentSession.songId]: currentCount + 1,
+        };
+      });
     }
   };
 
@@ -160,13 +173,19 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
     return artistPlayStats[artistId]?.videoPlays || 0;
   };
 
+  const getSongPlayCount = (songId: string): number => {
+    return songPlayCounts[songId] || 0;
+  };
+
   const value: PlayTrackingContextType = {
     artistPlayStats,
+    songPlayCounts,
     currentSession,
     updateProgress,
     getArtistTotalPlays,
     getArtistSongPlays,
     getArtistVideoPlays,
+    getSongPlayCount,
   };
 
   return (

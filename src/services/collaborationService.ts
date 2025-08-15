@@ -65,7 +65,7 @@ class CollaborationService {
       .from('collaboration_projects')
       .select(`
         *,
-        owner:profiles!owner_id (
+        owner:user_profiles!owner_id (
           id,
           username,
           display_name,
@@ -74,7 +74,7 @@ class CollaborationService {
         collaborators:collaborators (
           id,
           status,
-          user:profiles!user_id (
+          user:user_profiles!user_id (
             id,
             username,
             display_name,
@@ -99,7 +99,7 @@ class CollaborationService {
       .from('collaboration_projects')
       .select(`
         *,
-        owner:profiles!owner_id (
+        owner:user_profiles!owner_id (
           id,
           username,
           display_name,
@@ -109,7 +109,7 @@ class CollaborationService {
           id,
           status,
           user_id,
-          user:profiles!user_id (
+          user:user_profiles!user_id (
             id,
             username,
             display_name,
@@ -333,7 +333,7 @@ class CollaborationService {
       .from('collaboration_updates')
       .select(`
         *,
-        user:profiles!user_id (
+        user:user_profiles!user_id (
           username,
           display_name,
           avatar_url
@@ -393,7 +393,7 @@ class CollaborationService {
               .from('collaboration_updates')
               .select(`
                 *,
-                user:profiles!user_id (
+                user:user_profiles!user_id (
                   username,
                   display_name,
                   avatar_url
@@ -439,7 +439,7 @@ class CollaborationService {
               .from('collaboration_projects')
               .select(`
                 *,
-                owner:profiles!owner_id (
+                owner:user_profiles!owner_id (
                   id,
                   username,
                   display_name,
@@ -448,7 +448,7 @@ class CollaborationService {
                 collaborators:collaborators (
                   id,
                   status,
-                  user:profiles!user_id (
+                  user:user_profiles!user_id (
                     id,
                     username,
                     display_name,

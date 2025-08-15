@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase/client';
+import { useMockSubscriptionStore } from './mockSubscriptionStore';
 
 export interface SubscriptionPlan {
   id: string;
   name: string;
-  tier: 'free' | 'fan' | 'enterprise';
+    tier: 'free' | 'fan' | 'superfan';
   price: {
     usd: number;
     eth: number;
@@ -17,16 +18,17 @@ export interface SubscriptionPlan {
 export interface UserSubscription {
   id: string;
   user_id: string;
-  plan_id: string;
-  tier: 'free' | 'fan' | 'enterprise';
+  plan_id?: string;
+  tier?: 'free' | 'fan' | 'superfan';
   status: 'active' | 'expired' | 'cancelled';
-  start_date: string;
-  end_date: string;
-  auto_renew: boolean;
-  payment_method: 'card' | 'apple' | 'eth';
-  transaction_hash?: string;
-  created_at: string;
-  updated_at: string;
+  started_at: string;
+  expires_at?: string;
+  auto_renew?: boolean;
+  payment_method?: 'card' | 'apple' | 'eth';
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+  subscription_plans?: SubscriptionPlan;
 }
 
 interface SubscriptionState {
@@ -80,14 +82,15 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000003', // Fixed UUID for enterprise plan
-    name: 'Enterprise',
-    tier: 'enterprise',
+    name: 'Superfan',
+    tier: 'superfan',
     price: { usd: 29.99, eth: 0.015 },
     duration: 30,
     features: [
       'Everything in Fan tier',
       'Lossless audio quality',
-      'Advanced analytics',
+      'Artist engagement metrics',
+      'AI-powered insights',
       'Priority customer support',
       'Multiple device streaming',
       'Commercial usage rights',
@@ -97,7 +100,8 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   }
 ];
 
-export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
+// Use mock store in development, real store in production
+export const useSubscriptionStore = __DEV__ ? useMockSubscriptionStore as any : create<SubscriptionState>((set, get) => ({
   subscription: null,
   selectedPlan: null,
   isLoading: false,
@@ -109,8 +113,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select('*')
+        .from('platform_subscriptions')
+        .select('*, subscription_plans(*)')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -148,11 +152,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       const existingSubscription = get().subscription;
       if (existingSubscription) {
         await supabase
-          .from('user_subscriptions')
+          .from('platform_subscriptions')
           .update({ 
-            status: 'cancelled', 
-            auto_renew: false,
-            updated_at: new Date().toISOString()
+            status: 'cancelled',
+            metadata: {
+              ...existingSubscription.metadata,
+              auto_renew: false,
+              cancelled_at: new Date().toISOString()
+            }
           })
           .eq('id', existingSubscription.id);
       }
@@ -177,22 +184,24 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
       const subscriptionData = {
         user_id: user.id,
-        plan_id: selectedPlan.id, // Now using the UUID from the plan
-        tier: selectedPlan.tier,
+        plan_id: selectedPlan.id,
         status: 'active' as const,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        auto_renew: selectedPlan.tier !== 'free',
-        payment_method: paymentMethod,
-        transaction_hash: transactionHash,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        started_at: startDate.toISOString(),
+        expires_at: endDate.toISOString(),
+        metadata: {
+          tier: selectedPlan.tier,
+          auto_renew: selectedPlan.tier !== 'free',
+          payment_method: paymentMethod,
+          transaction_hash: transactionHash,
+          price: selectedPlan.price.usd,
+          currency: 'USD'
+        }
       };
 
       const { data: newSubscription, error } = await supabase
-        .from('user_subscriptions')
+        .from('platform_subscriptions')
         .insert(subscriptionData)
-        .select()
+        .select('*, subscription_plans(*)')
         .single();
 
       if (error) throw error;
@@ -249,11 +258,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
     try {
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('platform_subscriptions')
         .update({ 
-          status: 'cancelled', 
-          auto_renew: false,
-          updated_at: new Date().toISOString()
+          status: 'cancelled',
+          metadata: {
+            ...subscription.metadata,
+            auto_renew: false,
+            cancelled_at: new Date().toISOString()
+          }
         })
         .eq('id', subscription.id);
 
@@ -272,7 +284,11 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       }
 
       set({ 
-        subscription: { ...subscription, status: 'cancelled', auto_renew: false },
+        subscription: { 
+          ...subscription, 
+          status: 'cancelled', 
+          metadata: { ...subscription.metadata, auto_renew: false } 
+        },
         isLoading: false 
       });
     } catch (error: any) {
@@ -288,19 +304,25 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const newAutoRenew = !subscription.auto_renew;
+      const currentAutoRenew = subscription.metadata?.auto_renew ?? true;
+      const newAutoRenew = !currentAutoRenew;
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('platform_subscriptions')
         .update({ 
-          auto_renew: newAutoRenew,
-          updated_at: new Date().toISOString()
+          metadata: {
+            ...subscription.metadata,
+            auto_renew: newAutoRenew
+          }
         })
         .eq('id', subscription.id);
 
       if (error) throw error;
 
       set({ 
-        subscription: { ...subscription, auto_renew: newAutoRenew },
+        subscription: { 
+          ...subscription, 
+          metadata: { ...subscription.metadata, auto_renew: newAutoRenew } 
+        },
         isLoading: false 
       });
     } catch (error: any) {
@@ -312,10 +334,18 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   hasActiveSubscription: () => {
     const { subscription } = get();
     if (!subscription || subscription.status !== 'active') return false;
-    if (subscription.tier === 'free') return false;
     
-    const endDate = new Date(subscription.end_date);
-    return endDate > new Date();
+    // Check tier from metadata or subscription_plans
+    const tier = subscription.metadata?.tier || subscription.subscription_plans?.tier || subscription.tier;
+    if (tier === 'free') return false;
+    
+    // Check expiry date
+    if (subscription.expires_at) {
+      const expiryDate = new Date(subscription.expires_at);
+      return expiryDate > new Date();
+    }
+    
+    return true;
   },
 
   getSubscriptionPlans: () => SUBSCRIPTION_PLANS

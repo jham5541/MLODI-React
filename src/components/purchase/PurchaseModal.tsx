@@ -56,21 +56,14 @@ export default function PurchaseModal({
       }
 
       if (success) {
-        Alert.alert(
-          'Purchase Successful!',
-          `You have successfully purchased "${songTitle}" by ${artist}`,
-          [
-            {
-              text: 'OK',
-              onPress: async () => {
-                // Refresh the user's library to show the new purchase
-                await loadLibrary();
-                onPurchaseComplete();
-                onClose();
-              },
-            },
-          ]
-        );
+        // Close modal immediately
+        onClose();
+        
+        // Trigger purchase complete callback (which will show the animation)
+        onPurchaseComplete();
+        
+        // Refresh the user's library
+        await loadLibrary();
       } else {
         Alert.alert(
           'Purchase Failed',

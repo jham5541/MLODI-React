@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { subscriptionService, SubscriptionPlan } from '../../services/subscriptionService';
 
 interface ArtistSubscriptionModalProps {
@@ -34,6 +35,7 @@ export default function ArtistSubscriptionModal({
 }: ArtistSubscriptionModalProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMethod, setProcessingMethod] = useState<string | null>(null);
 
@@ -88,14 +90,22 @@ export default function ArtistSubscriptionModal({
     setProcessingMethod(paymentMethod);
 
     try {
+      console.log(`Starting subscription for artist ${artist.id} (${artist.name}) with method ${paymentMethod}`);
+      
+      if (!user) {
+        throw new Error('You must be logged in to subscribe');
+      }
+      
       const success = await subscriptionService.subscribeToArtist(
         artist.id,
         artist.name,
         subscriptionPlan.price,
-        paymentMethod as 'apple_pay' | 'web3_wallet' | 'credit_card'
+        paymentMethod as 'apple_pay' | 'web3_wallet' | 'credit_card',
+        user.id
       );
 
       if (success) {
+        console.log('Subscription successful!');
         Alert.alert(
           'Subscription Successful!',
           `You are now subscribed to ${artist.name}! You have access to all exclusive content and features.`,
@@ -110,6 +120,7 @@ export default function ArtistSubscriptionModal({
           ]
         );
       } else {
+        console.log('Subscription failed - returned false');
         Alert.alert(
           'Subscription Failed',
           'There was an error processing your subscription. Please try again.',
@@ -117,9 +128,11 @@ export default function ArtistSubscriptionModal({
         );
       }
     } catch (error) {
+      console.error('Subscription error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
         'Subscription Failed',
-        'There was an error processing your subscription. Please try again.',
+        `Error: ${errorMessage}`,
         [{ text: 'OK' }]
       );
     } finally {

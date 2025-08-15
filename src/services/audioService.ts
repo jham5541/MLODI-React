@@ -1,10 +1,13 @@
 import { Audio } from 'expo-audio';
 import { Song } from '../types/music';
+import { listeningChallengeService } from './listeningChallengeService';
 
 class AudioService {
   private sound: Audio.Sound | null = null;
   private currentSong: Song | null = null;
   private isInitialized = false;
+  private currentSessionId: string | null = null;
+  private progressInterval: NodeJS.Timeout | null = null;
 
   async initialize() {
     if (this.isInitialized) return;
@@ -29,6 +32,12 @@ class AudioService {
     try {
       await this.initialize();
       
+      // Complete previous session if exists
+      if (this.currentSessionId) {
+        const position = await this.getPosition();
+        await listeningChallengeService.completeSongPlay(this.currentSessionId, position * 1000);
+      }
+      
       // Stop current song if playing
       if (this.sound) {
         await this.sound.unloadAsync();
@@ -42,6 +51,12 @@ class AudioService {
       
       this.sound = sound;
       this.currentSong = song;
+      
+      // Start challenge tracking
+      this.currentSessionId = await listeningChallengeService.startSongPlay(song);
+      
+      // Start progress tracking
+      this.startProgressTracking();
     } catch (error) {
       console.error('Error playing song:', error);
       throw error;
@@ -63,6 +78,7 @@ class AudioService {
     try {
       if (this.sound) {
         await this.sound.playAsync();
+        this.startProgressTracking();
       }
     } catch (error) {
       console.error('Error playing:', error);
@@ -73,6 +89,7 @@ class AudioService {
     try {
       if (this.sound) {
         await this.sound.pauseAsync();
+        this.stopProgressTracking();
       }
     } catch (error) {
       console.error('Error pausing:', error);
@@ -175,6 +192,40 @@ class AudioService {
     }, 1000);
 
     return { remove: () => clearInterval(interval) };
+  }
+
+  private startProgressTracking() {
+    if (this.progressInterval) return;
+    
+    this.progressInterval = setInterval(async () => {
+      if (this.currentSessionId && this.sound) {
+        const position = await this.getPosition();
+        await listeningChallengeService.updateSongProgress(
+          this.currentSessionId,
+          position * 1000 // Convert to milliseconds
+        );
+        
+        // Check if song ended
+        const state = await this.getState();
+        const duration = await this.getDuration();
+        if (state === 'paused' && position >= duration - 1) {
+          // Song ended
+          await listeningChallengeService.completeSongPlay(
+            this.currentSessionId,
+            position * 1000
+          );
+          this.currentSessionId = null;
+          this.stopProgressTracking();
+        }
+      }
+    }, 1000);
+  }
+
+  private stopProgressTracking() {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
   }
 }
 

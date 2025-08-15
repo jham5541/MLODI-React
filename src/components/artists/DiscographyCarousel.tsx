@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
+import { getCommonContainerStyle, getCommonTitleStyle } from '../../styles/artistProfileStyles';
 
 interface Album {
   id: string;
@@ -233,13 +234,13 @@ export default function DiscographyCarousel({
       </View>
     </View>
   );
+  
+  const commonStyles = getCommonContainerStyle(themeColors);
+  const titleStyles = getCommonTitleStyle(themeColors);
 
   const styles = StyleSheet.create({
     container: {
-      backgroundColor: themeColors.surface,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
+      ...commonStyles.container,
     },
     header: {
       flexDirection: 'row',
@@ -248,9 +249,7 @@ export default function DiscographyCarousel({
       marginBottom: 16,
     },
     title: {
-      fontSize: 20,
-      fontWeight: '800',
-      color: themeColors.text,
+      ...titleStyles.sectionTitle,
     },
     viewAllButton: {
       paddingVertical: 6,

@@ -397,6 +397,36 @@ class MusicService {
   }
 
   async getPopularSongs(limit = 20) {
+    // Try ML-style popularity RPC first
+    try {
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_global_popular_tracks', { limit_count: limit });
+
+      if (!rpcError && rpcData) {
+        const songs = rpcData as Song[];
+        if (songs.length > 0) {
+          const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
+          if (artistIds.length > 0) {
+            const { data: artists } = await supabase
+              .from('artists_public_view')
+              .select('*')
+              .in('id', artistIds);
+            if (artists) {
+              const artistMap = new Map(artists.map(a => [a.id, a]));
+              return songs.map(song => ({
+                ...song,
+                artist: artistMap.get(song.artist_id)
+              }));
+            }
+          }
+        }
+        return songs;
+      }
+    } catch (e) {
+      console.warn('Falling back to simple popularity due to RPC error:', e?.message || e);
+    }
+
+    // Fallback: simple ordering by play_count
     const { data, error } = await supabase
       .from('tracks_public_view')
       .select('*')
@@ -405,7 +435,6 @@ class MusicService {
 
     if (error) throw error;
     
-    // Fetch artists separately
     const songs = data as Song[];
     if (songs.length > 0) {
       const artistIds = [...new Set(songs.map(s => s.artist_id).filter(Boolean))];
@@ -414,7 +443,6 @@ class MusicService {
           .from('artists_public_view')
           .select('*')
           .in('id', artistIds);
-        
         if (artists) {
           const artistMap = new Map(artists.map(a => [a.id, a]));
           return songs.map(song => ({

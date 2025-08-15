@@ -23,6 +23,7 @@ export interface Song {
     available: number;
   };
   popularity?: number;
+  play_count?: number;
   isRadio?: boolean;
 }
 
@@ -82,5 +83,10 @@ export interface Artist {
   bio?: string;
   genres: string[];
   followers: number;
+  monthlyListeners?: number;
   isVerified: boolean;
+  bannerUrl?: string;
+  bannerMediaType?: 'image' | 'video' | 'gif';
+  subscriptionPrice?: number;
+  isSubscribed?: boolean;
 }

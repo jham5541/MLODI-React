@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { Artist } from '../types/music';
 import { sampleArtists } from '../data/sampleData';
+import { monthlyListenersService } from './monthlyListenersService';
 
 class ArtistService {
   async fetchArtistDetails(id: string): Promise<Artist> {
@@ -30,7 +31,14 @@ class ArtistService {
         };
       }
       console.log('Supabase fetch successful:', data.name);
-      return data as Artist;
+      
+      // Fetch monthly listeners separately
+      const monthlyListeners = await monthlyListenersService.getMonthlyListeners(id);
+      
+      return {
+        ...data,
+        monthlyListeners
+      } as Artist;
     } catch (error) {
       console.error('Error fetching artist details:', error);
       // Fallback to sample data on any error

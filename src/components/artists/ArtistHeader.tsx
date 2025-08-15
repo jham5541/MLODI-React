@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 // Audio import removed - using audioService instead
-// import { VideoView } from 'expo-video';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +19,7 @@ import ArtistDropdownMenu from './ArtistDropdownMenu';
 import ArtistSubscriptionModal from './ArtistSubscriptionModal';
 import { followService } from '../../services/followService';
 import { subscriptionService } from '../../services/subscriptionService';
+import { monthlyListenersService } from '../../services/monthlyListenersService';
 
 interface ArtistHeaderProps {
   artist: {
@@ -61,11 +62,21 @@ export default function ArtistHeader({
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isUserSubscribed, setIsUserSubscribed] = useState(false);
+  const [currentMonthlyListeners, setCurrentMonthlyListeners] = useState(monthlyListeners);
   
   // Load initial follow and subscription status
   useEffect(() => {
     setIsFollowing(followService.isFollowing(artistId));
     setIsUserSubscribed(subscriptionService.isSubscribedTo(artistId));
+    
+    // Subscribe to real-time monthly listeners updates
+    const unsubscribe = monthlyListenersService.subscribeToArtist(artistId, (data) => {
+      setCurrentMonthlyListeners(data.monthlyListeners);
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [artistId]);
 
   const formatNumber = (num: number): string => {
@@ -334,7 +345,7 @@ export default function ArtistHeader({
               <Video
                 source={{ uri: bannerUrl }}
                 style={styles.bannerImage}
-                resizeMode="cover"
+                resizeMode={ResizeMode.COVER}
                 isLooping
                 shouldPlay
                 isMuted
@@ -394,7 +405,7 @@ export default function ArtistHeader({
 
             <View style={styles.statsContainer}>
               <View style={styles.statsRow}>
-                <Text style={styles.listenerCount}>{formatNumber(monthlyListeners)}</Text>
+                <Text style={styles.listenerCount}>{formatNumber(currentMonthlyListeners)}</Text>
                 <Text style={styles.listenerLabel}>monthly listeners</Text>
               </View>
             </View>

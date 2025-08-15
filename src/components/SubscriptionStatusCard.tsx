@@ -32,46 +32,6 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
     fetchSubscription();
   }, []);
 
-  const getDaysRemaining = () => {
-    if (!subscription) return 0;
-    const endDate = new Date(subscription.end_date);
-    const now = new Date();
-    const diffTime = endDate.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  const getStatusColor = () => {
-    if (!subscription) return colors.textSecondary;
-    const daysRemaining = getDaysRemaining();
-    
-    if (subscription.status !== 'active') return colors.error || '#F44336';
-    if (daysRemaining <= 3) return colors.warning || '#FF9800';
-    return colors.success || '#4CAF50';
-  };
-
-  const getStatusText = () => {
-    if (!subscription) return 'No subscription';
-    
-    const daysRemaining = getDaysRemaining();
-    
-    if (subscription.status === 'cancelled') {
-      return `Cancelled • ${daysRemaining} days left`;
-    }
-    if (subscription.status === 'expired') {
-      return 'Expired';
-    }
-    if (daysRemaining <= 0) {
-      return 'Expires today';
-    }
-    if (daysRemaining === 1) {
-      return 'Expires tomorrow';
-    }
-    if (daysRemaining <= 7) {
-      return `${daysRemaining} days remaining`;
-    }
-    return 'Active';
-  };
-
   const styles = StyleSheet.create({
     container: {
       marginVertical: 8,
@@ -176,8 +136,14 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
     },
   });
 
-  // Free tier or no subscription - show upgrade prompt
-  if (!hasActiveSubscription() && showUpgradePrompt) {
+  // Only show upgrade prompt if user is not already a Superfan
+  if (showUpgradePrompt && subscription?.tier !== 'superfan') {
+    // Determine button text based on subscription status
+    let buttonText = 'Upgrade to Premium';
+    if (subscription?.tier === 'fan') {
+      buttonText = 'Upgrade to Superfan';
+    }
+
     return (
       <TouchableOpacity
         style={[styles.container, compact && styles.compactContainer]}
@@ -192,54 +158,11 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
           <View style={styles.upgradeContent}>
             <Ionicons name="diamond" size={20} color="white" />
             <Text style={[styles.upgradeTitle, compact && styles.compactTitle]}>
-              Upgrade to Premium
+              {buttonText}
             </Text>
             <Ionicons name="chevron-forward" size={20} color="white" />
           </View>
         </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-
-  // Active subscription
-  if (subscription) {
-    return (
-      <TouchableOpacity
-        style={[styles.container, compact && styles.compactContainer]}
-        onPress={onPress}
-      >
-        <View style={[styles.subscriptionCard, compact && styles.compactCard]}>
-          <View style={styles.subscriptionContent}>
-            <View style={styles.subscriptionLeft}>
-              <View style={styles.tierIcon}>
-                <Ionicons 
-                  name={subscription.tier === 'enterprise' ? 'business' : 'diamond'} 
-                  size={compact ? 18 : 22} 
-                  color={colors.primary} 
-                />
-              </View>
-              <View style={styles.subscriptionText}>
-                <Text style={[styles.tierName, compact && styles.compactTierName]}>
-                  {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}
-                </Text>
-                {!compact && (
-                  <View style={styles.statusRow}>
-                    <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-                    <Text style={styles.statusText}>{getStatusText()}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-          </View>
-          
-          {compact && (
-            <View style={[styles.statusRow, styles.compactStatusRow]}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-              <Text style={[styles.statusText, styles.compactStatusText]}>{getStatusText()}</Text>
-            </View>
-          )}
-        </View>
       </TouchableOpacity>
     );
   }

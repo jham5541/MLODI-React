@@ -35,6 +35,10 @@ import CollaborationContainer from '../components/collaboration/CollaborationCon
 // Database Service
 import { supabase } from '../lib/supabase/client';
 
+// Dev Components
+import { DevSubscriptionPanel } from '../components/dev/DevSubscriptionPanel';
+import { MonthlyListenersDemo } from '../components/dev/MonthlyListenersDemo';
+
 import { Artist } from '../types/music';
 import { fetchArtistDetails } from '../services/artistService';
 import MLService from '../services/ml/MLService';
@@ -59,6 +63,14 @@ export default function ArtistProfileScreen({ route }: Props) {
   const screenWidth = Dimensions.get('window').width;
   const [artistInsights, setArtistInsights] = useState<any>(null);
   const [isEmergingTalent, setIsEmergingTalent] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Handler for subscription changes
+  const handleSubscriptionChange = () => {
+    console.log('Subscription changed, refreshing insights...');
+    // Increment refreshKey to force RevenueInsights to refresh
+    setRefreshKey(prev => prev + 1);
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -648,9 +660,15 @@ export default function ArtistProfileScreen({ route }: Props) {
         data={[{ id: 'content' }]}
         renderItem={() => (
           <>
-            <ArtistHeader artist={artist} />
+            {/* Dev Subscription Panel (only in development) - DISABLED */}
+            {/* {__DEV__ && <DevSubscriptionPanel />} */}
+            
+            <ArtistHeader artist={artist} onSubscribe={handleSubscriptionChange} />
+            
+            {/* Monthly Listeners Demo (only in development) - DISABLED */}
+            {/* {__DEV__ && <MonthlyListenersDemo artistId={artistId} artistName={artist.name} />} */}
             <EngagementMetrics artistId={artistId} artistName={artist.name} />
-            <RevenueInsights artistId={artistId} artistName={artist.name} />
+            <RevenueInsights artistId={artistId} artistName={artist.name} refreshKey={refreshKey} />
             <PopularSongs artistId={artistId} artistName={artist.name} />
             {/* <ReactionBar artistId={artistId} /> */}
             <CollaborationContainer artistId={artistId} />
