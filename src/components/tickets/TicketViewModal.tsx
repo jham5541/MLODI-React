@@ -36,11 +36,16 @@ export default function TicketViewModal({
   city,
   date,
   time,
-  tickets,
+  tickets = [],
 }: TicketViewModalProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const [currentTicketIndex, setCurrentTicketIndex] = useState(0);
+
+  // Early return if no tickets
+  if (!tickets || tickets.length === 0) {
+    return null;
+  }
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -51,7 +56,7 @@ export default function TicketViewModal({
     });
   };
   
-  const currentTicket = tickets[currentTicketIndex];
+  const currentTicket = tickets[currentTicketIndex] || tickets[0];
 
   // Generate a sophisticated QR-like pattern for display
   const generateQRPattern = (seed: string) => {
@@ -473,15 +478,17 @@ export default function TicketViewModal({
           </View>
 
           {/* QR Code Section */}
-          <View style={styles.qrSection}>
-            <View style={styles.qrContainer}>
-              {renderQRCode(currentTicket.qrCode)}
+          {currentTicket && (
+            <View style={styles.qrSection}>
+              <View style={styles.qrContainer}>
+                {renderQRCode(currentTicket.qrCode)}
+              </View>
+              <Text style={styles.ticketId}>{currentTicket.id}</Text>
             </View>
-            <Text style={styles.ticketId}>{currentTicket.id}</Text>
-          </View>
+          )}
 
           {/* Seat Info if available */}
-          {currentTicket.seatInfo && (
+          {currentTicket && currentTicket.seatInfo && (
             <View style={styles.seatSection}>
               <Text style={styles.seatLabel}>Seat</Text>
               <Text style={styles.seatInfo}>{currentTicket.seatInfo}</Text>
