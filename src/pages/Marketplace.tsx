@@ -58,6 +58,7 @@ export default function MarketplaceScreen() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Cart count animation
   const cartCount = (cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0);
@@ -211,9 +212,9 @@ export default function MarketplaceScreen() {
     }
   };
 
-  const handleAddToCart = async (product: Product, variantId?: string) => {
+  const handleAddToCart = async (product: Product, variantId?: string) => {
     if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.');
+      setShowAuthModal(true);
       return;
     }
 
@@ -230,9 +231,9 @@ export default function MarketplaceScreen() {
     }
   };
 
-  const handleBuyNow = (product: Product) => {
+  const handleBuyNow = (product: Product) => {
     if (!user) {
-      Alert.alert('Sign In Required', 'Please sign in to make a purchase.');
+      setShowAuthModal(true);
       return;
     }
     setSelectedMerchProduct(product);
@@ -643,19 +644,22 @@ export default function MarketplaceScreen() {
         isVisible={showCart}
         onClose={() => setShowCart(false)}
       />
-
-      <MerchModal
+      cMerchModal
         visible={showMerchModal}
         product={selectedMerchProduct}
-        onClose={() => {
+        onClose={() => {
           setShowMerchModal(false);
           setSelectedMerchProduct(null);
         }}
-        onPurchaseComplete={() => {
+        onPurchaseComplete={() => {
           // Optionally refresh products or show success message
           loadProducts();
         }}
-      />
+      /e
+
+      {/* Auth Modal for gating purchases */}
+      cAuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} /e
+    c/Viewe
     </View>
   );
 }

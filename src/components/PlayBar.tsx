@@ -26,6 +26,8 @@ import { currentMusicService as musicService } from '../services/serviceProvider
 import { useAuthStore } from '../store/authStore';
 import AuthModal from './auth/AuthModal';
 import AddToPlaylistModal from './playlists/AddToPlaylistModal';
+import PremiumGate from './common/PremiumGate';
+import { usePremiumStatus } from '../hooks/usePremiumStatus';
 
 import { Audio } from 'expo-av';
 
@@ -70,6 +72,10 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
   const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
+  const [skipCount, setSkipCount] = useState(0);
+  const { isPremium } = usePremiumStatus();
+  const MAX_FREE_SKIPS = 6; // Maximum skips per hour for free tier
 
   const handleLike = async () => {
     console.log('👤 Like button pressed - User:', !!user, 'Current song:', !!currentSong, 'Is liked:', isLiked);
@@ -264,6 +270,7 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
 
   if (!currentSong) return null;
 
@@ -606,9 +613,11 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
               <Text style={styles.songTitle} numberOfLines={1}>
                 {currentSong.title}
               </Text>
-              <Text style={styles.artistName} numberOfLines={1}>
-                {currentSong.artist}
-              </Text>
+              <TouchableOpacity onPress={handleArtistPress}>
+                <Text style={styles.artistName} numberOfLines={1}>
+                  {currentSong.artist}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -617,7 +626,12 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
               style={styles.controlButton}
               onPress={(e) => {
                 e.stopPropagation();
+                if (!isPremium && skipCount >= MAX_FREE_SKIPS) {
+                  setShowPremiumGate(true);
+                  return;
+                }
                 onPrevious();
+                if (!isPremium) setSkipCount(prev => prev + 1);
               }}
             >
               <Ionicons 
@@ -646,7 +660,12 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
               style={styles.controlButton}
               onPress={(e) => {
                 e.stopPropagation();
+                if (!isPremium && skipCount >= MAX_FREE_SKIPS) {
+                  setShowPremiumGate(true);
+                  return;
+                }
                 onNext();
+                if (!isPremium) setSkipCount(prev => prev + 1);
               }}
             >
               <Ionicons 
@@ -793,7 +812,14 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
 
                 <TouchableOpacity 
                   style={styles.modalControlButton}
-                  onPress={onPrevious}
+                  onPress={() => {
+                    if (!isPremium && skipCount >= MAX_FREE_SKIPS) {
+                      setShowPremiumGate(true);
+                      return;
+                    }
+                    onPrevious();
+                    if (!isPremium) setSkipCount(prev => prev + 1);
+                  }}
                 >
                   <Ionicons name="play-skip-back" size={26} color={themeColors.text} />
                 </TouchableOpacity>
@@ -812,7 +838,14 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
 
                 <TouchableOpacity 
                   style={styles.modalControlButton}
-                  onPress={onNext}
+                  onPress={() => {
+                    if (!isPremium && skipCount >= MAX_FREE_SKIPS) {
+                      setShowPremiumGate(true);
+                      return;
+                    }
+                    onNext();
+                    if (!isPremium) setSkipCount(prev => prev + 1);
+                  }}
                 >
                   <Ionicons name="play-skip-forward" size={26} color={themeColors.text} />
                 </TouchableOpacity>
@@ -888,6 +921,13 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
           songCover={currentSong.coverUrl}
         />
       )}
+      
+      {/* Premium Gate Modal */}
+      <PremiumGate
+        feature="skip"
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+      />
     </>
   );
 };

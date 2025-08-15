@@ -25,6 +25,7 @@ import { sampleSongs } from '../data/sampleData';
 import { useBatchAsyncOperations } from '../hooks/useAsyncOperation';
 import MLService from '../services/ml/MLServiceLite';
 import { TrackRecommendation, EmergingArtist } from '../services/ml/types';
+import { sampleArtists } from '../data/sampleData';
 
 export default function HomeScreen() {
   const { activeTheme, toggleTheme } = useTheme();
@@ -109,27 +110,24 @@ export default function HomeScreen() {
     }
   };
 
-  // Mock data for demonstration
-  const mockTop10Artists = [
-    { id: '1', name: 'Taylor Swift', coverUrl: 'https://picsum.photos/80/80?random=1', isVerified: true, genres: ['Pop'], followers: 100000000 },
-    { id: '2', name: 'Drake', coverUrl: 'https://picsum.photos/80/80?random=2', isVerified: true, genres: ['Hip-Hop'], followers: 95000000 },
-    { id: '3', name: 'Bad Bunny', coverUrl: 'https://picsum.photos/80/80?random=3', isVerified: true, genres: ['Reggaeton'], followers: 90000000 },
-    { id: '4', name: 'The Weeknd', coverUrl: 'https://picsum.photos/80/80?random=4', isVerified: false, genres: ['R&B'], followers: 85000000 },
-    { id: '5', name: 'Ariana Grande', coverUrl: 'https://picsum.photos/80/80?random=5', isVerified: false, genres: ['Pop'], followers: 80000000 },
-    { id: '6', name: 'Post Malone', coverUrl: 'https://picsum.photos/80/80?random=6', isVerified: false, genres: ['Hip-Hop'], followers: 75000000 },
-    { id: '7', name: 'Billie Eilish', coverUrl: 'https://picsum.photos/80/80?random=7', isVerified: false, genres: ['Pop'], followers: 70000000 },
-    { id: '8', name: 'Ed Sheeran', coverUrl: 'https://picsum.photos/80/80?random=8', isVerified: false, genres: ['Pop'], followers: 65000000 },
-    { id: '9', name: 'Olivia Rodrigo', coverUrl: 'https://picsum.photos/80/80?random=9', isVerified: false, genres: ['Pop'], followers: 60000000 },
-    { id: '10', name: 'Dua Lipa', coverUrl: 'https://picsum.photos/80/80?random=10', isVerified: false, genres: ['Pop'], followers: 55000000 },
-  ];
+  // Mock data for demonstration - use sample artists
+  const mockTop10Artists = sampleArtists.slice(0, 10).map((artist, index) => ({
+    ...artist,
+    followers: Math.max(artist.followers, (10 - index) * 10000000) // Ensure top artists have high follower counts
+  }));
 
-  const mockEmergingArtists = [
-    { artistId: 'e1', name: 'Rina Sawayama', viralPotential: 0.92, growthRate: 0.75, metrics: { weeklyListenerGrowth: 1200, playlistAdditions: 300, shareRate: 0.15, completionRate: 0.88 } },
-    { artistId: 'e2', name: 'beabadoobee', viralPotential: 0.88, growthRate: 0.81, metrics: { weeklyListenerGrowth: 1500, playlistAdditions: 450, shareRate: 0.22, completionRate: 0.91 } },
-    { artistId: 'e3', name: 'Arlo Parks', viralPotential: 0.85, growthRate: 0.65, metrics: { weeklyListenerGrowth: 950, playlistAdditions: 250, shareRate: 0.18, completionRate: 0.93 } },
-    { artistId: 'e4', name: 'Holly Humberstone', viralPotential: 0.91, growthRate: 0.89, metrics: { weeklyListenerGrowth: 1800, playlistAdditions: 500, shareRate: 0.25, completionRate: 0.89 } },
-    { artistId: 'e5', name: 'Glass Animals', viralPotential: 0.89, growthRate: 0.72, metrics: { weeklyListenerGrowth: 1100, playlistAdditions: 320, shareRate: 0.19, completionRate: 0.90 } },
-  ];
+  const mockEmergingArtists = sampleArtists.slice(3, 8).map(artist => ({
+    artistId: artist.id,
+    name: artist.name,
+    viralPotential: 0.75 + Math.random() * 0.2,
+    growthRate: 0.6 + Math.random() * 0.3,
+    metrics: {
+      weeklyListenerGrowth: 800 + Math.random() * 1000,
+      playlistAdditions: 200 + Math.random() * 300,
+      shareRate: 0.1 + Math.random() * 0.15,
+      completionRate: 0.85 + Math.random() * 0.1
+    }
+  }));
 
   const mockDailyMixes = [
     {
@@ -573,20 +571,30 @@ export default function HomeScreen() {
           ) : topPerformingArtists.length > 0 ? (
             <FlatList
               data={topPerformingArtists.slice(0, 10)}
-              renderItem={({ item, index }) => (
-                <Top10ArtistCard
-                  artist={{
-                    id: item.artistId,
-                    name: `Artist ${item.artistId.slice(-4)}`,
-                    coverUrl: `https://picsum.photos/80/80?random=${item.artistId}`,
-                    isVerified: item.engagementScore > 0.8,
-                    genres: ['Genre'],
-                    followers: Math.round(item.metrics.weeklyListenerGrowth * 10000)
-                  }}
-                  rank={index + 1}
-                  onPress={() => navigation.navigate('ArtistProfile', { artistId: item.artistId })}
-                />
-              )}
+              renderItem={({ item, index }) => {
+                // Try to find the artist in sampleArtists, otherwise use a generated name
+                const sampleArtist = sampleArtists.find(a => a.id === item.artistId);
+                const artistName = sampleArtist ? sampleArtist.name : 
+                  mockTop10Artists[index % mockTop10Artists.length].name;
+                const artistCover = sampleArtist ? sampleArtist.coverUrl : 
+                  `https://picsum.photos/80/80?random=${item.artistId}`;
+                const artistGenres = sampleArtist ? sampleArtist.genres : ['Music'];
+                
+                return (
+                  <Top10ArtistCard
+                    artist={{
+                      id: item.artistId,
+                      name: artistName,
+                      coverUrl: artistCover,
+                      isVerified: item.engagementScore > 0.8,
+                      genres: artistGenres,
+                      followers: Math.round(item.metrics.weeklyListenerGrowth * 10000)
+                    }}
+                    rank={index + 1}
+                    onPress={() => navigation.navigate('ArtistProfile', { artistId: item.artistId })}
+                  />
+                );
+              }}
               keyExtractor={(item) => item.artistId}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -621,26 +629,36 @@ export default function HomeScreen() {
           </View>
           <FlatList
             data={emergingArtists.length > 0 ? emergingArtists : mockEmergingArtists}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.emergingArtistCard}
-                onPress={() => navigation.navigate('ArtistProfile', { artistId: item.artistId })}
-              >
-                <Image
-                  source={{ uri: `https://picsum.photos/150/120?random=${item.artistId}` }}
-                  style={styles.emergingArtistImage}
-                />
-                <Text style={styles.emergingArtistName} numberOfLines={1}>
-                  {item.name || `Artist ${item.artistId.slice(-4)}`}
-                </Text>
-                <Text style={styles.emergingArtistMetric}>
-                  {Math.round(item.viralPotential * 100)}% Viral Potential
-                </Text>
-                <Text style={styles.emergingArtistMetric}>
-                  +{Math.round(item.growthRate * 100)}% Growth
-                </Text>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              // Try to find the artist in sampleArtists for proper name and image
+              const sampleArtist = sampleArtists.find(a => a.id === item.artistId);
+              const artistName = item.name || sampleArtist?.name || 
+                mockEmergingArtists.find(a => a.artistId === item.artistId)?.name || 
+                `Emerging Artist`;
+              const artistCover = sampleArtist?.coverUrl || 
+                `https://picsum.photos/150/120?random=${item.artistId}`;
+              
+              return (
+                <TouchableOpacity
+                  style={styles.emergingArtistCard}
+                  onPress={() => navigation.navigate('ArtistProfile', { artistId: item.artistId })}
+                >
+                  <Image
+                    source={{ uri: artistCover }}
+                    style={styles.emergingArtistImage}
+                  />
+                  <Text style={styles.emergingArtistName} numberOfLines={1}>
+                    {artistName}
+                  </Text>
+                  <Text style={styles.emergingArtistMetric}>
+                    {Math.round(item.viralPotential * 100)}% Viral Potential
+                  </Text>
+                  <Text style={styles.emergingArtistMetric}>
+                    +{Math.round(item.growthRate * 100)}% Growth
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             keyExtractor={(item) => item.artistId}
             horizontal
             showsHorizontalScrollIndicator={false}

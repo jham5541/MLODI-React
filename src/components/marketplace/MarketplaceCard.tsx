@@ -8,6 +8,7 @@ interface MarketplaceItem {
   id: string;
   title: string;
   artist: string;
+  artistId?: string;
   artistAvatar?: string;
   price: number;
   image: string;
@@ -53,7 +54,10 @@ export default function MarketplaceCard({
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleArtistPress = () => {
-    navigation.navigate('ArtistProfile', { artistId: item.artist });
+    const id = item.artistId || item.id;
+    if (id) {
+      navigation.navigate('ArtistProfile', { artistId: id });
+    }
   };
 
   const getRarityColor = (rarity: string) => {

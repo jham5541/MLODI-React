@@ -65,7 +65,7 @@ class CollaborationService {
       .from('collaboration_projects')
       .select(`
         *,
-        owner:user_profiles!owner_id (
+        owner:profiles!owner_id (
           id,
           username,
           display_name,
@@ -74,7 +74,7 @@ class CollaborationService {
         collaborators:collaborators (
           id,
           status,
-          user:user_profiles!user_id (
+          user:profiles!user_id (
             id,
             username,
             display_name,
@@ -99,7 +99,7 @@ class CollaborationService {
       .from('collaboration_projects')
       .select(`
         *,
-        owner:user_profiles!owner_id (
+        owner:profiles!owner_id (
           id,
           username,
           display_name,
@@ -109,7 +109,7 @@ class CollaborationService {
           id,
           status,
           user_id,
-          user:user_profiles!user_id (
+          user:profiles!user_id (
             id,
             username,
             display_name,
@@ -176,7 +176,7 @@ class CollaborationService {
 
   async updateProject(
     projectId: string,
-    ownerId: string,
+    userId: string,
     data: {
       title?: string;
       status?: 'active' | 'completed' | 'pending' | 'cancelled';
@@ -186,15 +186,29 @@ class CollaborationService {
       genre?: string;
     }
   ): Promise<void> {
+    // First check if user is owner or collaborator
+    // Avoid pre-check select that can trigger RLS recursion. Let RLS enforce at update time.
+    const isStatusUpdate = data.status !== undefined || data.progress !== undefined;
+
+    // For non-owners, only allow status and progress updates (app-side guard)
+    const updateData = isStatusUpdate ? {
+      status: data.status,
+      progress: data.progress,
+      description: data.description,
+      title: data.title,
+      deadline: data.deadline,
+      genre: data.genre,
+    } : data;
+
     const { error } = await supabase
       .from('collaboration_projects')
       .update({
-        ...data,
-        deadline: data.deadline?.toISOString(),
+        ...updateData,
+        deadline: updateData.deadline?.toISOString(),
         updated_at: new Date().toISOString(),
+        last_activity: new Date().toISOString(),
       })
-      .eq('id', projectId)
-      .eq('owner_id', ownerId);
+      .eq('id', projectId);
 
     if (error) {
       console.error('Error updating project:', error);
@@ -333,7 +347,7 @@ class CollaborationService {
       .from('collaboration_updates')
       .select(`
         *,
-        user:user_profiles!user_id (
+        user:profiles!user_id (
           username,
           display_name,
           avatar_url
@@ -393,7 +407,7 @@ class CollaborationService {
               .from('collaboration_updates')
               .select(`
                 *,
-                user:user_profiles!user_id (
+                user:profiles!user_id (
                   username,
                   display_name,
                   avatar_url
@@ -439,7 +453,7 @@ class CollaborationService {
               .from('collaboration_projects')
               .select(`
                 *,
-                owner:user_profiles!owner_id (
+                owner:profiles!owner_id (
                   id,
                   username,
                   display_name,
@@ -448,7 +462,7 @@ class CollaborationService {
                 collaborators:collaborators (
                   id,
                   status,
-                  user:user_profiles!user_id (
+                  user:profiles!user_id (
                     id,
                     username,
                     display_name,

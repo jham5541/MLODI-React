@@ -13,6 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { challengeProgressService } from '../../services/challengeProgressService';
+import PremiumGate, { usePremiumStatus } from '../common/PremiumGate';
+import { useAuthStore } from '../../store/authStore';
+import AuthModal from '../auth/AuthModal';
 
 interface Challenge {
   id: string;
@@ -64,10 +67,14 @@ export default function EngagementChallenges({
 }: EngagementChallengesProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { isPremium } = usePremiumStatus();
+  const { user } = useAuthStore();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [challengeSets, setChallengeSets] = useState<ChallengeSet[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'special'>('daily');
   const [progressAnimations, setProgressAnimations] = useState<{ [key: string]: Animated.Value }>({});
 
@@ -367,11 +374,27 @@ export default function EngagementChallenges({
   };
 
   const handleChallengePress = (challenge: Challenge) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!isPremium) {
+      setShowPremiumGate(true);
+      return;
+    }
     setSelectedChallenge(challenge);
     setShowDetailModal(true);
   };
 
   const handleStartChallenge = async (challengeId: string) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!isPremium) {
+      setShowPremiumGate(true);
+      return;
+    }
     try {
       // Find the challenge
       const challenge = challenges.find(c => c.id === challengeId);
@@ -993,6 +1016,16 @@ export default function EngagementChallenges({
       </ScrollView>
 
       {renderChallengeDetail()}
+      
+      {/* Premium Gate Modal */}
+      <PremiumGate
+        feature="engagement"
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }

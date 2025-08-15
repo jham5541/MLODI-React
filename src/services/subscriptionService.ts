@@ -25,6 +25,26 @@ class SubscriptionService {
   // In-memory cache for subscriptions (for demo purposes)
   private subscribedArtists: Set<string> = new Set();
 
+  // Row shape from unified dashboard function/view
+  private mapDashboardRowToArtist(row: any) {
+    return {
+      id: row.subscription_id as string,
+      user_id: '', // not needed in client list context
+      artist_id: row.artist_id as string,
+      artist_name: row.artist_name as string,
+      status: row.status as 'active' | 'expired' | 'cancelled',
+      started_at: row.started_at as string,
+      expires_at: row.expires_at as string | undefined,
+      price: Number(row.price ?? 0),
+      payment_method: row.payment_method as string | undefined,
+      auto_renew: !!row.auto_renew,
+      benefits: Array.isArray(row.benefits) ? row.benefits : [],
+      metadata: null,
+      created_at: undefined,
+      updated_at: undefined,
+    };
+  }
+
   /**
    * Check if user is subscribed to an artist (synchronous for demo)
    */
@@ -198,6 +218,52 @@ class SubscriptionService {
         artists: artistSubs.error
       }
     };
+  }
+
+  /**
+   * Get active subscriptions for Manage Subscription screen (artist only)
+   * Uses unified dashboard RPC to ensure consistency with server logic
+   */
+  async getActiveSubscriptions(): Promise<any[]> {
+    // Prefer RPC if available
+    const { data, error } = await supabase.rpc('get_my_active_subscriptions');
+    if (error) {
+      console.warn('Falling back to artist_subscriptions due to RPC error:', error.message);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data: fallback, error: fbErr } = await supabase
+        .from('artist_subscriptions')
+        .select(`
+          *,
+          artists:artist_id (
+            id,
+            name,
+            avatar_url
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      if (fbErr || !fallback) return [];
+      return fallback.map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        artist_id: row.artist_id,
+        artist_name: row.artists?.name,
+        status: row.status,
+        started_at: row.started_at,
+        expires_at: row.expires_at,
+        price: row.metadata?.price,
+        payment_method: row.metadata?.payment_method,
+        auto_renew: row.metadata?.auto_renew ?? true,
+        benefits: row.metadata?.benefits ?? [],
+        metadata: row.metadata,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      }));
+    }
+    // Filter artist subscriptions from dashboard rows
+    const artists = (data || []).filter((r: any) => r.subscription_type === 'artist');
+    return artists.map((r: any) => this.mapDashboardRowToArtist(r));
   }
 
   /**
@@ -465,22 +531,30 @@ class SubscriptionService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Find active subscription
-      const { data: subscription, error } = await supabase
-        .from('artist_subscriptions')
+      // Prefer cancelling via user_subscriptions through RPC to keep tables in sync
+      const { data: us, error: usErr } = await supabase
+        .from('user_subscriptions')
         .select('id')
         .eq('user_id', user.id)
         .eq('artist_id', artistId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
-      if (error || !subscription) {
-        console.error('No active subscription found');
-        return false;
+      if (us && us.id) {
+        const { error: rpcErr } = await supabase.rpc('cancel_artist_subscription', { p_subscription_id: us.id });
+        if (rpcErr) throw rpcErr;
+      } else {
+        // Fallback: cancel directly in artist_subscriptions
+        const { data: asRow, error } = await supabase
+          .from('artist_subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('artist_id', artistId)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (!asRow) return false;
+        await this.cancelSubscription(asRow.id, 'artist');
       }
-
-      // Cancel subscription
-      await this.cancelSubscription(subscription.id, 'artist');
 
       // Remove from in-memory cache
       this.subscribedArtists.delete(artistId);

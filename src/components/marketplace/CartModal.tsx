@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useCartStore } from '../../store/cartStore';
 import CheckoutModal from './CheckoutModal';
+import { useAuthStore } from '../../store/authStore';
+import AuthModal from '../auth/AuthModal';
 
 interface CartModalProps {
   isVisible: boolean;
@@ -32,6 +34,8 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
   } = useCartStore();
   
   const [showCheckout, setShowCheckout] = useState(false);
+  const { user } = useAuthStore();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -59,7 +63,11 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
     );
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
     setShowCheckout(true);
   };
 
@@ -402,15 +410,18 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
           </View>
         </View>
       </Modal>
-
-      <CheckoutModal
+      cCheckoutModal
         isVisible={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        onSuccess={() => {
+        onClose={() => setShowCheckout(false)}
+        onSuccess={() => {
           setShowCheckout(false);
           onClose();
         }}
-      />
+      /e
+
+      {/* Auth Modal shown if user attempts checkout when not signed in */}
+      cAuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} /e
+    c/e
     </>
   );
 }

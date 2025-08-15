@@ -15,6 +15,8 @@ import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../context/AuthContext';
+import AuthModal from '../auth/AuthModal';
 import ArtistDropdownMenu from './ArtistDropdownMenu';
 import ArtistSubscriptionModal from './ArtistSubscriptionModal';
 import { followService } from '../../services/followService';
@@ -57,9 +59,11 @@ export default function ArtistHeader({
   const navigation = useNavigation();
   const screenWidth = Dimensions.get('window').width;
   
-  // State for modals and follow/subscription status
+  // Auth and state for modals and follow/subscription status
+  const { user } = useAuth();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isUserSubscribed, setIsUserSubscribed] = useState(false);
   const [currentMonthlyListeners, setCurrentMonthlyListeners] = useState(monthlyListeners);
@@ -108,6 +112,12 @@ export default function ArtistHeader({
   
   // Handler for subscribe button
   const handleSubscribePress = () => {
+    if (!user) {
+      // Not signed in: prompt sign in instead of subscription modal
+      setAuthModalVisible(true);
+      return;
+    }
+
     if (isUserSubscribed) {
       // If already subscribed, show subscription details
       setSubscriptionModalVisible(true);
@@ -336,6 +346,9 @@ export default function ArtistHeader({
   });
 
   return (
+    <>
+      {/* Auth Modal for sign-in prompt when subscribing */}
+      <AuthModal isVisible={authModalVisible} onClose={() => setAuthModalVisible(false)} />
     <View style={styles.container}>
       {/* Banner Section */}
       <View style={styles.bannerContainer}>
@@ -466,5 +479,7 @@ export default function ArtistHeader({
         onSubscriptionChange={handleSubscriptionChange}
       />
     </View>
+      {/* Keep the rest of the component's existing UI below (not shown in this diff) */}
+    </>
   );
 }

@@ -9,6 +9,7 @@ import {
   RefreshControl,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -17,22 +18,13 @@ import { useTheme, colors } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { purchaseService } from '../services/purchaseService';
 import VideoPurchaseModal from '../components/purchase/VideoPurchaseModal';
+import videoService, { Video } from '../services/videoService';
+import videoPurchaseService from '../services/videoPurchaseService';
 
 type VideosScreenRouteProp = RouteProp<RootStackParamList, 'Videos'>;
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface Video {
-  id: string;
-  title: string;
-  thumbnailUrl: string;
-  duration: number;
-  views: number;
-  likes: number;
-  releaseDate: string;
-  price?: number;
-  badgeRequired?: string;
-  videoUrl?: string;
-}
+// Using the Video interface from videoService
 
 export default function VideosScreen() {
   const { activeTheme } = useTheme();
@@ -42,6 +34,7 @@ export default function VideosScreen() {
   const { artistId } = route.params;
 
   const [videos, setVideos] = useState<Video[]>([]);
+  const [purchasedVideos, setPurchasedVideos] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
@@ -50,78 +43,25 @@ export default function VideosScreen() {
 
   useEffect(() => {
     loadVideos();
-  }, [artistId]);
+  }, [artistId, refreshKey]);
 
   const loadVideos = async () => {
-    // Mock data - replace with actual API call
-    const mockVideos: Video[] = [
-      {
-        id: '1',
-        title: 'Summer Nights - Official Music Video',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=20',
-        duration: 195,
-        views: 2500000,
-        likes: 125000,
-        releaseDate: '2023-08-20',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      },
-      {
-        id: '2',
-        title: 'Electric Dreams (Live Performance)',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=21',
-        duration: 208,
-        views: 1800000,
-        likes: 89000,
-        releaseDate: '2023-07-15',
-        price: 2.99,
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      },
-      {
-        id: '3',
-        title: 'Behind the Scenes - Golden Hour',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=22',
-        duration: 360,
-        views: 750000,
-        likes: 32000,
-        releaseDate: '2023-06-10',
-        badgeRequired: 'Gold Fan',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      },
-      {
-        id: '4',
-        title: 'Midnight Drive - Acoustic Version',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=23',
-        duration: 183,
-        views: 950000,
-        likes: 48000,
-        releaseDate: '2023-05-25',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      },
-      {
-        id: '5',
-        title: 'City Lights - Director\'s Cut',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=24',
-        duration: 245,
-        views: 1200000,
-        likes: 67000,
-        releaseDate: '2023-04-12',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-      },
-      {
-        id: '6',
-        title: 'Unplugged Session - Vol. 1',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=25',
-        duration: 320,
-        views: 890000,
-        likes: 45000,
-        releaseDate: '2023-03-08',
-        badgeRequired: 'VIP',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-      },
-    ];
-
-    setVideos(mockVideos);
-    setLoading(false);
+    try {
+      setLoading(true);
+      
+      // Load videos and user's purchases in parallel
+      const [videosData, userPurchases] = await Promise.all([
+        videoService.getArtistVideos(artistId),
+        videoPurchaseService.getUserPurchasedVideos(),
+      ]);
+      
+      setVideos(videosData);
+      setPurchasedVideos(userPurchases);
+    } catch (error) {
+      console.error('Error loading videos:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -152,7 +92,9 @@ export default function VideosScreen() {
   };
 
   const handleVideoPress = (video: Video) => {
-    if (video.price && !purchaseService.isVideoPurchased(video.id)) {
+    const isPurchased = purchasedVideos.includes(video.id);
+    
+    if (video.price && !isPurchased) {
       Alert.alert(
         'Premium Video',
         `This video requires a purchase of $${video.price}. Would you like to buy it?`,
@@ -161,7 +103,7 @@ export default function VideosScreen() {
           { text: 'Buy & Watch', onPress: () => handleBuyVideo(video) },
         ]
       );
-    } else if (video.badgeRequired && !purchaseService.isVideoPurchased(video.id)) {
+    } else if (video.badgeRequired && !isPurchased) {
       Alert.alert(
         'Badge Required',
         `This video requires the "${video.badgeRequired}" badge to watch.`,
@@ -177,7 +119,10 @@ export default function VideosScreen() {
     setPurchaseModalVisible(true);
   };
   
-  const handlePurchaseComplete = () => {
+  const handlePurchaseComplete = async () => {
+    // Reload purchased videos
+    const userPurchases = await videoPurchaseService.getUserPurchasedVideos();
+    setPurchasedVideos(userPurchases);
     setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
@@ -186,7 +131,7 @@ export default function VideosScreen() {
   };
 
   const renderVideoItem = ({ item }: { item: Video }) => {
-    const isPurchased = purchaseService.isVideoPurchased(item.id);
+    const isPurchased = purchasedVideos.includes(item.id);
     const purchaseCount = purchaseService.getVideoPurchaseCount(item.id);
 
     return (

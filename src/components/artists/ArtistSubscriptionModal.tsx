@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import AuthModal from '../auth/AuthModal';
 import { subscriptionService, SubscriptionPlan } from '../../services/subscriptionService';
 
 interface ArtistSubscriptionModalProps {
@@ -38,6 +39,7 @@ export default function ArtistSubscriptionModal({
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMethod, setProcessingMethod] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Get subscription plan with error handling
   const subscriptionPlan = React.useMemo(() => {
@@ -93,7 +95,9 @@ export default function ArtistSubscriptionModal({
       console.log(`Starting subscription for artist ${artist.id} (${artist.name}) with method ${paymentMethod}`);
       
       if (!user) {
-        throw new Error('You must be logged in to subscribe');
+        // Prompt sign-in instead of throwing
+        setShowAuthModal(true);
+        return;
       }
       
       const success = await subscriptionService.subscribeToArtist(
@@ -458,6 +462,12 @@ export default function ArtistSubscriptionModal({
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Auth Modal for sign-in prompt */}
+            <AuthModal
+              isVisible={showAuthModal}
+              onClose={() => setShowAuthModal(false)}
+            />
           </ScrollView>
         </View>
       </View>

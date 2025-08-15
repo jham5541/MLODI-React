@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { Product } from '../../types/marketplace';
 
@@ -23,6 +25,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const navigation = useNavigation<RootStackNavigationProp<'ArtistProfile'>>();
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handleAddToCart = () => {
@@ -40,6 +43,12 @@ export default function ProductCard({
       setIsPlaying(true);
       await onPlayPreview?.(product);
       setTimeout(() => setIsPlaying(false), 30000); // Stop after 30 seconds
+    }
+  };
+
+  const handleArtistPress = () => {
+    if (product.artist_id || product.artistId) {
+      navigation.navigate('ArtistProfile', { artistId: product.artist_id || product.artistId });
     }
   };
 
@@ -279,9 +288,11 @@ export default function ProductCard({
           <Text style={styles.title} numberOfLines={1}>
             {product.title}
           </Text>
-          <Text style={styles.artist} numberOfLines={1}>
-            {product.artists?.name || product.artist || 'Unknown Artist'}
-          </Text>
+          <TouchableOpacity onPress={handleArtistPress}>
+            <Text style={styles.artist} numberOfLines={1}>
+              {product.artists?.name || product.artist || 'Unknown Artist'}
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.subtitle}>
             {getSubtitle()}
           </Text>

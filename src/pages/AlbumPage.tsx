@@ -17,6 +17,7 @@ interface Song {
   album: string;
   duration: string;
   price: string;
+  playCount?: number; // number of streams for this song
   isPlaying?: boolean;
 }
 
@@ -58,14 +59,14 @@ const albumData: Album = {
   price: '$12.99',
   description: 'A mesmerizing journey through neon-lit nights and retro-futuristic soundscapes.',
   songs: [
-    { id: '1', title: 'Neon Dreams', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:23', price: '$1.99' },
-    { id: '2', title: 'City Lights', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:45', price: '$1.99' },
-    { id: '3', title: 'Drive', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '5:12', price: '$1.99' },
-    { id: '4', title: 'Sunset', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:01', price: '$1.99' },
-    { id: '5', title: 'Retro Funk', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:33', price: '$1.99' },
-    { id: '6', title: 'Digital Love', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:45', price: '$1.99' },
-    { id: '7', title: 'Cyber Nights', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:28', price: '$1.99' },
-    { id: '8', title: 'Electric Pulse', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:56', price: '$1.99' },
+    { id: '1', title: 'Neon Dreams', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:23', price: '$1.99', playCount: 312345 },
+    { id: '2', title: 'City Lights', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:45', price: '$1.99', playCount: 289001 },
+    { id: '3', title: 'Drive', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '5:12', price: '$1.99', playCount: 401220 },
+    { id: '4', title: 'Sunset', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:01', price: '$1.99', playCount: 210034 },
+    { id: '5', title: 'Retro Funk', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:33', price: '$1.99', playCount: 175990 },
+    { id: '6', title: 'Digital Love', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:45', price: '$1.99', playCount: 198776 },
+    { id: '7', title: 'Cyber Nights', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '3:28', price: '$1.99', playCount: 156432 },
+    { id: '8', title: 'Electric Pulse', artist: 'The Midnight', album: 'Midnight Synthwave', duration: '4:56', price: '$1.99', playCount: 223110 },
   ],
   bannerMedia: 'https://picsum.photos/800/400?random=banner1',
 };
@@ -97,12 +98,12 @@ const formatDuration = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Analytics data
-const analyticsData: AnalyticsItem[] = [
+// Base analytics data (we will override total streams dynamically)
+const baseAnalyticsData: AnalyticsItem[] = [
   {
     id: '1',
     title: 'Total Streams',
-    value: '2.4M',
+    value: '0',
     icon: 'play-circle',
     color: '#1DB954',
     change: '+12%',
@@ -176,6 +177,18 @@ const AlbumPage = ({ route, navigation }: Props) => {
     const purchased = purchaseService.isAlbumPurchased(albumId);
     setIsPurchased(purchased);
   }, [albumId]);
+
+  const totalStreams = (album?.songs || albumData.songs).reduce((sum, s) => sum + (s.playCount || 0), 0);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(num);
+  };
+
+  const analyticsData: AnalyticsItem[] = baseAnalyticsData.map((item) =>
+    item.title === 'Total Streams' ? { ...item, value: formatNumber(totalStreams) } : item
+  );
   
   const handleBuyAlbum = () => {
     if (isPurchased) {
@@ -789,7 +802,9 @@ const AlbumPage = ({ route, navigation }: Props) => {
         </View>
         <View style={styles.albumInfo}>
           <Text style={styles.albumTitle}>{albumData.title}</Text>
-          <Text style={styles.albumArtist}>{albumData.artist}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistProfile', { artistId: 'artist-1' })}>
+            <Text style={styles.albumArtist}>{albumData.artist}</Text>
+          </TouchableOpacity>
           
           <View style={styles.albumDetails}>
             <View style={styles.albumDetailItem}>

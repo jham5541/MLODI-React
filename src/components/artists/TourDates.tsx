@@ -18,6 +18,10 @@ import { ticketPurchaseService } from '../../services/ticketPurchaseService';
 import { supabase } from '../../lib/supabase';
 import TicketPurchaseModal from '../purchase/TicketPurchaseModal';
 import TicketViewModal from '../tickets/TicketViewModal';
+import { usePremiumStatus } from '../../hooks/usePremiumStatus';
+import PremiumGate from '../common/PremiumGate';
+import { useAuthStore } from '../../store/authStore';
+import AuthModal from '../auth/AuthModal';
 
 interface TourDateDisplay {
   id: string;
@@ -41,6 +45,8 @@ export default function TourDates({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { loadLibrary } = useCartStore();
+  const { isPremium } = usePremiumStatus();
+  const { user } = useAuthStore();
   const [tours, setTours] = useState<Tour[]>([]);
   const [tourDates, setTourDates] = useState<TourDateDisplay[]>([]);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
@@ -52,6 +58,8 @@ export default function TourDates({
   const [error, setError] = useState<string | null>(null);
   const [purchasedEvents, setPurchasedEvents] = useState<Set<string>>(new Set());
   const [ticketCounts, setTicketCounts] = useState<Map<string, number>>(new Map());
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     // Using sample data for development
@@ -128,6 +136,14 @@ export default function TourDates({
   }, [artistId, refreshKey]);
 
   const handleBuyTickets = (date: TourDateDisplay) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!isPremium) {
+      setShowPremiumGate(true);
+      return;
+    }
     setSelectedTourDate(date);
     setPurchaseModalVisible(true);
   };
@@ -158,6 +174,10 @@ export default function TourDates({
   };
 
   const handleViewTickets = async (date: TourDateDisplay) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
     setSelectedTourDate(date);
     
     // Fetch tickets from database
@@ -513,6 +533,16 @@ export default function TourDates({
           tickets={viewTickets ?? purchaseService.getTickets(selectedTourDate.id)}
         />
       )}
+
+      {/* Premium Gate Modal */}
+      <PremiumGate
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+        feature="tour"
+      />
+
+      {/* Auth Modal */}
+      <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }

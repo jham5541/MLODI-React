@@ -8,6 +8,7 @@ import {
   ScrollView,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,19 +17,10 @@ import { useTheme, colors } from '../../context/ThemeContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { purchaseService } from '../../services/purchaseService';
 import VideoPurchaseModal from '../purchase/VideoPurchaseModal';
+import videoService, { Video } from '../../services/videoService';
+import videoPurchaseService from '../../services/videoPurchaseService';
 
-interface Video {
-  id: string;
-  title: string;
-  thumbnailUrl: string;
-  duration: number;
-  views: number;
-  likes: number;
-  releaseDate: string;
-  price?: number;
-  badgeRequired?: string;
-  videoUrl?: string;
-}
+// Using the Video interface from videoService
 
 interface VideoCarouselProps {
   artistId: string;
@@ -45,6 +37,8 @@ export default function VideoCarousel({
   const themeColors = colors[activeTheme];
   const navigation = useNavigation<NavigationProp>();
   const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [purchasedVideos, setPurchasedVideos] = useState<string[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
@@ -52,54 +46,27 @@ export default function VideoCarousel({
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockVideos: Video[] = [
-      {
-        id: '1',
-        title: 'Summer Nights - Official Music Video',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=20',
-        duration: 195,
-        views: 2500000,
-        likes: 125000,
-        releaseDate: '2023-08-20',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      },
-      {
-        id: '2',
-        title: 'Electric Dreams (Live Performance)',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=21',
-        duration: 208,
-        views: 1800000,
-        likes: 89000,
-        releaseDate: '2023-07-15',
-        price: 2.99,
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      },
-      {
-        id: '3',
-        title: 'Behind the Scenes - Golden Hour',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=22',
-        duration: 360,
-        views: 750000,
-        likes: 32000,
-        releaseDate: '2023-06-10',
-        badgeRequired: 'Gold Fan',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      },
-      {
-        id: '4',
-        title: 'Midnight Drive - Acoustic Version',
-        thumbnailUrl: 'https://picsum.photos/400/225?random=23',
-        duration: 183,
-        views: 950000,
-        likes: 48000,
-        releaseDate: '2023-05-25',
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      },
-    ];
+    loadVideos();
+  }, [artistId, refreshKey]);
 
-    setVideos(mockVideos);
-  }, [artistId]);
+  const loadVideos = async () => {
+    try {
+      setLoading(true);
+      
+      // Load videos and user's purchases in parallel
+      const [videosData, userPurchases] = await Promise.all([
+        videoService.getArtistVideos(artistId),
+        videoPurchaseService.getUserPurchasedVideos(),
+      ]);
+      
+      setVideos(videosData);
+      setPurchasedVideos(userPurchases);
+    } catch (error) {
+      console.error('Error loading videos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -123,7 +90,9 @@ export default function VideoCarousel({
   };
 
   const handleVideoPress = (video: Video) => {
-    if (video.price && !purchaseService.isVideoPurchased(video.id)) {
+    const isPurchased = purchasedVideos.includes(video.id);
+    
+    if (video.price && !isPurchased) {
       Alert.alert(
         'Premium Video',
         `This video requires a purchase of $${video.price}. Would you like to buy it?`,
@@ -132,7 +101,7 @@ export default function VideoCarousel({
           { text: 'Buy & Watch', onPress: () => handleBuyVideo(video) },
         ]
       );
-    } else if (video.badgeRequired && !purchaseService.isVideoPurchased(video.id)) {
+    } else if (video.badgeRequired && !isPurchased) {
       Alert.alert(
         'Badge Required',
         `This video requires the "${video.badgeRequired}" badge to watch.`,
@@ -148,7 +117,10 @@ export default function VideoCarousel({
     setPurchaseModalVisible(true);
   };
   
-  const handlePurchaseComplete = () => {
+  const handlePurchaseComplete = async () => {
+    // Reload purchased videos
+    const userPurchases = await videoPurchaseService.getUserPurchasedVideos();
+    setPurchasedVideos(userPurchases);
     setRefreshKey(prev => prev + 1); // Force re-render to show updated purchase status
   };
 
@@ -170,7 +142,7 @@ export default function VideoCarousel({
   };
 
   const renderVideoCard = (video: Video) => {
-    const isPurchased = purchaseService.isVideoPurchased(video.id);
+    const isPurchased = purchasedVideos.includes(video.id);
     const purchaseCount = purchaseService.getVideoPurchaseCount(video.id);
 
     return (

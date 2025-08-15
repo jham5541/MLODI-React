@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { usePlay } from './PlayContext';
 import { databaseService } from '../services/databaseServiceProvider';
 import { listeningRewardsService } from '../services/listeningRewardsService';
+import { engagementTrackingService } from '../services/engagementTrackingService';
 
 interface PlaySession {
   songId: string;
@@ -120,6 +121,19 @@ export const PlayTrackingProvider: React.FC<PlayTrackingProviderProps> = ({ chil
       // Mark session as counted
       updatedSession.hasCountedPlay = true;
       setCurrentSession(updatedSession);
+      
+      // Track engagement and update challenges
+      try {
+        await engagementTrackingService.trackSongPlay(
+          currentSession.songId,
+          currentSession.artistId,
+          currentSession.duration,
+          progressPercentage
+        );
+        console.log('PlayTracking: Engagement tracked and challenges updated');
+      } catch (error) {
+        console.error('PlayTracking: Failed to track engagement:', error);
+      }
 
       // Update artist play stats
       setArtistPlayStats(prev => {

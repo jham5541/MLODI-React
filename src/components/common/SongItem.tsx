@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { usePlay } from '../../context/PlayContext';
 import { Song } from '../../types/music';
@@ -28,6 +30,7 @@ export default function SongItem({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { currentSong, isPlaying } = usePlay();
+  const navigation = useNavigation<RootStackNavigationProp<'ArtistProfile'>>();
   
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   
@@ -46,6 +49,10 @@ export default function SongItem({
   const handlePurchaseModalComplete = () => {
     setPurchaseModalVisible(false);
     onPurchaseComplete?.();
+  };
+
+  const handleArtistPress = () => {
+    navigation.navigate('ArtistProfile', { artistId: song.artistId });
   };
 
   const styles = StyleSheet.create({
@@ -163,9 +170,11 @@ export default function SongItem({
             {song.title}
           </Text>
           {showArtist && (
-            <Text style={styles.artist} numberOfLines={1}>
-              {song.artist}
-            </Text>
+            <TouchableOpacity onPress={handleArtistPress}>
+              <Text style={styles.artist} numberOfLines={1}>
+                {song.artist}
+              </Text>
+            </TouchableOpacity>
           )}
           <View style={styles.metadata}>
             <Text style={styles.duration}>{formatDuration(song.duration)}</Text>

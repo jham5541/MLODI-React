@@ -16,6 +16,9 @@ import { useTheme, colors } from '../../context/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import commentService, { Comment } from '../../services/commentService';
 import { supabase } from '../../lib/supabase/client';
+import { usePremiumStatus } from '../../hooks/usePremiumStatus';
+import PremiumGate from '../common/PremiumGate';
+import AuthModal from '../auth/AuthModal';
 
 interface CommentSectionProps {
   trackId: string; // target id (track or artist)
@@ -33,11 +36,14 @@ export default function CommentSection({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { user, profile } = useAuthStore();
+  const { isPremium } = usePremiumStatus();
   
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Validate that the provided target id is a UUID (to avoid 22P02 errors)
   const isUuid = (v: string) => /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/.test(v);
@@ -97,7 +103,11 @@ export default function CommentSection({
 
   const handleSubmitComment = async () => {
     if (!user) {
-      Alert.alert('Authentication Required', 'Please sign in to comment');
+      setShowAuthModal(true);
+      return;
+    }
+    if (!isPremium) {
+      setShowPremiumGate(true);
       return;
     }
     if (!isValidTargetId) {
@@ -503,6 +513,16 @@ export default function CommentSection({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Premium Gate Modal */}
+      <PremiumGate
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+        feature="comments"
+      />
+
+      {/* Auth Modal */}
+      <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }

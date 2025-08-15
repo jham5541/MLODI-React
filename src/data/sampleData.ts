@@ -4,7 +4,7 @@ export const sampleArtists: Artist[] = [
   // New comprehensive artists
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    name: 'Chill Waves',
+    name: 'Velvet Echoes',
     coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
     bio: 'Electronic producer known for creating atmospheric and relaxing beats. Pioneering the lo-fi hip hop movement with over 100 million streams worldwide.',
     genres: ['Electronic', 'Lo-fi', 'Chillhop'],
@@ -15,7 +15,7 @@ export const sampleArtists: Artist[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    name: 'Luna Serenade',
+    name: 'Aurora Bloom',
     coverUrl: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=300&h=300&fit=crop',
     bio: 'Indie pop sensation with dreamy vocals and introspective lyrics. Her debut album topped the indie charts in 15 countries.',
     genres: ['Indie Pop', 'Dream Pop', 'Alternative'],
@@ -26,7 +26,7 @@ export const sampleArtists: Artist[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
-    name: 'The Midnight Owls',
+    name: 'Electric Saints',
     coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&h=300&fit=crop',
     bio: 'Rock band bringing back the classic sound with a modern twist. Known for their energetic live performances and guitar-driven anthems.',
     genres: ['Rock', 'Alternative Rock', 'Indie Rock'],
@@ -37,7 +37,7 @@ export const sampleArtists: Artist[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
-    name: 'Jazz Fusion Collective',
+    name: 'Sapphire Groove',
     coverUrl: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=300&h=300&fit=crop',
     bio: 'Experimental jazz ensemble pushing the boundaries of modern jazz. Combining traditional instruments with electronic elements.',
     genres: ['Jazz', 'Fusion', 'Experimental'],
@@ -48,7 +48,7 @@ export const sampleArtists: Artist[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440005',
-    name: 'Urban Beats',
+    name: 'Phoenix Rising',
     coverUrl: 'https://images.unsplash.com/photo-1549834125-82d3c48159a3?w=300&h=300&fit=crop',
     bio: 'Hip-hop producer and rapper creating conscious music with a message. Collaborating with artists worldwide to bring positive change through music.',
     genres: ['Hip Hop', 'Rap', 'R&B'],
@@ -59,8 +59,8 @@ export const sampleArtists: Artist[] = [
   },
   // Original sample artists
   {
-    id: '1',
-    name: 'Digital Dreams',
+    id: '550e8400-e29b-41d4-a716-446655440006',
+    name: 'Cosmic Drift',
     coverUrl: 'https://picsum.photos/400/400?random=1',
     bio: 'Electronic music producer exploring the intersection of AI and human creativity.',
     genres: ['Electronic', 'Ambient', 'Synthwave'],
@@ -68,8 +68,8 @@ export const sampleArtists: Artist[] = [
     isVerified: true,
   },
   {
-    id: '2',
-    name: 'Neon Nights',
+    id: '550e8400-e29b-41d4-a716-446655440007',
+    name: 'Violet Pulse',
     coverUrl: 'https://picsum.photos/400/400?random=2',
     bio: 'Retro-futuristic beats for the modern soul.',
     genres: ['Synthwave', 'Retrowave', 'Electronic'],
@@ -77,8 +77,8 @@ export const sampleArtists: Artist[] = [
     isVerified: false,
   },
   {
-    id: '3',
-    name: 'Crypto Collective',
+    id: '550e8400-e29b-41d4-a716-446655440008',
+    name: 'Prism Theory',
     coverUrl: 'https://picsum.photos/400/400?random=3',
     bio: 'Decentralized music collective pushing the boundaries of Web3 audio.',
     genres: ['Hip Hop', 'Electronic', 'Experimental'],
@@ -88,11 +88,11 @@ export const sampleArtists: Artist[] = [
 ];
 
 export const sampleSongs: Song[] = [
-  // Chill Waves songs
+  // Velvet Echoes songs
   {
     id: '660e8400-e29b-41d4-a716-446655440001',
     title: 'Midnight Dreams',
-    artist: 'Chill Waves',
+    artist: 'Velvet Echoes',
     artistId: '550e8400-e29b-41d4-a716-446655440001',
     album: 'Night Sessions',
     coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
@@ -104,7 +104,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440002',
     title: 'Ocean Breeze',
-    artist: 'Chill Waves',
+    artist: 'Velvet Echoes',
     artistId: '550e8400-e29b-41d4-a716-446655440001',
     album: 'Coastal Vibes',
     coverUrl: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=400&h=400&fit=crop',
@@ -116,7 +116,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440003',
     title: 'City Rain',
-    artist: 'Chill Waves',
+    artist: 'Velvet Echoes',
     artistId: '550e8400-e29b-41d4-a716-446655440001',
     album: 'Urban Chill',
     coverUrl: 'https://images.unsplash.com/photo-1428908728789-d2de25dbd4e2?w=400&h=400&fit=crop',
@@ -128,7 +128,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440004',
     title: 'Coffee Shop Vibes',
-    artist: 'Chill Waves',
+    artist: 'Velvet Echoes',
     artistId: '550e8400-e29b-41d4-a716-446655440001',
     album: 'Morning Rituals',
     coverUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=400&fit=crop',
@@ -140,7 +140,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440005',
     title: 'Sunset Boulevard',
-    artist: 'Chill Waves',
+    artist: 'Velvet Echoes',
     artistId: '550e8400-e29b-41d4-a716-446655440001',
     album: 'Golden Hour',
     coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
@@ -153,7 +153,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440006',
     title: 'Starlight',
-    artist: 'Luna Serenade',
+    artist: 'Aurora Bloom',
     artistId: '550e8400-e29b-41d4-a716-446655440002',
     album: 'Celestial Dreams',
     coverUrl: 'https://images.unsplash.com/photo-1519227355453-8f982e425321?w=400&h=400&fit=crop',
@@ -165,7 +165,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440007',
     title: 'Moonlight Dance',
-    artist: 'Luna Serenade',
+    artist: 'Aurora Bloom',
     artistId: '550e8400-e29b-41d4-a716-446655440002',
     album: 'Nocturnal',
     coverUrl: 'https://images.unsplash.com/photo-1514897575457-c4db467cf78e?w=400&h=400&fit=crop',
@@ -177,7 +177,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440008',
     title: 'Ethereal Dreams',
-    artist: 'Luna Serenade',
+    artist: 'Aurora Bloom',
     artistId: '550e8400-e29b-41d4-a716-446655440002',
     album: 'Ethereal',
     coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=400&fit=crop',
@@ -190,7 +190,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440011',
     title: 'Electric Thunder',
-    artist: 'The Midnight Owls',
+    artist: 'Electric Saints',
     artistId: '550e8400-e29b-41d4-a716-446655440003',
     album: 'Voltage',
     coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
@@ -202,7 +202,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440012',
     title: 'Rebel Heart',
-    artist: 'The Midnight Owls',
+    artist: 'Electric Saints',
     artistId: '550e8400-e29b-41d4-a716-446655440003',
     album: 'Revolution',
     coverUrl: 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=400&fit=crop',
@@ -214,7 +214,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440013',
     title: 'Neon Nights',
-    artist: 'The Midnight Owls',
+    artist: 'Electric Saints',
     artistId: '550e8400-e29b-41d4-a716-446655440003',
     album: 'City Lights',
     coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop',
@@ -227,7 +227,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440016',
     title: 'Smooth Operator',
-    artist: 'Jazz Fusion Collective',
+    artist: 'Sapphire Groove',
     artistId: '550e8400-e29b-41d4-a716-446655440004',
     album: 'Fusion Sessions',
     coverUrl: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&h=400&fit=crop',
@@ -239,7 +239,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440017',
     title: 'Blue Note Dreams',
-    artist: 'Jazz Fusion Collective',
+    artist: 'Sapphire Groove',
     artistId: '550e8400-e29b-41d4-a716-446655440004',
     album: 'Midnight Jazz',
     coverUrl: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&h=400&fit=crop',
@@ -252,7 +252,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440021',
     title: 'Street Poetry',
-    artist: 'Urban Beats',
+    artist: 'Phoenix Rising',
     artistId: '550e8400-e29b-41d4-a716-446655440005',
     album: 'City Chronicles',
     coverUrl: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=400&fit=crop',
@@ -264,7 +264,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440022',
     title: 'Urban Symphony',
-    artist: 'Urban Beats',
+    artist: 'Phoenix Rising',
     artistId: '550e8400-e29b-41d4-a716-446655440005',
     album: 'Fusion',
     coverUrl: 'https://images.unsplash.com/photo-1549834125-82d3c48159a3?w=400&h=400&fit=crop',
@@ -276,7 +276,7 @@ export const sampleSongs: Song[] = [
   {
     id: '660e8400-e29b-41d4-a716-446655440023',
     title: 'Block Party',
-    artist: 'Urban Beats',
+    artist: 'Phoenix Rising',
     artistId: '550e8400-e29b-41d4-a716-446655440005',
     album: 'Summer Vibes',
     coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop',
@@ -289,8 +289,8 @@ export const sampleSongs: Song[] = [
   {
     id: '1',
     title: 'Blockchain Blues',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=11',
     duration: 245,
@@ -311,8 +311,8 @@ export const sampleSongs: Song[] = [
   {
     id: '2',
     title: 'Neon Highway',
-    artist: 'Neon Nights',
-    artistId: '2',
+    artist: 'Violet Pulse',
+    artistId: '550e8400-e29b-41d4-a716-446655440007',
     album: 'Retro Future',
     coverUrl: 'https://picsum.photos/300/300?random=12',
     duration: 198,
@@ -323,8 +323,8 @@ export const sampleSongs: Song[] = [
   {
     id: '3',
     title: 'Decentralized Dreams',
-    artist: 'Crypto Collective',
-    artistId: '3',
+    artist: 'Prism Theory',
+    artistId: '550e8400-e29b-41d4-a716-446655440008',
     album: 'Web3 Chronicles',
     coverUrl: 'https://picsum.photos/300/300?random=13',
     duration: 289,
@@ -335,8 +335,8 @@ export const sampleSongs: Song[] = [
   {
     id: '4',
     title: 'Smart Contract Symphony',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=14',
     duration: 324,
@@ -347,8 +347,8 @@ export const sampleSongs: Song[] = [
   {
     id: '5',
     title: 'Midnight Protocol',
-    artist: 'Neon Nights',
-    artistId: '2',
+    artist: 'Violet Pulse',
+    artistId: '550e8400-e29b-41d4-a716-446655440007',
     album: 'Retro Future',
     coverUrl: 'https://picsum.photos/300/300?random=15',
     duration: 267,
@@ -359,8 +359,8 @@ export const sampleSongs: Song[] = [
   {
     id: '6',
     title: 'Neural Network',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=16',
     duration: 198,
@@ -371,8 +371,8 @@ export const sampleSongs: Song[] = [
   {
     id: '7',
     title: 'Quantum Beat',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=17',
     duration: 312,
@@ -383,8 +383,8 @@ export const sampleSongs: Song[] = [
   {
     id: '8',
     title: 'Cyber Dawn',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=18',
     duration: 245,
@@ -395,8 +395,8 @@ export const sampleSongs: Song[] = [
   {
     id: '9',
     title: 'Digital Horizon',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=19',
     duration: 278,
@@ -407,8 +407,8 @@ export const sampleSongs: Song[] = [
   {
     id: '10',
     title: 'Matrix Flow',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     album: 'Decentralized Sounds',
     coverUrl: 'https://picsum.photos/300/300?random=20',
     duration: 256,
@@ -422,8 +422,8 @@ export const sampleAlbums: Album[] = [
   {
     id: '1',
     title: 'Decentralized Sounds',
-    artist: 'Digital Dreams',
-    artistId: '1',
+    artist: 'Cosmic Drift',
+    artistId: '550e8400-e29b-41d4-a716-446655440006',
     coverUrl: 'https://picsum.photos/400/400?random=21',
     releaseDate: '2024-01-15',
     songs: sampleSongs.filter(song => song.album === 'Decentralized Sounds'),
@@ -431,8 +431,8 @@ export const sampleAlbums: Album[] = [
   {
     id: '2',
     title: 'Retro Future',
-    artist: 'Neon Nights',
-    artistId: '2',
+    artist: 'Violet Pulse',
+    artistId: '550e8400-e29b-41d4-a716-446655440007',
     coverUrl: 'https://picsum.photos/400/400?random=22',
     releaseDate: '2024-02-20',
     songs: sampleSongs.filter(song => song.album === 'Retro Future'),
@@ -440,8 +440,8 @@ export const sampleAlbums: Album[] = [
   {
     id: '3',
     title: 'Web3 Chronicles',
-    artist: 'Crypto Collective',
-    artistId: '3',
+    artist: 'Prism Theory',
+    artistId: '550e8400-e29b-41d4-a716-446655440008',
     coverUrl: 'https://picsum.photos/400/400?random=23',
     releaseDate: '2024-03-10',
     songs: sampleSongs.filter(song => song.album === 'Web3 Chronicles'),
