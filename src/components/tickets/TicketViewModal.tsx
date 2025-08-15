@@ -43,17 +43,6 @@ export default function TicketViewModal({
   const themeColors = colors[activeTheme];
   const [currentTicketIndex, setCurrentTicketIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const [isModalReady, setIsModalReady] = useState(false);
-
-  // Reset state when modal opens
-  React.useEffect(() => {
-    if (visible) {
-      setCurrentTicketIndex(0);
-      setIsModalReady(true);
-    } else {
-      setIsModalReady(false);
-    }
-  }, [visible]);
 
   const handleViewableItemsChanged = ({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -189,7 +178,6 @@ export default function TicketViewModal({
       maxHeight: '90%',
       overflow: 'hidden',
       flex: 1,
-      alignSelf: 'center',
     },
     header: {
       flexDirection: 'row',
@@ -232,7 +220,6 @@ export default function TicketViewModal({
       width: ITEM_WIDTH,
       alignItems: 'center',
       justifyContent: 'center',
-      flex: 1,
     },
     ticketScrollContent: {
       flexGrow: 1,
@@ -240,8 +227,8 @@ export default function TicketViewModal({
     },
     ticketScrollContainer: {
       alignItems: 'center',
-      justifyContent: 'flex-start',
-      paddingTop: 20,
+      justifyContent: 'center',
+      paddingTop: 10,
       paddingHorizontal: 20,
       paddingBottom: 20,
       minHeight: '100%',
@@ -493,10 +480,9 @@ export default function TicketViewModal({
             keyExtractor={(item) => item.id}
             snapToInterval={ITEM_WIDTH}
             snapToAlignment="center"
-            decelerationRate="fast"
+            decelerationRate={0}
             overScrollMode="never"
             disableIntervalMomentum
-            initialScrollIndex={0}
             contentContainerStyle={{ 
               alignItems: 'center'
             }}
