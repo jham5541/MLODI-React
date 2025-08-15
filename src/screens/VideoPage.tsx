@@ -9,6 +9,7 @@ import {
   Alert,
   StatusBar,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
@@ -16,24 +17,12 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme, colors } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import videoService, { Video as VideoType } from '../services/videoService';
 
 type VideoPageRouteProp = RouteProp<RootStackParamList, 'VideoPage'>;
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface Video {
-  id: string;
-  title: string;
-  thumbnailUrl: string;
-  duration: number;
-  views: number;
-  likes: number;
-  releaseDate: string;
-  price?: number;
-  badgeRequired?: string;
-  videoUrl?: string;
-  artistName: string;
-  description: string;
-}
+// Using the Video interface from videoService
 
 export default function VideoPage() {
   const { activeTheme } = useTheme();
@@ -42,7 +31,7 @@ export default function VideoPage() {
   const route = useRoute<VideoPageRouteProp>();
   const { videoId } = route.params;
 
-  const [video, setVideo] = useState<Video | null>(null);
+  const [video, setVideo] = useState<VideoType | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({});
@@ -53,26 +42,32 @@ export default function VideoPage() {
   const { width } = Dimensions.get('window');
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockVideo: Video = {
-      id: videoId,
-      title: 'Summer Nights - Official Music Video',
-      thumbnailUrl: 'https://picsum.photos/400/225?random=20',
-      duration: 195,
-      views: 2500000,
-      likes: 125000,
-      releaseDate: '2023-08-20',
-      // Using a sample video URL that works with expo-av
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      artistName: 'Artist Name',
-      description: 'Experience the magic of summer nights in this official music video. Shot in stunning locations with breathtaking cinematography that captures the essence of the season.',
-    };
-
-    setVideo(mockVideo);
-    setViewCount(mockVideo.views);
-    setLikeCount(mockVideo.likes);
-    setLoading(false);
+    loadVideo();
   }, [videoId]);
+
+  const loadVideo = async () => {
+    try {
+      setLoading(true);
+      
+      // Load video details and check if user has liked it
+      const [videoData, liked] = await Promise.all([
+        videoService.getVideo(videoId),
+        videoService.isVideoLiked(videoId),
+      ]);
+      
+      if (videoData) {
+        setVideo(videoData);
+        setViewCount(videoData.views);
+        setLikeCount(videoData.likes);
+        setIsLiked(liked);
+      }
+    } catch (error) {
+      console.error('Error loading video:', error);
+      Alert.alert('Error', 'Failed to load video');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -95,7 +90,7 @@ export default function VideoPage() {
     });
   };
 
-  const handlePlayVideo = () => {
+  const handlePlayVideo = async () => {
     if (videoRef.current) {
       videoRef.current.presentFullscreenPlayer();
       
@@ -103,23 +98,37 @@ export default function VideoPage() {
       if (!hasViewed) {
         setViewCount(prev => prev + 1);
         setHasViewed(true);
+        
+        // Update view count in database
+        try {
+          await videoService.incrementViewCount(videoId);
+        } catch (error) {
+          console.error('Error updating view count:', error);
+        }
       }
     }
   };
 
-  const handleLikeVideo = () => {
-    const wasLiked = isLiked;
-    setIsLiked(!wasLiked);
-    
-    // Update like count based on action
-    if (wasLiked) {
-      setLikeCount(prev => prev - 1);
-    } else {
-      setLikeCount(prev => prev + 1);
+  const handleLikeVideo = async () => {
+    try {
+      const wasLiked = isLiked;
+      setIsLiked(!wasLiked);
+      
+      // Update like count based on action
+      if (wasLiked) {
+        setLikeCount(prev => prev - 1);
+      } else {
+        setLikeCount(prev => prev + 1);
+      }
+      
+      // Toggle like in database
+      await videoService.toggleVideoLike(videoId);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert the UI change if API call fails
+      setIsLiked(prev => !prev);
+      setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
     }
-    
-    // Optional: Show feedback without alert for better UX
-    // Alert.alert('Like Video', `${wasLiked ? 'Unliked' : 'Liked'} "${video?.title}"`);
   };
 
   const handleShareVideo = () => {
