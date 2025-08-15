@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,11 @@ import {
   Modal,
   ScrollView,
   Dimensions,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Ticket {
   id: string;
@@ -42,30 +41,17 @@ export default function TicketViewModal({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const [currentTicketIndex, setCurrentTicketIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-
-  const handleViewableItemsChanged = ({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentTicketIndex(viewableItems[0].index || 0);
-    }
-  };
-
-  const viewabilityConfig = {
-    itemVisiblePercentThreshold: 50,
-    minimumViewTime: 200,
-  };
-
-  const ITEM_WIDTH = screenWidth; // Full width for each ticket page
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long',
+      weekday: 'short',
+      month: 'short',
       day: 'numeric'
     });
   };
+  
+  const currentTicket = tickets[currentTicketIndex];
 
   // Generate a sophisticated QR-like pattern for display
   const generateQRPattern = (seed: string) => {
@@ -164,36 +150,30 @@ export default function TicketViewModal({
   };
 
   const styles = StyleSheet.create({
-    overlay: {
+    container: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    modal: {
-      backgroundColor: themeColors.surface,
-      borderRadius: 20,
-      width: '95%',
-      maxWidth: 420,
-      maxHeight: '90%',
-      overflow: 'hidden',
-      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.95)',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.border,
+      paddingHorizontal: 20,
+      paddingTop: 50,
+      paddingBottom: 20,
     },
     headerTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: themeColors.text,
+      fontSize: 18,
+      fontWeight: '600',
+      color: 'white',
     },
     closeButton: {
-      padding: 4,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     eventInfo: {
       paddingVertical: 15,
@@ -215,72 +195,6 @@ export default function TicketViewModal({
       color: themeColors.textSecondary,
       textAlign: 'center',
       lineHeight: 20,
-    },
-    ticketPage: {
-      width: ITEM_WIDTH,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    ticketScrollContent: {
-      flexGrow: 1,
-      height: '100%',
-    },
-    ticketScrollContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingTop: 10,
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-      minHeight: '100%',
-      flexGrow: 1,
-    },
-    ticketCard: {
-      backgroundColor: themeColors.background,
-      borderRadius: 20,
-      padding: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '90%',
-      maxWidth: 320,
-      alignSelf: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 20,
-      elevation: 8,
-      borderWidth: 0,
-      borderTopWidth: 1,
-      borderTopColor: themeColors.surface + '80',
-      borderBottomWidth: 2,
-      borderBottomColor: themeColors.border + '20',
-    },
-    ticketNumber: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: themeColors.primary,
-      marginBottom: 16,
-      textAlign: 'center',
-    },
-    qrCodeContainer: {
-      backgroundColor: '#ffffff',
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 160,
-      height: 160,
-      alignSelf: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 6,
-      borderWidth: 0,
-      borderTopWidth: 1,
-      borderTopColor: '#f8f9fa',
-      borderBottomWidth: 1,
-      borderBottomColor: '#e9ecef',
     },
     qrCodeWrapper: {
       position: 'relative',
@@ -362,31 +276,125 @@ export default function TicketViewModal({
       fontWeight: '600',
       letterSpacing: 0.5,
     },
+    scrollContent: {
+      paddingBottom: 40,
+    },
+    eventCard: {
+      backgroundColor: themeColors.surface,
+      marginHorizontal: 20,
+      marginTop: 20,
+      padding: 20,
+      borderRadius: 16,
+      alignItems: 'center',
+    },
+    venueName: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: themeColors.text,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    eventDate: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      marginBottom: 4,
+    },
+    eventLocation: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+    },
+    qrSection: {
+      alignItems: 'center',
+      marginTop: 30,
+      marginBottom: 20,
+    },
+    qrContainer: {
+      backgroundColor: 'white',
+      padding: 20,
+      borderRadius: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 5,
+    },
     ticketId: {
       fontSize: 12,
       fontFamily: 'monospace',
       color: themeColors.textSecondary,
-      marginBottom: 8,
+      marginTop: 12,
       textAlign: 'center',
+    },
+    seatSection: {
       backgroundColor: themeColors.surface,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-      overflow: 'hidden',
-      alignSelf: 'center',
+      marginHorizontal: 20,
+      padding: 16,
+      borderRadius: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    seatLabel: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
     },
     seatInfo: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: themeColors.primary,
-      marginBottom: 16,
-      textAlign: 'center',
-      backgroundColor: themeColors.primary + '20',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      fontSize: 18,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
+    instructionCard: {
+      backgroundColor: themeColors.primary + '10',
+      marginHorizontal: 20,
+      padding: 16,
       borderRadius: 12,
-      overflow: 'hidden',
-      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    instructionText: {
+      fontSize: 14,
+      color: themeColors.text,
+      marginLeft: 10,
+      flex: 1,
+    },
+    navigationSection: {
+      marginHorizontal: 20,
+      marginTop: 20,
+    },
+    ticketCounter: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    navigationButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    navButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: themeColors.surface,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      gap: 8,
+    },
+    navButtonDisabled: {
+      opacity: 0.5,
+    },
+    navButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: themeColors.text,
+    },
+    navButtonTextDisabled: {
+      color: themeColors.textSecondary,
     },
     validationNote: {
       fontSize: 12,
@@ -422,23 +430,6 @@ export default function TicketViewModal({
       color: themeColors.textSecondary,
       marginLeft: 16,
     },
-    instructionContainer: {
-      backgroundColor: themeColors.primary + '15',
-      borderRadius: 16,
-      padding: 15,
-      marginTop: 15,
-      marginBottom: 10,
-      borderLeftWidth: 4,
-      borderLeftColor: themeColors.primary,
-      width: '100%',
-    },
-    instructionText: {
-      fontSize: 14,
-      color: themeColors.text,
-      textAlign: 'center',
-      lineHeight: 20,
-      fontWeight: '500',
-    },
     swipeHint: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -457,139 +448,81 @@ export default function TicketViewModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Your Tickets</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={themeColors.text} />
-            </TouchableOpacity>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Ticket</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Ionicons name="close" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Main Content */}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Event Info Card */}
+          <View style={styles.eventCard}>
+            <Text style={styles.venueName}>{venue}</Text>
+            <Text style={styles.eventDate}>{formatDate(date)} • {time}</Text>
+            <Text style={styles.eventLocation}>{city}</Text>
           </View>
 
-          <FlatList
-            ref={flatListRef}
-            data={tickets}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={handleViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            keyExtractor={(item) => item.id}
-            snapToInterval={ITEM_WIDTH}
-            snapToAlignment="center"
-            decelerationRate={0}
-            overScrollMode="never"
-            disableIntervalMomentum
-            contentContainerStyle={{ 
-              alignItems: 'center'
-            }}
-            getItemLayout={(data, index) => ({
-              length: ITEM_WIDTH,
-              offset: ITEM_WIDTH * index,
-              index,
-            })}
-            renderItem={({ item: ticket, index }) => (
-              <View style={styles.ticketPage}>
-                <ScrollView 
-                  style={styles.ticketScrollContent}
-                  contentContainerStyle={styles.ticketScrollContainer}
-                  showsVerticalScrollIndicator={false}
-                  bounces={false}
-                  alwaysBounceVertical={false}
-                  decelerationRate={0.85}
-                  scrollEventThrottle={16}
-                  overScrollMode="never"
-                  fadingEdgeLength={5}
+          {/* QR Code Section */}
+          <View style={styles.qrSection}>
+            <View style={styles.qrContainer}>
+              {renderQRCode(currentTicket.qrCode)}
+            </View>
+            <Text style={styles.ticketId}>{currentTicket.id}</Text>
+          </View>
+
+          {/* Seat Info if available */}
+          {currentTicket.seatInfo && (
+            <View style={styles.seatSection}>
+              <Text style={styles.seatLabel}>Seat</Text>
+              <Text style={styles.seatInfo}>{currentTicket.seatInfo}</Text>
+            </View>
+          )}
+
+          {/* Instructions */}
+          <View style={styles.instructionCard}>
+            <Ionicons name="information-circle" size={20} color={themeColors.primary} />
+            <Text style={styles.instructionText}>
+              Present this QR code at the venue entrance for scanning
+            </Text>
+          </View>
+
+          {/* Multiple Tickets Navigation */}
+          {tickets.length > 1 && (
+            <View style={styles.navigationSection}>
+              <Text style={styles.ticketCounter}>
+                Ticket {currentTicketIndex + 1} of {tickets.length}
+              </Text>
+              <View style={styles.navigationButtons}>
+                <TouchableOpacity 
+                  style={[styles.navButton, currentTicketIndex === 0 && styles.navButtonDisabled]}
+                  onPress={() => setCurrentTicketIndex(Math.max(0, currentTicketIndex - 1))}
+                  disabled={currentTicketIndex === 0}
                 >
-                  <View style={styles.eventInfo}>
-                    <Text style={styles.venue} numberOfLines={2}>
-                      {venue}
-                    </Text>
-                    <Text style={styles.eventDetails}>
-                      {city}{'\n'}
-                      {formatDate(date)} at {time}
-                    </Text>
-                  </View>
-
-                  <View style={styles.ticketCard}>
-                    <Text style={styles.ticketNumber}>
-                      Ticket {index + 1} of {tickets.length}
-                    </Text>
-
-                    <View style={styles.qrCodeContainer}>
-                      {renderQRCode(ticket.qrCode)}
-                    </View>
-
-                    <View style={styles.scanInstructionContainer}>
-                      <View style={styles.scanIcon}>
-                        <Ionicons name="scan" size={20} color={themeColors.primary} />
-                      </View>
-                      <Text style={styles.qrCodeText}>
-                        Scan at venue entrance
-                      </Text>
-                    </View>
-
-                    <Text style={styles.ticketId}>
-                      ID: {ticket.id}
-                    </Text>
-
-                    {ticket.seatInfo && (
-                      <Text style={styles.seatInfo}>
-                        {ticket.seatInfo}
-                      </Text>
-                    )}
-
-                    <Text style={styles.validationNote}>
-                      Keep this ticket ready for scanning
-                    </Text>
-                  </View>
-
-                  {tickets.length > 1 && (
-                    <>
-                      <View style={styles.swipeHint}>
-                        <Ionicons 
-                          name="swap-horizontal" 
-                          size={16} 
-                          color={themeColors.textSecondary} 
-                        />
-                        <Text style={styles.swipeHintText}>
-                          Swipe to view other tickets
-                        </Text>
-                      </View>
-
-                      <View style={styles.paginationContainer}>
-                        <View style={{ flexDirection: 'row' }}>
-                          {tickets.map((_, dotIndex) => (
-                            <View
-                              key={dotIndex}
-                              style={[
-                                styles.paginationDot,
-                                dotIndex === currentTicketIndex && styles.paginationDotActive,
-                              ]}
-                            />
-                          ))}
-                        </View>
-                        <Text style={styles.paginationText}>
-                          {currentTicketIndex + 1} / {tickets.length}
-                        </Text>
-                      </View>
-                    </>
-                  )}
-
-                  <View style={styles.instructionContainer}>
-                    <Text style={styles.instructionText}>
-                      Save screenshots of each QR code as backup. Each ticket has a unique code that must be scanned separately at the venue.
-                    </Text>
-                  </View>
-                </ScrollView>
+                  <Ionicons name="chevron-back" size={20} color={currentTicketIndex === 0 ? themeColors.textSecondary : themeColors.text} />
+                  <Text style={[styles.navButtonText, currentTicketIndex === 0 && styles.navButtonTextDisabled]}>Previous</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.navButton, currentTicketIndex === tickets.length - 1 && styles.navButtonDisabled]}
+                  onPress={() => setCurrentTicketIndex(Math.min(tickets.length - 1, currentTicketIndex + 1))}
+                  disabled={currentTicketIndex === tickets.length - 1}
+                >
+                  <Text style={[styles.navButtonText, currentTicketIndex === tickets.length - 1 && styles.navButtonTextDisabled]}>Next</Text>
+                  <Ionicons name="chevron-forward" size={20} color={currentTicketIndex === tickets.length - 1 ? themeColors.textSecondary : themeColors.text} />
+                </TouchableOpacity>
               </View>
-            )}
-          />
-
-        </View>
+            </View>
+          )}
+        </ScrollView>
       </View>
     </Modal>
   );
