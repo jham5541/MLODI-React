@@ -115,15 +115,15 @@ export default function TicketViewModal({
   const renderQRCode = (qrCode: string) => {
     const pattern = generateQRPattern(qrCode);
     const gridSize = 21;
-    const cellSize = 4;
+    const cellSize = 5;
     const totalSize = gridSize * cellSize;
     
     return (
       <View style={styles.qrCodeWrapper}>
         {/* Subtle glow effect */}
         <View style={[styles.qrGlow, { 
-          width: totalSize + 20, 
-          height: totalSize + 20,
+          width: totalSize + 24, 
+          height: totalSize + 24,
         }]} />
         
         {/* Main QR code */}
@@ -222,23 +222,26 @@ export default function TicketViewModal({
       justifyContent: 'center',
     },
     ticketScrollContent: {
-      flexGrow: 0,
+      flexGrow: 1,
       height: '100%',
     },
     ticketScrollContainer: {
       alignItems: 'center',
-      justifyContent: 'flex-start',
+      justifyContent: 'center',
       paddingTop: 10,
       paddingHorizontal: 15,
       paddingBottom: 20,
+      minHeight: '100%',
+      flexGrow: 1,
     },
     ticketCard: {
       backgroundColor: themeColors.background,
       borderRadius: 20,
       padding: 20,
       alignItems: 'center',
+      justifyContent: 'center',
       width: '100%',
-      maxWidth: 300,
+      maxWidth: 320,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.15,
@@ -260,12 +263,12 @@ export default function TicketViewModal({
     qrCodeContainer: {
       backgroundColor: '#ffffff',
       borderRadius: 16,
-      padding: 16,
+      padding: 20,
       marginBottom: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      width: 140,
-      height: 140,
+      width: 160,
+      height: 160,
       alignSelf: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 6 },
@@ -491,7 +494,7 @@ export default function TicketViewModal({
                   style={styles.ticketScrollContent}
                   contentContainerStyle={styles.ticketScrollContainer}
                   showsVerticalScrollIndicator={false}
-                  bounces={true}
+                  bounces={false}
                   alwaysBounceVertical={false}
                   decelerationRate={0.85}
                   scrollEventThrottle={16}
