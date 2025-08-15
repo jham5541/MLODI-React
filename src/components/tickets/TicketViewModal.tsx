@@ -55,7 +55,7 @@ export default function TicketViewModal({
     minimumViewTime: 200,
   };
 
-  const ITEM_WIDTH = screenWidth * 0.9; // Fixed width for each ticket page
+  const ITEM_WIDTH = screenWidth; // Full width for each ticket page
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -229,7 +229,7 @@ export default function TicketViewModal({
       alignItems: 'center',
       justifyContent: 'center',
       paddingTop: 10,
-      paddingHorizontal: 15,
+      paddingHorizontal: 20,
       paddingBottom: 20,
       minHeight: '100%',
       flexGrow: 1,
@@ -237,11 +237,12 @@ export default function TicketViewModal({
     ticketCard: {
       backgroundColor: themeColors.background,
       borderRadius: 20,
-      padding: 20,
+      padding: 24,
       alignItems: 'center',
       justifyContent: 'center',
-      width: '100%',
+      width: '90%',
       maxWidth: 320,
+      alignSelf: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.15,
@@ -349,6 +350,7 @@ export default function TicketViewModal({
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 20,
+      alignSelf: 'center',
     },
     scanIcon: {
       marginRight: 8,
@@ -371,6 +373,7 @@ export default function TicketViewModal({
       paddingVertical: 6,
       borderRadius: 8,
       overflow: 'hidden',
+      alignSelf: 'center',
     },
     seatInfo: {
       fontSize: 16,
@@ -383,6 +386,7 @@ export default function TicketViewModal({
       paddingVertical: 8,
       borderRadius: 12,
       overflow: 'hidden',
+      alignSelf: 'center',
     },
     validationNote: {
       fontSize: 12,
@@ -475,13 +479,12 @@ export default function TicketViewModal({
             viewabilityConfig={viewabilityConfig}
             keyExtractor={(item) => item.id}
             snapToInterval={ITEM_WIDTH}
-            snapToAlignment="start"
+            snapToAlignment="center"
             decelerationRate={0}
             overScrollMode="never"
             disableIntervalMomentum
             contentContainerStyle={{ 
-              alignItems: 'center',
-              paddingHorizontal: 0 
+              alignItems: 'center'
             }}
             getItemLayout={(data, index) => ({
               length: ITEM_WIDTH,
