@@ -20,6 +20,7 @@ import { useCartStore } from '../store/cartStore';
 import ProductCard from '../components/marketplace/ProductCard';
 import CartModal from '../components/marketplace/CartModal';
 import MerchModal from '../components/marketplace/MerchModal';
+import AuthModal from '../components/auth/AuthModal';
 import MarketplaceHeader from '../components/marketplace/MarketplaceHeader';
 import MarketplaceStats from '../components/marketplace/MarketplaceStats';
 import MarketplaceStatsView from '../components/marketplace/MarketplaceStatsView';
@@ -212,7 +213,7 @@ export default function MarketplaceScreen() {
     }
   };
 
-  const handleAddToCart = async (product: Product, variantId?: string) => {
+  const handleAddToCart = async (product: Product, variantId?: string) => {
     if (!user) {
       setShowAuthModal(true);
       return;
@@ -231,7 +232,7 @@ export default function MarketplaceScreen() {
     }
   };
 
-  const handleBuyNow = (product: Product) => {
+  const handleBuyNow = (product: Product) => {
     if (!user) {
       setShowAuthModal(true);
       return;
@@ -644,22 +645,21 @@ export default function MarketplaceScreen() {
         isVisible={showCart}
         onClose={() => setShowCart(false)}
       />
-      cMerchModal
+      <MerchModal
         visible={showMerchModal}
         product={selectedMerchProduct}
-        onClose={() => {
+        onClose={() => {
           setShowMerchModal(false);
           setSelectedMerchProduct(null);
         }}
-        onPurchaseComplete={() => {
+        onPurchaseComplete={() => {
           // Optionally refresh products or show success message
           loadProducts();
         }}
-      /e
+      />
 
       {/* Auth Modal for gating purchases */}
-      cAuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} /e
-    c/Viewe
+      <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }

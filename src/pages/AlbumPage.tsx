@@ -25,6 +25,7 @@ interface Album {
   id: string;
   title: string;
   artist: string;
+  artistId?: string; // Add optional artistId field
   coverUrl: string;
   year: number;
   trackCount: number;
@@ -51,6 +52,7 @@ const albumData: Album = {
   id: '1',
   title: 'Midnight Synthwave',
   artist: 'The Midnight',
+  artistId: 'the-midnight-artist-id', // Add artistId
   coverUrl: 'https://picsum.photos/400/400?random=album1',
   year: 2023,
   trackCount: 12,
@@ -72,12 +74,12 @@ const albumData: Album = {
 };
 
 // Convert album songs to PlayContext format
-const convertToPlaySongs = (songs: Song[]): PlaySong[] => {
+const convertToPlaySongs = (songs: Song[], artistId?: string): PlaySong[] => {
   return songs.map(song => ({
     id: song.id,
     title: song.title,
     artist: song.artist,
-    artistId: 'artist-1', // Mock artistId
+    artistId: artistId || 'default-artist-id', // Use provided artistId or default
     album: song.album,
     coverUrl: 'https://picsum.photos/300/300?random=' + song.id,
     duration: parseDuration(song.duration),
@@ -277,7 +279,7 @@ const AlbumPage = ({ route, navigation }: Props) => {
       id: song.id,
       title: song.title,
       artist: song.artist,
-      artistId: 'artist-1', // Mock artistId
+      artistId: album?.artistId || albumData.artistId || 'default-artist-id', // Use album's artistId
       album: song.album,
       coverUrl: 'https://picsum.photos/300/300?random=' + song.id,
       duration: parseDuration(song.duration),
@@ -285,7 +287,7 @@ const AlbumPage = ({ route, navigation }: Props) => {
     };
     
     // Convert all album songs to playlist
-    const playlist = convertToPlaySongs(albumData.songs);
+    const playlist = convertToPlaySongs(albumData.songs, album?.artistId || albumData.artistId);
     
     // If this song is already playing, toggle play/pause
     if (currentSong?.id === song.id && isPlaying) {
@@ -802,8 +804,8 @@ const AlbumPage = ({ route, navigation }: Props) => {
         </View>
         <View style={styles.albumInfo}>
           <Text style={styles.albumTitle}>{albumData.title}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ArtistProfile', { artistId: 'artist-1' })}>
-            <Text style={styles.albumArtist}>{albumData.artist}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistProfile', { artistId: album?.artistId || albumData.artistId || 'default-artist-id' })}>
+            <Text style={styles.albumArtist}>{album?.artist || albumData.artist}</Text>
           </TouchableOpacity>
           
           <View style={styles.albumDetails}>
@@ -850,7 +852,7 @@ const AlbumPage = ({ route, navigation }: Props) => {
           <TouchableOpacity 
             style={styles.shuffleButton}
             onPress={() => {
-              const playlist = convertToPlaySongs(albumData.songs);
+              const playlist = convertToPlaySongs(albumData.songs, album?.artistId || albumData.artistId);
               // Shuffle the playlist
               const shuffledPlaylist = [...playlist].sort(() => Math.random() - 0.5);
               playSong(shuffledPlaylist[0], shuffledPlaylist);

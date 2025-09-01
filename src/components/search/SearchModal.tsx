@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import Modal from 'react-native-modal';
@@ -21,6 +22,8 @@ import SongCard from '../common/SongCard';
 import ArtistCard from '../common/ArtistCard';
 import { sampleSongs, sampleArtists, sampleAlbums } from '../../data/sampleData';
 import { Song, Artist, Album } from '../../types/music';
+import searchService from '../../services/searchService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type SearchResult = {
   songs: Song[];
@@ -32,6 +35,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function SearchModal() {
   const { activeTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   useBackHandler(() => {
     if (isSearchOpen) {
@@ -46,36 +50,78 @@ export default function SearchModal() {
   const [results, setResults] = useState<SearchResult>({ songs: [], artists: [], albums: [] });
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [useDatabase, setUseDatabase] = useState(true); // Toggle for database vs sample data
 
-  const performSearch = (query: string) => {
+  const performSearch = async (query: string) => {
     if (!query.trim()) {
       setResults({ songs: [], artists: [], albums: [] });
       return;
     }
 
-    const lowerQuery = query.toLowerCase();
-    
-    const filteredSongs = sampleSongs.filter(song =>
-      song.title.toLowerCase().includes(lowerQuery) ||
-      song.artist.toLowerCase().includes(lowerQuery) ||
-      song.album.toLowerCase().includes(lowerQuery)
-    );
+    setIsLoading(true);
 
-    const filteredArtists = sampleArtists.filter(artist =>
-      artist.name.toLowerCase().includes(lowerQuery) ||
-      artist.genres.some(genre => genre.toLowerCase().includes(lowerQuery))
-    );
+    try {
+      if (useDatabase) {
+        // Search from database (only visible artists with paid subscriptions)
+        const searchResults = await searchService.searchMusic(query, 'all', 20);
+        const uiFormat = searchService.convertToUIFormat(searchResults);
+        setResults(uiFormat);
+      } else {
+        // Fallback to sample data search
+        const lowerQuery = query.toLowerCase();
+        
+        const filteredSongs = sampleSongs.filter(song =>
+          song.title.toLowerCase().includes(lowerQuery) ||
+          song.artist.toLowerCase().includes(lowerQuery) ||
+          song.album.toLowerCase().includes(lowerQuery)
+        );
 
-    const filteredAlbums = sampleAlbums.filter(album =>
-      album.title.toLowerCase().includes(lowerQuery) ||
-      album.artist.toLowerCase().includes(lowerQuery)
-    );
+        const filteredArtists = sampleArtists.filter(artist =>
+          artist.name.toLowerCase().includes(lowerQuery) ||
+          artist.genres.some(genre => genre.toLowerCase().includes(lowerQuery))
+        );
 
-    setResults({
-      songs: filteredSongs,
-      artists: filteredArtists,
-      albums: filteredAlbums,
-    });
+        const filteredAlbums = sampleAlbums.filter(album =>
+          album.title.toLowerCase().includes(lowerQuery) ||
+          album.artist.toLowerCase().includes(lowerQuery)
+        );
+
+        setResults({
+          songs: filteredSongs,
+          artists: filteredArtists,
+          albums: filteredAlbums,
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      // Fallback to sample data on error
+      const lowerQuery = query.toLowerCase();
+      
+      const filteredSongs = sampleSongs.filter(song =>
+        song.title.toLowerCase().includes(lowerQuery) ||
+        song.artist.toLowerCase().includes(lowerQuery) ||
+        song.album.toLowerCase().includes(lowerQuery)
+      );
+
+      const filteredArtists = sampleArtists.filter(artist =>
+        artist.name.toLowerCase().includes(lowerQuery) ||
+        artist.genres.some(genre => genre.toLowerCase().includes(lowerQuery))
+      );
+
+      const filteredAlbums = sampleAlbums.filter(album =>
+        album.title.toLowerCase().includes(lowerQuery) ||
+        album.artist.toLowerCase().includes(lowerQuery)
+      );
+
+      setResults({
+        songs: filteredSongs,
+        artists: filteredArtists,
+        albums: filteredAlbums,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -114,7 +160,7 @@ export default function SearchModal() {
     modalContent: {
       backgroundColor: themeColors.background,
       height: '100%',
-      paddingTop: 50,
+      paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 44 : 20) + 20, // Add extra 20px padding after safe area
     },
     header: {
       flexDirection: 'row',
@@ -220,7 +266,7 @@ export default function SearchModal() {
         <View style={styles.header}>
           <View style={styles.searchContainer}>
             <SearchBar
-              placeholder="Search songs, artists, albums..."
+              placeholder="Search for an artist..."
               onSearch={handleSearch}
               autoFocus
             />

@@ -69,316 +69,38 @@ const loadFans = async () => {
       setLoading(true);
       setError(null);
 
-      let data: Fan[];
-      
-      // Use extended mock data to show scrolling
-      const mockFans: Fan[] = [
-        {
-          id: '1',
-          user_id: 'user-1',
-          username: 'SuperFan123',
-          avatar_url: '',
-          level: 'Diamond',
-          points: 15750,
-          rank: 1,
-          fan_since: '2023-01-15',
-          last_week_rank: 2,
-          badges: [],
-          user: { username: 'SuperFan123', avatar_url: '' },
-          avatar: '🎸'
-        },
-        {
-          id: '2',
-          user_id: 'user-2',
-          username: 'MusicLover99',
-          avatar_url: '',
-          level: 'Platinum',
-          points: 12300,
-          rank: 2,
-          fan_since: '2023-02-20',
-          last_week_rank: 1,
-          badges: [],
-          user: { username: 'MusicLover99', avatar_url: '' },
-          avatar: '🎵'
-        },
-        {
-          id: '3',
-          user_id: 'user-3',
-          username: 'BeatDropper',
-          avatar_url: '',
-          level: 'Gold',
-          points: 9850,
-          rank: 3,
-          fan_since: '2023-03-10',
-          last_week_rank: 3,
-          badges: [],
-          user: { username: 'BeatDropper', avatar_url: '' },
-          avatar: '🎤'
-        },
-        {
-          id: '4',
-          user_id: 'user-4',
-          username: 'VibeChaser',
-          avatar_url: '',
-          level: 'Gold',
-          points: 8200,
-          rank: 4,
-          fan_since: '2023-04-05',
-          last_week_rank: 5,
-          badges: [],
-          user: { username: 'VibeChaser', avatar_url: '' },
-          avatar: '🎧'
-        },
-        {
-          id: '5',
-          user_id: 'user-5',
-          username: 'RhythmRider',
-          avatar_url: '',
-          level: 'Silver',
-          points: 6500,
-          rank: 5,
-          fan_since: '2023-05-12',
-          last_week_rank: 4,
-          badges: [],
-          user: { username: 'RhythmRider', avatar_url: '' },
-          avatar: '🎹'
-        },
-        {
-          id: '6',
-          user_id: 'user-6',
-          username: 'SoundSeeker',
-          avatar_url: '',
-          level: 'Silver',
-          points: 5200,
-          rank: 6,
-          fan_since: '2023-06-01',
-          last_week_rank: 8,
-          badges: [],
-          user: { username: 'SoundSeeker', avatar_url: '' },
-          avatar: '🎺'
-        },
-        {
-          id: '7',
-          user_id: 'user-7',
-          username: 'MelodyMaker',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 3800,
-          rank: 7,
-          fan_since: '2023-07-20',
-          last_week_rank: 6,
-          badges: [],
-          user: { username: 'MelodyMaker', avatar_url: '' },
-          avatar: '🥁'
-        },
-        {
-          id: '8',
-          user_id: 'user-8',
-          username: 'HarmonyHunter',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 2900,
-          rank: 8,
-          fan_since: '2023-08-15',
-          last_week_rank: null,
-          badges: [],
-          user: { username: 'HarmonyHunter', avatar_url: '' },
-          avatar: '🎻'
-        },
-        {
-          id: '9',
-          user_id: user?.id || 'user-9',
-          username: user?.profile?.username || 'YourUsername',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 2100,
-          rank: 9,
-          fan_since: '2023-09-01',
-          last_week_rank: 10,
-          badges: [],
-          user: { username: user?.profile?.username || 'YourUsername', avatar_url: '' },
-          avatar: '🎶'
-        },
-        {
-          id: '10',
-          user_id: 'user-10',
-          username: 'TuneTaster',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 1500,
-          rank: 10,
-          fan_since: '2023-10-05',
-          last_week_rank: 9,
-          badges: [],
-          user: { username: 'TuneTaster', avatar_url: '' },
-          avatar: '🎼'
-        },
-        // Additional fans to demonstrate scrolling
-        {
-          id: '11',
-          user_id: 'user-11',
-          username: 'AudiophileX',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 1200,
-          rank: 11,
-          fan_since: '2023-10-15',
-          last_week_rank: 12,
-          badges: [],
-          user: { username: 'AudiophileX', avatar_url: '' },
-          avatar: '🎙️'
-        },
-        {
-          id: '12',
-          user_id: 'user-12',
-          username: 'BassBooster',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 1100,
-          rank: 12,
-          fan_since: '2023-10-20',
-          last_week_rank: 11,
-          badges: [],
-          user: { username: 'BassBooster', avatar_url: '' },
-          avatar: '🔊'
-        },
-        {
-          id: '13',
-          user_id: 'user-13',
-          username: 'SonicWave',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 950,
-          rank: 13,
-          fan_since: '2023-11-01',
-          last_week_rank: 14,
-          badges: [],
-          user: { username: 'SonicWave', avatar_url: '' },
-          avatar: '📻'
-        },
-        {
-          id: '14',
-          user_id: 'user-14',
-          username: 'MixMaster',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 850,
-          rank: 14,
-          fan_since: '2023-11-10',
-          last_week_rank: 13,
-          badges: [],
-          user: { username: 'MixMaster', avatar_url: '' },
-          avatar: '🎚️'
-        },
-        {
-          id: '15',
-          user_id: 'user-15',
-          username: 'EchoEcho',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 750,
-          rank: 15,
-          fan_since: '2023-11-15',
-          last_week_rank: null,
-          badges: [],
-          user: { username: 'EchoEcho', avatar_url: '' },
-          avatar: '🔈'
-        },
-        {
-          id: '16',
-          user_id: 'user-16',
-          username: 'FrequencyFan',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 650,
-          rank: 16,
-          fan_since: '2023-11-20',
-          last_week_rank: 17,
-          badges: [],
-          user: { username: 'FrequencyFan', avatar_url: '' },
-          avatar: '📡'
-        },
-        {
-          id: '17',
-          user_id: 'user-17',
-          username: 'AcousticLove',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 550,
-          rank: 17,
-          fan_since: '2023-11-25',
-          last_week_rank: 16,
-          badges: [],
-          user: { username: 'AcousticLove', avatar_url: '' },
-          avatar: '🎸'
-        },
-        {
-          id: '18',
-          user_id: 'user-18',
-          username: 'NoteNinja',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 450,
-          rank: 18,
-          fan_since: '2023-12-01',
-          last_week_rank: null,
-          badges: [],
-          user: { username: 'NoteNinja', avatar_url: '' },
-          avatar: '🥷'
-        },
-        {
-          id: '19',
-          user_id: 'user-19',
-          username: 'HarmonyHero',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 350,
-          rank: 19,
-          fan_since: '2023-12-05',
-          last_week_rank: 20,
-          badges: [],
-          user: { username: 'HarmonyHero', avatar_url: '' },
-          avatar: '🦸'
-        },
-        {
-          id: '20',
-          user_id: 'user-20',
-          username: 'NewListener',
-          avatar_url: '',
-          level: 'Bronze',
-          points: 250,
-          rank: 20,
-          fan_since: '2023-12-10',
-          last_week_rank: 19,
-          badges: [],
-          user: { username: 'NewListener', avatar_url: '' },
-          avatar: '🆕'
-        }
-      ];
-      
-      // Try to get real data, fallback to mock
-      if (!artistId) {
-        data = [];
-      } else {
-        try {
-          const leaderboardResponse = await databaseService.getArtistLeaderboard(artistId, ITEMS_PER_PAGE);
-          if (leaderboardResponse && leaderboardResponse.length > 0) {
-            data = leaderboardResponse.map(item => ({
-              ...item,
-              avatar: '🎵', // Default emoji avatar
-              last_week_rank: item.last_week_rank || null
-            }));
-          } else {
-            // Use mock data if no real data available
-            data = mockFans;
-          }
-        } catch (dbError) {
-          console.log('Using mock data for leaderboard');
-          data = mockFans;
-        }
-      }
+      // Fetch leaderboard from Supabase via databaseService
+      const entries = await databaseService.getArtistLeaderboard(artistId, ITEMS_PER_PAGE, 0);
 
-      setFans(data);
+      // Map to this component's Fan shape
+      const mapped: Fan[] = (entries || []).map((e) => {
+        const points = e.fanScore || 0;
+        const level = points >= 15000
+          ? 'Diamond'
+          : points >= 10000
+          ? 'Platinum'
+          : points >= 5000
+          ? 'Gold'
+          : points >= 2500
+          ? 'Silver'
+          : 'Bronze';
+        return {
+          id: `${e.userId}-${e.artistId}`,
+          user_id: e.userId,
+          username: e.username,
+          avatar_url: e.profilePicture || '',
+          level,
+          points,
+          rank: e.rank,
+          fan_since: '',
+          last_week_rank: null,
+          badges: [],
+          user: { username: e.username, avatar_url: e.profilePicture || '' },
+          avatar: '🎵',
+        };
+      });
+
+      setFans(mapped);
     } catch (err) {
       console.error('Error loading fans:', err);
       setError('Failed to load leaderboard');

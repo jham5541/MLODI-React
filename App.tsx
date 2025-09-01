@@ -13,37 +13,7 @@ import { PlayTrackingProvider } from './src/context/PlayTrackingContext';
 import { RadioProvider } from './src/context/RadioContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
-import PlayBar from './src/components/PlayBar';
 import { PointsNotification } from './src/components/notifications/PointsNotification';
-
-function PlayBarWrapper() {
-  const {
-    currentSong,
-    isPlaying,
-    isPlayBarVisible,
-    togglePlayPause,
-    nextSong,
-    previousSong,
-    closePlayBar,
-    expandPlayBar,
-    sound
-  } = usePlay();
-
-
-  return (
-    <PlayBar
-      currentSong={currentSong}
-      isPlaying={isPlaying}
-      isVisible={isPlayBarVisible}
-      onPlayPause={togglePlayPause}
-      onNext={nextSong}
-      onPrevious={previousSong}
-      onClose={closePlayBar}
-      onExpand={expandPlayBar}
-      sound={sound}
-    />
-  );
-}
 
 function AppContent() {
   const { activeTheme } = useTheme();
@@ -63,7 +33,6 @@ function AppContent() {
       <SafeAreaProvider>
         <StatusBar style={activeTheme === 'dark' ? 'light' : 'dark'} />
         <AppNavigator />
-        <PlayBarWrapper />
         <PointsNotification />
       </SafeAreaProvider>
     </GestureHandlerRootView>

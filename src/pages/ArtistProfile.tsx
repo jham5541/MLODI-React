@@ -60,6 +60,8 @@ export default function ArtistProfileScreen({ route }: Props) {
   const { user } = useAuth();
   const themeColors = colors[activeTheme];
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const screenWidth = Dimensions.get('window').width;
   const [artistInsights, setArtistInsights] = useState<any>(null);
   const [isEmergingTalent, setIsEmergingTalent] = useState(false);
@@ -615,7 +617,27 @@ export default function ArtistProfileScreen({ route }: Props) {
   };
 
   useEffect(() => {
-    fetchArtistDetails(artistId).then(setArtist);
+    const loadArtist = async () => {
+      if (!artistId) {
+        setError('No artist ID provided');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const artistData = await fetchArtistDetails(artistId);
+        setArtist(artistData);
+      } catch (err) {
+        console.error('Failed to load artist:', err);
+        setError(err?.message || 'Failed to load artist details');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadArtist();
   }, [artistId]);
 
   useEffect(() => {
@@ -644,10 +666,27 @@ export default function ArtistProfileScreen({ route }: Props) {
       loadArtistInsights();
     }
   }, [artistId]);
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading artist...</Text>
+      </View>
+    );
+  }
+  
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={[styles.loadingText, { color: themeColors.error || '#FF4444' }]}>Error: {error}</Text>
+        <Text style={[styles.loadingText, { fontSize: 14, marginTop: 10 }]}>Please check if the artist exists in the database</Text>
+      </View>
+    );
+  }
+  
   if (!artist) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Artist not found</Text>
       </View>
     );
   }

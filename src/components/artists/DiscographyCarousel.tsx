@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { getCommonContainerStyle, getCommonTitleStyle } from '../../styles/artistProfileStyles';
+import albumService, { Album as ServiceAlbum } from '../../services/albumService';
 
 interface Album {
   id: string;
@@ -53,58 +55,86 @@ export default function DiscographyCarousel({
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockAlbums: Album[] = [
-      {
-        id: '1',
-        title: 'Golden Hour',
-        releaseDate: '2023-08-15',
-        coverUrl: 'https://picsum.photos/300/300?random=10',
-        trackCount: 12,
-        totalDuration: 2880, // 48 minutes
-        price: 9.99,
-        tracks: [
-          { id: '1-1', title: 'Sunrise', duration: 240, trackNumber: 1, price: 1.29 },
-          { id: '1-2', title: 'Golden Hour', duration: 195, trackNumber: 2, price: 1.29 },
-          { id: '1-3', title: 'Summer Nights', duration: 208, trackNumber: 3, price: 1.29 },
-          { id: '1-4', title: 'Memories', duration: 223, trackNumber: 4 },
-          { id: '1-5', title: 'Dancing Light', duration: 186, trackNumber: 5 },
-        ],
-      },
-      {
-        id: '2',
-        title: 'Neon City',
-        releaseDate: '2022-11-20',
-        coverUrl: 'https://picsum.photos/300/300?random=11',
-        trackCount: 10,
-        totalDuration: 2400, // 40 minutes
-        price: 8.99,
-        tracks: [
-          { id: '2-1', title: 'Electric Dreams', duration: 208, trackNumber: 1, price: 1.29 },
-          { id: '2-2', title: 'City Lights', duration: 176, trackNumber: 2, price: 1.29 },
-          { id: '2-3', title: 'Neon Nights', duration: 244, trackNumber: 3 },
-          { id: '2-4', title: 'Digital Love', duration: 201, trackNumber: 4 },
-        ],
-      },
-      {
-        id: '3',
-        title: 'Serenity',
-        releaseDate: '2021-05-10',
-        coverUrl: 'https://picsum.photos/300/300?random=12',
-        trackCount: 8,
-        totalDuration: 1920, // 32 minutes
-        tracks: [
-          { id: '3-1', title: 'Ocean Waves', duration: 222, trackNumber: 1 },
-          { id: '3-2', title: 'Peaceful Mind', duration: 195, trackNumber: 2 },
-          { id: '3-3', title: 'Mountain Air', duration: 267, trackNumber: 3 },
-        ],
-      },
-    ];
-
-    setAlbums(mockAlbums);
+    fetchAlbums();
   }, [artistId]);
+
+  const fetchAlbums = async () => {
+    try {
+      setLoading(true);
+      const albumsData = await albumService.getArtistAlbums(artistId);
+      
+      // Transform service albums to component format
+      const transformedAlbums: Album[] = albumsData.map(album => ({
+        id: album.id,
+        title: album.title,
+        releaseDate: album.release_date || new Date().toISOString(),
+        coverUrl: album.cover_url || `https://picsum.photos/300/300?random=${album.id}`,
+        trackCount: album.total_tracks || 0,
+        totalDuration: album.total_tracks * 240, // Estimate 4 min per track
+        price: 9.99, // Default price
+        tracks: [] // Will be loaded separately if needed
+      }));
+      
+      // If no albums from database, use mock data as fallback
+      if (transformedAlbums.length === 0) {
+        const mockAlbums: Album[] = [
+          {
+            id: '1',
+            title: 'Golden Hour',
+            releaseDate: '2023-08-15',
+            coverUrl: 'https://picsum.photos/300/300?random=10',
+            trackCount: 12,
+            totalDuration: 2880,
+            price: 9.99,
+            tracks: []
+          },
+          {
+            id: '2',
+            title: 'Neon City',
+            releaseDate: '2022-11-20',
+            coverUrl: 'https://picsum.photos/300/300?random=11',
+            trackCount: 10,
+            totalDuration: 2400,
+            price: 8.99,
+            tracks: []
+          },
+          {
+            id: '3',
+            title: 'Serenity',
+            releaseDate: '2021-05-10',
+            coverUrl: 'https://picsum.photos/300/300?random=12',
+            trackCount: 8,
+            totalDuration: 1920,
+            tracks: []
+          },
+        ];
+        setAlbums(mockAlbums);
+      } else {
+        setAlbums(transformedAlbums);
+      }
+    } catch (error) {
+      console.error('Error fetching albums:', error);
+      // Use mock data on error
+      const mockAlbums: Album[] = [
+        {
+          id: '1',
+          title: 'Golden Hour',
+          releaseDate: '2023-08-15',
+          coverUrl: 'https://picsum.photos/300/300?random=10',
+          trackCount: 12,
+          totalDuration: 2880,
+          price: 9.99,
+          tracks: []
+        },
+      ];
+      setAlbums(mockAlbums);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

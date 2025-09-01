@@ -61,10 +61,26 @@ export default function AccountSettings({
       website: profile.website_url || '',
     }));
     setAddress(profile.wallet_address || null);
+    
+    // Fetch wallet balance when profile is available
+    fetchWalletBalance();
   }, [profile]);
 
-  // Mock data for demonstration
-  const [walletBalance] = useState(1250); // Wallet points
+  // Fetch wallet balance from database
+  const fetchWalletBalance = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const balance = await userService.getUserWalletBalance(user.id);
+      setWalletBalance(balance);
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+      // Keep default of 0 if error
+    }
+  };
+
+  // Wallet points from database
+  const [walletBalance, setWalletBalance] = useState(0);
   const [activeSubscription] = useState({
     plan: 'Premium',
     nextBillingDate: '2024-02-01',

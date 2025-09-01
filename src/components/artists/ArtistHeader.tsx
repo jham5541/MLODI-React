@@ -22,6 +22,7 @@ import ArtistSubscriptionModal from './ArtistSubscriptionModal';
 import { followService } from '../../services/followService';
 import { subscriptionService } from '../../services/subscriptionService';
 import { monthlyListenersService } from '../../services/monthlyListenersService';
+import { useArtistFollow } from '../../hooks/useArtistFollow';
 
 interface ArtistHeaderProps {
   artist: {
@@ -64,13 +65,14 @@ export default function ArtistHeader({
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isUserSubscribed, setIsUserSubscribed] = useState(false);
   const [currentMonthlyListeners, setCurrentMonthlyListeners] = useState(monthlyListeners);
   
-  // Load initial follow and subscription status
+  // Use the database-integrated follow hook
+  const { isFollowing, toggleFollow } = useArtistFollow(artistId);
+  
+  // Load initial subscription status
   useEffect(() => {
-    setIsFollowing(followService.isFollowing(artistId));
     setIsUserSubscribed(subscriptionService.isSubscribedTo(artistId));
     
     // Subscribe to real-time monthly listeners updates
@@ -133,8 +135,9 @@ export default function ArtistHeader({
   };
   
   // Handler for follow toggle from dropdown
-  const handleFollowToggle = (newFollowStatus: boolean) => {
-    setIsFollowing(newFollowStatus);
+  const handleFollowToggle = async (newFollowStatus: boolean) => {
+    // The follow status will be updated by the hook automatically
+    // This callback is just for UI updates if needed
   };
   
   // Handler for subscription change from modal
@@ -352,7 +355,7 @@ export default function ArtistHeader({
     <View style={styles.container}>
       {/* Banner Section */}
       <View style={styles.bannerContainer}>
-        {bannerUrl ? (
+        {bannerUrl && (
           getMediaType(bannerUrl) === 'video' ? (
             <>
               <Video
@@ -368,12 +371,6 @@ export default function ArtistHeader({
           ) : (
             <ImageBackground source={{ uri: bannerUrl }} style={styles.bannerImage} />
           )
-        ) : (
-          // Demo banner image
-          <ImageBackground 
-            source={{ uri: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80' }} 
-            style={styles.bannerImage}
-          />
         )}
         
         <View style={styles.headerControls}>
@@ -390,17 +387,26 @@ export default function ArtistHeader({
       <View style={styles.profileSection}>
         <View style={styles.profileCard}>
           <View style={styles.profileImageContainer}>
-            <Image 
-              source={{ 
-                uri: coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80',
-                cache: 'force-cache'
-              }} 
-              style={styles.profileImage}
-              resizeMode="cover"
-              onError={(error) => {
-                console.log('Artist image failed to load:', error);
-              }}
-            />
+            {coverUrl ? (
+              <Image 
+                source={{ 
+                  uri: coverUrl,
+                  cache: 'force-cache'
+                }} 
+                style={styles.profileImage}
+                resizeMode="cover"
+                onError={(error) => {
+                  console.log('Artist image failed to load:', error);
+                }}
+              />
+            ) : (
+              // Show a placeholder view with artist initial when no image
+              <View style={[styles.profileImage, { backgroundColor: themeColors.primary + '20', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ fontSize: 40, fontWeight: 'bold', color: themeColors.primary }}>
+                  {name ? name.charAt(0).toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.contentContainer}>

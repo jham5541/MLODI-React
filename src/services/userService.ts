@@ -30,6 +30,13 @@ export interface UserProfile {
   onboarding_step?: string;
 }
 
+export interface UserWalletInfo {
+  user_id: string;
+  points_balance: number;
+  total_points_earned: number;
+  wallet_address: string | null;
+}
+
 class UserService {
   /**
    * Complete profile with privileged RPC to avoid client-side RLS issues
@@ -155,6 +162,42 @@ class UserService {
     }
 
     return false; // Username is taken or there was an error
+  }
+
+  /**
+   * Get user's wallet balance
+   */
+  async getUserWalletBalance(userId: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('user_wallets')
+      .select('points_balance')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching wallet balance:', error);
+      return 0;
+    }
+
+    return data?.points_balance || 0;
+  }
+
+  /**
+   * Get user's full wallet information
+   */
+  async getUserWalletInfo(userId: string): Promise<UserWalletInfo | null> {
+    const { data, error } = await supabase
+      .from('user_wallets')
+      .select('user_id, points_balance, total_points_earned, wallet_address')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching wallet info:', error);
+      return null;
+    }
+
+    return data;
   }
 }
 

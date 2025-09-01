@@ -79,9 +79,9 @@ export default function PopularSongs({
     try {
       setLoading(true);
       
-      // Fetch tracks from the database for the specific artist
+      // Fetch tracks from the public view for the specific artist
       const { data: tracks, error } = await supabase
-        .from('tracks')
+        .from('tracks_listener_view')
         .select(`
           id,
           title,
@@ -92,10 +92,7 @@ export default function PopularSongs({
           cover_url,
           genre,
           play_count,
-          created_at,
-          profiles!inner(id, display_name, username),
-          track_reactions(id, reaction_type),
-          track_comments(id)
+          created_at
         `)
         .eq('artist_id', artistId)
         .order('play_count', { ascending: false })

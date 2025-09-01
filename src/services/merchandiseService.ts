@@ -69,18 +69,41 @@ export interface MerchOrderInput {
 
 export const merchandiseService = {
   async getArtistMerchandise(artistId: string): Promise<Merchandise[]> {
-    const { data, error } = await supabase
-      .from('merchandise')
-      .select(`
-        *,
-        variants:merchandise_variants(*)
-      `)
-      .eq('artist_id', artistId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+    try {
+      // Use the public view for listeners
+      const { data, error } = await supabase
+        .from('artist_merchandise_listener')
+        .select('*')
+        .eq('artist_id', artistId)
+        .eq('availability', 'available')
+        .order('product_id', { ascending: false });
 
-    if (error) throw error;
-    return data || [];
+      if (error) {
+        console.error('Error fetching merchandise:', error);
+        throw error;
+      }
+
+      // Transform the data from the view format to our Merchandise interface
+      const transformedData: Merchandise[] = (data || []).map(item => ({
+        id: item.product_id,
+        artist_id: item.artist_id,
+        name: item.title || 'Untitled Product',
+        description: item.description,
+        price: item.price || 0,
+        image_url: item.image_url || 'https://picsum.photos/400/400',
+        category: item.type as 'clothing' | 'accessories' | 'music' | 'collectibles' | 'other' || 'other',
+        inventory_count: 100, // Default since not in view
+        is_active: item.availability === 'available',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      return transformedData;
+    } catch (error) {
+      console.error('Error in getArtistMerchandise:', error);
+      // Return empty array on error to prevent crash
+      return [];
+    }
   },
 
   async getMerchandiseById(merchandiseId: string): Promise<Merchandise> {

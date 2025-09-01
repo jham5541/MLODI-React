@@ -396,7 +396,36 @@ function AppContent() {
       </Stack.Navigator>
       
       <SearchModal />
+      <PlayBarWrapper />
     </NavigationContainer>
+  );
+}
+
+function PlayBarWrapper() {
+  const {
+    currentSong,
+    isPlaying,
+    isPlayBarVisible,
+    togglePlayPause,
+    nextSong,
+    previousSong,
+    closePlayBar,
+    expandPlayBar,
+    sound
+  } = usePlay();
+
+  return (
+    <PlayBar
+      currentSong={currentSong}
+      isPlaying={isPlaying}
+      isVisible={isPlayBarVisible}
+      onPlayPause={togglePlayPause}
+      onNext={nextSong}
+      onPrevious={previousSong}
+      onClose={closePlayBar}
+      onExpand={expandPlayBar}
+      sound={sound}
+    />
   );
 }
 

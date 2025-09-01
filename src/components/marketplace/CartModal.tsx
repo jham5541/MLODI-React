@@ -62,8 +62,8 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
       ]
     );
   };
-
-  const handleCheckout = () => {
+  
+  const handleCheckout = () => {
     if (!user) {
       setShowAuthModal(true);
       return;
@@ -410,18 +410,17 @@ export default function CartModal({ isVisible, onClose }: CartModalProps) {
           </View>
         </View>
       </Modal>
-      cCheckoutModal
+      <CheckoutModal
         isVisible={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        onSuccess={() => {
+        onClose={() => setShowCheckout(false)}
+        onSuccess={() => {
           setShowCheckout(false);
           onClose();
         }}
-      /e
+      />
 
       {/* Auth Modal shown if user attempts checkout when not signed in */}
-      cAuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} /e
-    c/e
+      <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

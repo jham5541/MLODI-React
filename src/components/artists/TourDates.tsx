@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { purchaseService } from '../../services/purchaseService';
 import { useCartStore } from '../../store/cartStore';
-import { tourService, Tour, Show } from '../../services/tourService';
+import toursService, { EventView } from '../../services/toursService';
 import { ticketPurchaseService } from '../../services/ticketPurchaseService';
 import { supabase } from '../../lib/supabase';
 import TicketPurchaseModal from '../purchase/TicketPurchaseModal';
@@ -47,7 +47,7 @@ export default function TourDates({
   const { loadLibrary } = useCartStore();
   const { isPremium } = usePremiumStatus();
   const { user } = useAuthStore();
-  const [tours, setTours] = useState<Tour[]>([]);
+  // State for event data
   const [tourDates, setTourDates] = useState<TourDateDisplay[]>([]);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedTourDate, setSelectedTourDate] = useState<TourDateDisplay | null>(null);
@@ -62,78 +62,54 @@ export default function TourDates({
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
-    // Using sample data for development
-    const sampleTourDates: TourDateDisplay[] = [
-      {
-        id: '1',
-        venue: 'Madison Square Garden',
-        city: 'New York, NY',
-        date: '2025-09-15',
-        time: '8:00 PM',
-        price: 89.99,
-        availableTickets: 120,
-      },
-      {
-        id: '2',
-        venue: 'The Forum',
-        city: 'Los Angeles, CA',
-        date: '2025-09-20',
-        time: '7:30 PM',
-        price: 79.99,
-        availableTickets: 200,
-      },
-      {
-        id: '3',
-        venue: 'United Center',
-        city: 'Chicago, IL',
-        date: '2025-09-25',
-        time: '8:30 PM',
-        price: 74.99,
-        availableTickets: 150,
-      },
-      {
-        id: '4',
-        venue: 'State Farm Arena',
-        city: 'Atlanta, GA',
-        date: '2025-09-28',
-        time: '7:00 PM',
-        price: 69.99,
-        availableTickets: 180,
-      },
-      {
-        id: '5',
-        venue: 'TD Garden',
-        city: 'Boston, MA',
-        date: '2025-10-02',
-        time: '8:00 PM',
-        price: 84.99,
-        availableTickets: 140,
-      }
-    ];
-
-    setLoading(true);
-    // Simulate API call
-    setTimeout(async () => {
-      setTourDates(sampleTourDates);
-      
-      // Check purchase status for each tour date
-      const purchased = new Set<string>();
-      const counts = new Map<string, number>();
-      
-      for (const date of sampleTourDates) {
-        const isPurchased = await purchaseService.isTicketPurchased(date.id);
-        if (isPurchased) {
-          purchased.add(date.id);
-          const count = await purchaseService.getTicketPurchaseCount(date.id);
-          counts.set(date.id, count);
-        }
-      }
-      
-      setPurchasedEvents(purchased);
-      setTicketCounts(counts);
-      setLoading(false);
-    }, 1000);
+    loadTourData();
   }, [artistId, refreshKey]);
+
+  const loadTourData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch artist's upcoming shows from the public view
+      const upcomingShows = await toursService.getArtistUpcomingShows(artistId);
+      
+      if (upcomingShows.length > 0) {
+        // Transform the show data to the component format
+        const transformedDates: TourDateDisplay[] = upcomingShows.map(show => 
+          toursService.transformShowToDisplay(show)
+        );
+        
+        setTourDates(transformedDates);
+        
+        // Check purchase status for each tour date
+        const purchased = new Set<string>();
+        const counts = new Map<string, number>();
+        
+        for (const show of transformedDates) {
+          const isPurchased = await purchaseService.isTicketPurchased(show.id);
+          if (isPurchased) {
+            purchased.add(show.id);
+            const count = await purchaseService.getTicketPurchaseCount(show.id);
+            counts.set(show.id, count);
+          }
+        }
+        
+        setPurchasedEvents(purchased);
+        setTicketCounts(counts);
+      } else {
+        // No upcoming shows
+        setTourDates([]);
+      }
+    } catch (err) {
+      console.error('Error loading tour data:', err);
+      setError('Failed to load tour dates');
+      
+      // Don't set any mock data on error
+      setTourDates([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBuyTickets = (date: TourDateDisplay) => {
     if (!user) {
@@ -394,19 +370,10 @@ export default function TourDates({
             onPress={() => {
               setLoading(true);
               setError(null);
-              tourService.getTours(artistId)
-                .then(toursData => {
-                  setTours(toursData);
-                  const tourDates = toursData.flatMap(tour => 
-                    tour.shows.map(show => ({
-                      id: show.id,
-                      venue: show.venue.name,
-                      city: `${show.venue.city}, ${show.venue.state || show.venue.country}`,
-                      date: show.date,
-                      time: show.start_time,
-                      price: show.ticket_price,
-                      availableTickets: show.venue.capacity - show.tickets_sold
-                    }))
+              toursService.getArtistUpcomingShows(artistId)
+                .then(events => {
+                  const tourDates = events.map(event => 
+                    toursService.transformShowToDisplay(event)
                   );
                   setTourDates(tourDates);
                 })

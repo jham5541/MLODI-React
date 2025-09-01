@@ -1,14 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import { 
   ArtistFanScore, 
   ArtistEngagement, 
   EngagementType 
 } from '../types/fanScoring';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../lib/supabase/client';
 
 // Database service class for fan scoring operations
 class DatabaseService {
@@ -172,33 +167,62 @@ class DatabaseService {
 
   /**
    * Get artist fan leaderboard
+   * Note: Avoids implicit join by fetching profiles in a second query.
    */
   async getArtistLeaderboard(artistId: string, limit: number = 50, offset: number = 0) {
-    const { data, error } = await supabase
+    // Step 1: Fetch fan scores page for the artist
+    const { data: scores, error: scoresError } = await supabase
       .from('fan_scores')
-      .select(`
-        *,
-        user_profiles(username, avatar_url)
-      `)
+      .select('*')
       .eq('artist_id', artistId)
       .order('points', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) {
-      console.error('Error fetching leaderboard:', error);
-      throw new Error(`Failed to fetch leaderboard: ${error.message}`);
+    if (scoresError) {
+      console.error('Error fetching leaderboard scores:', scoresError);
+      throw new Error(`Failed to fetch leaderboard: ${scoresError.message}`);
     }
 
-    return (data || []).map((row, index) => ({
-      userId: row.user_id,
-      artistId: row.artist_id,
-      username: row.user_profiles?.username || `User${row.user_id.slice(0, 8)}`,
-      profilePicture: row.user_profiles?.avatar_url,
-      fanScore: row.points,
-      rank: offset + index + 1,
-      badges: [], // Will be calculated separately
-      percentile: 0, // Will be calculated separately
-    }));
+    const rows = scores || [];
+    if (rows.length === 0) return [];
+
+    // Step 2: Batch fetch user display info from a public view
+    const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)));
+
+    let profilesMap: Record<string, { username?: string; profile_picture?: string }> = {};
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('users_public_view')
+        .select('id, username, profile_picture')
+        .in('id', userIds);
+
+      if (profilesError) {
+        // Log but don't fail the whole leaderboard; we'll fall back to defaults
+        console.warn('Warning: failed to fetch user profiles for leaderboard:', profilesError);
+      }
+
+      (profiles || []).forEach((p: any) => {
+        profilesMap[p.id] = { username: p.username, profile_picture: p.profile_picture };
+      });
+    }
+
+    // Step 3: Merge scores with profile data
+    return rows.map((row: any, index: number) => {
+      const profile = profilesMap[row.user_id] || {};
+      const username = profile.username || `User${String(row.user_id).slice(0, 8)}`;
+      const profilePicture = profile.profile_picture || null;
+      return {
+        userId: row.user_id,
+        artistId: row.artist_id,
+        username,
+        profilePicture,
+        fanScore: row.points ?? row.total_score ?? 0,
+        rank: offset + index + 1,
+        badges: [], // Will be calculated separately
+        percentile: 0, // Will be calculated separately
+      };
+    });
   }
 
   /**
@@ -360,6 +384,7 @@ class DatabaseService {
 
     return subscription;
   }
+
 }
 
 export const databaseService = new DatabaseService();

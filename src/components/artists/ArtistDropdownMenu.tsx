@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../../context/ThemeContext';
 import { followService } from '../../services/followService';
+import { musicService } from '../../services/musicService';
 
 interface ArtistDropdownMenuProps {
   visible: boolean;
@@ -38,24 +39,31 @@ export default function ArtistDropdownMenu({
   const handleFollowToggle = async () => {
     setIsProcessing(true);
     try {
-      const success = await followService.toggleFollow(artist);
-      if (success) {
-        onFollowToggle(!isFollowing);
-        onClose();
-        
-        // Show success message
-        Alert.alert(
-          isFollowing ? 'Unfollowed' : 'Following',
-          isFollowing 
-            ? `You have unfollowed ${artist.name}` 
-            : `You are now following ${artist.name}! You'll receive notifications about their latest releases and updates.`,
-          [{ text: 'OK' }]
-        );
+      // Use musicService for actual database operations
+      if (isFollowing) {
+        await musicService.unfollowArtist(artist.id);
       } else {
-        Alert.alert('Error', 'Failed to update follow status. Please try again.');
+        await musicService.followArtist(artist.id);
       }
+      
+      // Update local state
+      onFollowToggle(!isFollowing);
+      onClose();
+      
+      // Show success message
+      Alert.alert(
+        isFollowing ? 'Unfollowed' : 'Following',
+        isFollowing 
+          ? `You have unfollowed ${artist.name}` 
+          : `You are now following ${artist.name}! You'll receive notifications about their latest releases and updates.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      console.error('Failed to update follow status:', error);
+      Alert.alert(
+        'Error', 
+        'Failed to update follow status. Please make sure you are logged in and try again.'
+      );
     } finally {
       setIsProcessing(false);
     }

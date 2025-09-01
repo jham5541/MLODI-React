@@ -173,10 +173,10 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
             <Ionicons name="diamond" size={32} color="white" />
           </View>
           <View style={styles.subscriptionInfo}>
-            <Text style={styles.subscriptionTier}>{subscription.tier.toUpperCase()}</Text>
+            <Text style={styles.subscriptionTier}>{subscription.tier?.toUpperCase() || 'PREMIUM'}</Text>
             <View style={styles.statusContainer}>
               <View style={[styles.statusDot, { backgroundColor: getSubscriptionStatusColor() }]} />
-              <Text style={styles.subscriptionStatus}>{subscription.status.toUpperCase()}</Text>
+              <Text style={styles.subscriptionStatus}>{subscription.status?.toUpperCase() || 'ACTIVE'}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -187,7 +187,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
               <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
               <Text style={styles.detailLabel}>Start Date</Text>
             </View>
-            <Text style={styles.detailValue}>{formatDate(subscription.start_date)}</Text>
+            <Text style={styles.detailValue}>{subscription.start_date ? formatDate(subscription.start_date) : 'N/A'}</Text>
           </View>
 
           <View style={styles.detailRow}>
@@ -195,7 +195,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
               <Ionicons name="calendar" size={20} color={colors.textSecondary} />
               <Text style={styles.detailLabel}>End Date</Text>
             </View>
-            <Text style={styles.detailValue}>{formatDate(subscription.end_date)}</Text>
+            <Text style={styles.detailValue}>{subscription.end_date ? formatDate(subscription.end_date) : 'N/A'}</Text>
           </View>
 
           <View style={styles.detailRow}>
@@ -207,7 +207,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
               {subscription.payment_method === 'card' ? 'Credit Card' : 
                subscription.payment_method === 'apple' ? 'Apple Pay' : 
                subscription.payment_method === 'eth' ? 'Ethereum' : 
-               subscription.payment_method.toUpperCase()}
+               subscription.payment_method?.toUpperCase() || 'N/A'}
             </Text>
           </View>
 
@@ -218,7 +218,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
                 <Text style={styles.detailLabel}>Transaction</Text>
               </View>
               <Text style={styles.detailValue} numberOfLines={1}>
-                {subscription.transaction_hash.substring(0, 10)}...
+                {subscription.transaction_hash?.substring(0, 10) || 'N/A'}...
               </Text>
             </View>
           )}
@@ -610,7 +610,7 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
                         ${artist.price}/month
                       </Text>
                       <Text style={styles.artistSubscriptionExpiry}>
-                        Expires: {formatDate(artist.expiresAt.toString())}
+                        Expires: {artist.expiresAt ? formatDate(String(artist.expiresAt)) : 'N/A'}
                       </Text>
                       <View style={styles.artistAutoRenewContainer}>
                         <Text style={styles.artistAutoRenewText}>
@@ -646,275 +646,3 @@ export const SubscriptionManagementScreen: React.FC<SubscriptionManagementScreen
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  errorContainer: {
-    backgroundColor: colors.error || '#F44336',
-    padding: 12,
-    borderRadius: 8,
-    marginVertical: 16,
-  },
-  errorText: {
-    color: 'white',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  noSubscriptionContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-  },
-  noSubscriptionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  noSubscriptionText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  subscriptionContainer: {
-    marginVertical: 20,
-  },
-  subscriptionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 24,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  subscriptionIcon: {
-    marginRight: 16,
-  },
-  subscriptionInfo: {
-    flex: 1,
-  },
-  subscriptionTier: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 4,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  subscriptionStatus: {
-    fontSize: 14,
-    color: 'white',
-    fontWeight: '500',
-  },
-  detailsContainer: {
-    backgroundColor: colors.surface,
-    padding: 20,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  detailLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 16,
-    color: colors.text,
-    marginLeft: 12,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  autoRenewToggle: {
-    backgroundColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    minWidth: 50,
-    alignItems: 'center',
-  },
-  autoRenewActive: {
-    backgroundColor: colors.primary,
-  },
-  toggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  toggleTextActive: {
-    color: 'white',
-  },
-  actionButtonsContainer: {
-    marginVertical: 20,
-    gap: 12,
-  },
-  upgradeButton: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  upgradeButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    borderWidth: 1,
-    borderColor: colors.error || '#F44336',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  cancelButtonText: {
-    color: colors.error || '#F44336',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  helpContainer: {
-    marginVertical: 20,
-    padding: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-  },
-  helpTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  helpText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  helpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  helpButtonText: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  artistSubscriptionsSection: {
-    marginVertical: 20,
-  },
-  artistSubscriptionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  noArtistSubscriptions: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  noArtistSubscriptionsText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  artistList: {
-    gap: 12,
-  },
-  artistItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-  },
-  artistInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  artistAvatar: {
-    marginRight: 12,
-  },
-  artistDetails: {
-    flex: 1,
-  },
-  artistName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  artistSubscriptionPrice: {
-    fontSize: 14,
-    color: colors.primary,
-    marginBottom: 2,
-  },
-  artistSubscriptionExpiry: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  artistUnsubscribeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.error || '#F44336',
-  },
-  artistUnsubscribeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.error || '#F44336',
-  },
-});

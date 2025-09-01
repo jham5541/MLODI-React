@@ -14,6 +14,8 @@ import {
   Alert,
   Platform
 } from 'react-native';
+import { useNavigation, NavigationProp, NavigationContext } from '@react-navigation/native';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import MLService from '../services/ml/MLService';
 import { AnomalyType } from '../services/ml/types';
 import Slider from '@react-native-community/slider';
@@ -59,6 +61,10 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
   const themeColors = colors[activeTheme];
   const { updateProgress } = usePlayTracking();
   const { user } = useAuthStore();
+  
+  // Safely use navigation - it might be null if we're outside NavigationContainer
+  const navigationContext = React.useContext(NavigationContext);
+  const navigation = navigationContext ? useNavigation<NavigationProp<RootStackParamList>>() : null;
   
   const [slideAnim] = useState(new Animated.Value(100));
   const [progress, setProgress] = useState(0);
@@ -121,6 +127,24 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
     
     console.log('📱 Opening add to playlist modal');
     setShowAddToPlaylistModal(true);
+  };
+
+  const handleArtistPress = () => {
+    if (!currentSong?.artistId) {
+      console.log('No artist ID available for navigation');
+      return;
+    }
+    
+    if (!navigation) {
+      console.log('Navigation not available - PlayBar is outside NavigationContainer');
+      return;
+    }
+    
+    // Close the expanded modal if open
+    setExpanded(false);
+    
+    // Navigate to artist profile
+    navigation.navigate('ArtistProfile', { artistId: currentSong.artistId });
   };
 
   useEffect(() => {
@@ -732,7 +756,9 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
               />
               <View style={styles.modalSongInfo}>
                 <Text style={styles.modalSongTitle}>{currentSong.title}</Text>
-                <Text style={styles.modalArtistName}>{currentSong.artist}</Text>
+                <TouchableOpacity onPress={handleArtistPress}>
+                  <Text style={styles.modalArtistName}>{currentSong.artist}</Text>
+                </TouchableOpacity>
               </View>
             </View>
 

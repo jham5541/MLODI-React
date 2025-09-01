@@ -1,59 +1,49 @@
 import { supabase } from '../lib/supabase/client';
 import { Artist } from '../types/music';
-import { sampleArtists } from '../data/sampleData';
 import { monthlyListenersService } from './monthlyListenersService';
 
 class ArtistService {
   async fetchArtistDetails(id: string): Promise<Artist> {
     console.log('ArtistService: fetchArtistDetails called with id:', id);
     try {
-      // First try to get from Supabase
+      // Query the artists table directly
       const { data, error } = await supabase
-        .from('artists_public_view')
-        .select('*')
+        .from('artists')
+        .select('id, name, display_name, avatar_url, banner_url, bio, genres, followers_count, is_verified')
         .eq('id', id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to handle no rows gracefully
 
       if (error) {
-        console.log('Supabase fetch failed, using sample data. Error:', error.message);
-        // Fallback to sample data
-        const sampleArtist = sampleArtists.find(artist => artist.id === id || artist.name === id);
-        console.log('Sample artist found:', sampleArtist ? sampleArtist.name : 'None');
-        if (sampleArtist) {
-          return sampleArtist;
-        }
-        // If no match found, return the first sample artist with the given ID
-        console.log('No sample artist match, creating default with first artist');
-        return {
-          ...sampleArtists[0],
-          id,
-          name: id,
-        };
+        console.error('Supabase fetch failed:', error.message);
+        throw new Error(`Failed to fetch artist details: ${error.message}`);
       }
-      console.log('Supabase fetch successful:', data.name);
+      
+      if (!data) {
+        console.error('No artist found with id:', id);
+        throw new Error(`Artist not found with id: ${id}`);
+      }
+      console.log('Supabase fetch successful:', data?.name || data?.display_name);
       
       // Fetch monthly listeners separately
       const monthlyListeners = await monthlyListenersService.getMonthlyListeners(id);
       
-      return {
-        ...data,
-        monthlyListeners
-      } as Artist;
+      // Map DB row to our Artist interface
+      const mapped: Artist = {
+        id: data.id,
+        name: data.name || data.display_name || '', // show the artist name from the artists table
+        coverUrl: data.avatar_url || '',
+        bio: data.bio || '',
+        genres: Array.isArray(data.genres) ? data.genres : [],
+        followers: typeof data.followers_count === 'number' ? data.followers_count : 0,
+        isVerified: !!data.is_verified,
+        bannerUrl: data.banner_url || undefined,
+        monthlyListeners,
+      };
+
+      return mapped;
     } catch (error) {
       console.error('Error fetching artist details:', error);
-      // Fallback to sample data on any error
-      const sampleArtist = sampleArtists.find(artist => artist.id === id || artist.name === id);
-      console.log('Exception fallback - Sample artist found:', sampleArtist ? sampleArtist.name : 'None');
-      if (sampleArtist) {
-        return sampleArtist;
-      }
-      // Return a default artist if nothing else works
-      console.log('Exception fallback - Creating default artist');
-      return {
-        ...sampleArtists[0],
-        id,
-        name: id,
-      };
+      throw error;
     }
   }
 }
