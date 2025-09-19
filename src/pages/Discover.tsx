@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Dimensions, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
 import { usePlay } from '../context/PlayContext';
@@ -860,7 +860,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         {/* Consolidated bar */}
         <View style={styles.consolidatedBar}>
@@ -987,6 +987,6 @@ export default function DiscoverScreen({ navigation }: Props) {
           onPurchaseComplete={handlePurchaseComplete}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }

@@ -47,8 +47,9 @@ export default function ProductCard({
   };
 
   const handleArtistPress = () => {
-    if (product.artist_id || product.artistId) {
-      navigation.navigate('ArtistProfile', { artistId: product.artist_id || product.artistId });
+    const artistId = (product as any).artist_id || (product as any).artistId || (product as any).artists?.id;
+    if (artistId) {
+      navigation.navigate('ArtistProfile', { artistId });
     }
   };
 
@@ -290,7 +291,7 @@ export default function ProductCard({
           </Text>
           <TouchableOpacity onPress={handleArtistPress}>
             <Text style={styles.artist} numberOfLines={1}>
-              {product.artists?.name || product.artist || 'Unknown Artist'}
+              {((product as any).artists?.name) || (typeof (product as any).artist === 'string' ? (product as any).artist : (product as any).artist?.name) || 'Unknown Artist'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.subtitle}>

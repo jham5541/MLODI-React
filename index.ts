@@ -1,5 +1,6 @@
-import { registerRootComponent } from 'expo';
+import './console-shim';
 import './src/polyfills';
+import { registerRootComponent } from 'expo';
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

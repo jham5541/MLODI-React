@@ -1,4 +1,4 @@
-import { Audio } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { Song } from '../types/music';
 import { listeningChallengeService } from './listeningChallengeService';
 

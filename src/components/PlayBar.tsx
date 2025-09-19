@@ -31,7 +31,7 @@ import AddToPlaylistModal from './playlists/AddToPlaylistModal';
 import PremiumGate from './common/PremiumGate';
 import { usePremiumStatus } from '../hooks/usePremiumStatus';
 
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 
 interface PlayBarProps {
   currentSong: Song | null;
@@ -602,6 +602,7 @@ const PlayBar: React.FC<PlayBarProps & { sound?: Audio.Sound | null }> = ({
             transform: [{ translateY: slideAnim }],
           },
         ]}
+      pointerEvents="box-none"
       >
         {/* Anomaly Indicator */}
         {anomalyDetected && (

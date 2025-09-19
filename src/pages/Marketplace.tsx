@@ -11,7 +11,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Modal,
-  Animated
+  Animated,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, colors } from '../context/ThemeContext';
@@ -532,7 +533,7 @@ export default function MarketplaceScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Marketplace</Text>
@@ -660,6 +661,6 @@ export default function MarketplaceScreen() {
 
       {/* Auth Modal for gating purchases */}
       <AuthModal isVisible={showAuthModal} onClose={() => setShowAuthModal(false)} />
-    </View>
+    </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { View, Text, ScrollView, FlatList, TouchableOpacity, RefreshControl, StyleSheet, Image } from 'react-native';
+import { View, Text, ScrollView, FlatList, TouchableOpacity, RefreshControl, StyleSheet, Image, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
@@ -349,16 +349,16 @@ export default function HomeScreen() {
       flexDirection: 'row',
       alignItems: 'center',
     },
-    logo: {
-      width: 40,
-      height: 40,
-      resizeMode: 'contain',
-    },
     logoText: {
       fontSize: 24,
       fontWeight: 'bold',
       color: themeColors.primary,
       marginLeft: 8,
+    },
+    logoImage: {
+      width: 32,
+      height: 32,
+      resizeMode: 'contain',
     },
     headerActions: {
       flexDirection: 'row',
@@ -477,7 +477,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView 
+    <SafeAreaView style={styles.container}>
+      <ScrollView 
       style={styles.container}
       refreshControl={
         <RefreshControl
@@ -491,8 +492,12 @@ export default function HomeScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Image source={require('../../assets/images/logo.png')} style={styles.logo} />
-            <Text style={styles.logoText}>MLODI</Text>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              accessible
+              accessibilityLabel="MLODI logo"
+            />
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.searchButton} onPress={openSearch}>
@@ -689,5 +694,6 @@ export default function HomeScreen() {
         />
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }

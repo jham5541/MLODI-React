@@ -126,7 +126,7 @@ export const demoSongs: Song[] = [
   
   // Urban Beats songs
   {
-    id: '660e8400-e29b-41d4-a716-446655440021',
+    id: 'demo-660e8400-e29b-41d4-a716-446655440021',
     title: 'Street Poetry',
     artist: 'Urban Beats',
     artistId: '550e8400-e29b-41d4-a716-446655440005',
@@ -139,7 +139,7 @@ export const demoSongs: Song[] = [
     supply: { total: 1000, available: 600 },
   },
   {
-    id: '660e8400-e29b-41d4-a716-446655440022',
+    id: 'demo-660e8400-e29b-41d4-a716-446655440022',
     title: 'Urban Symphony',
     artist: 'Urban Beats',
     artistId: '550e8400-e29b-41d4-a716-446655440005',
@@ -280,7 +280,7 @@ export const demoArtists = [
     monthlyListeners: 4500000,
     followers: 234000,
     totalPlays: 78000000,
-    popularSongs: ['660e8400-e29b-41d4-a716-446655440021', '660e8400-e29b-41d4-a716-446655440022'],
+    popularSongs: ['demo-660e8400-e29b-41d4-a716-446655440021', 'demo-660e8400-e29b-41d4-a716-446655440022'],
     albums: [
       {
         id: 'album-ub-1',

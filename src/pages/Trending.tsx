@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../context/ThemeContext';
 import { useMusicStore } from '../store/musicStore';
@@ -284,17 +284,19 @@ export default function TrendingScreen() {
 
   if (viewMode === 'genre' && selectedGenre) {
     return (
-      <GenreSongsView
+      <SafeAreaView style={styles.container}>
+        <GenreSongsView
         genre={selectedGenre}
         songs={getFilteredSongs()}
         onSongPress={handleSongPress}
         onBackPress={handleBackPress}
       />
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {isLoadingTrending ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={themeColors.primary} />
@@ -361,6 +363,6 @@ export default function TrendingScreen() {
           />
         </ScrollView>
       )}
-    </View>
+    </SafeAreaView>
   );
 }

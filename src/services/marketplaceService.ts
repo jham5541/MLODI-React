@@ -105,7 +105,15 @@ export class MarketplaceService {
           const artistMap = new Map(artists.map(a => [a.id, a]));
           products.forEach(product => {
             if (product.artist_id) {
-              product.artist = artistMap.get(product.artist_id);
+              const artist = artistMap.get(product.artist_id);
+              if (artist) {
+                // Attach full artist object for components that expect nested relation
+                (product as any).artists = artist;
+                // Ensure artist field used in UI is a string (name)
+                (product as any).artist = artist.name;
+                // Keep a convenient artistId string for navigation
+                (product as any).artistId = artist.id;
+              }
             }
           });
         }
@@ -141,7 +149,10 @@ export class MarketplaceService {
         .single();
       
       if (artist) {
-        product.artist = artist;
+        // Attach full artist object and normalized fields
+        (product as any).artists = artist;
+        (product as any).artist = artist.name;
+        (product as any).artistId = artist.id;
       }
     }
     
@@ -186,7 +197,12 @@ export class MarketplaceService {
           const artistMap = new Map(artists.map(a => [a.id, a]));
           products.forEach(product => {
             if (product.artist_id) {
-              product.artist = artistMap.get(product.artist_id);
+              const artist = artistMap.get(product.artist_id);
+              if (artist) {
+                (product as any).artists = artist;
+                (product as any).artist = artist.name;
+                (product as any).artistId = artist.id;
+              }
             }
           });
         }

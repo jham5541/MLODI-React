@@ -4,40 +4,85 @@
   // Ensure globalThis exists
   // @ts-ignore
   const g: any = typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {}));
-  // Make sure g.console exists
-  if (!g.console) {
-    g.console = {} as any;
-  }
-  const c: any = g.console;
+  
+  // Store original console if it exists
+  const originalConsole = g.console || {};
+  
+  // Create safe wrapper functions
   const noop = () => {};
-
+  const safeMethods: any = {};
+  
   // Safe console methods
   const methods = [
     'log','info','warn','error','debug','trace',
-    'time','timeEnd','group','groupCollapsed','groupEnd'
+    'time','timeEnd','group','groupCollapsed','groupEnd',
+    'assert','clear','count','countReset','dir','dirxml',
+    'profile','profileEnd','table','timeLog','timeStamp'
   ];
+  
   methods.forEach((m) => {
-    const fn = c[m];
-    if (typeof fn !== 'function') {
-      c[m] = noop;
-      return;
-    }
-    // Some engines may provide a function without a usable bind; wrap to be safe
-    try {
-      if (typeof fn.bind === 'function') {
-        return;
-      }
-    } catch (_) {}
-    c[m] = (...args: any[]) => {
-      try {
-        return Function.prototype.apply.call(fn, c, args);
-      } catch (_err) {
+    const fn = originalConsole[m];
+    if (typeof fn === 'function') {
+      // Wrap the function to be safe
+      safeMethods[m] = (...args: any[]) => {
         try {
-          return fn.apply ? fn.apply(c, args) : noop();
-        } catch { return noop(); }
-      }
-    };
+          return fn.apply(originalConsole, args);
+        } catch (_err) {
+          // Fallback to noop if there's an error
+          return noop();
+        }
+      };
+    } else {
+      safeMethods[m] = noop;
+    }
   });
+
+  // Ensure React's debug integration doesn't crash on non-function createTask
+  // React checks truthiness of console.createTask and will call it if present.
+  // We force it to be undefined so React falls back safely.
+  (safeMethods as any).createTask = undefined;
+
+  // Create a Proxy that handles all property accesses safely
+  // This prevents errors when libraries try to access non-existent properties like .bold
+  const consoleProxy = new Proxy(safeMethods, {
+    get(target, prop) {
+      // If it's a known method, return it
+      if (prop in target) {
+        return target[prop];
+      }
+      
+      // For any unknown property, return undefined instead of throwing
+      // This handles cases where libraries try to access console.bold, console.red, etc.
+      // or any other formatting properties that don't exist in React Native
+      return undefined;
+    },
+    set(target, prop, value) {
+      // Allow setting properties but don't actually store them
+      // This prevents errors when libraries try to modify console
+      return true;
+    },
+    has(target, prop) {
+      // Only report that we have the safe methods
+      return prop in target;
+    }
+  });
+  
+  // Replace global console with the proxy
+  try {
+    g.console = consoleProxy;
+    // Also try to define it as non-configurable if possible
+    if (Object.defineProperty) {
+      Object.defineProperty(g, 'console', {
+        value: consoleProxy,
+        writable: true,
+        enumerable: true,
+        configurable: false
+      });
+    }
+  } catch (e) {
+    // If we can't define it, just assign it
+    g.console = consoleProxy;
+  }
 
   // setImmediate / clearImmediate shims (some shims call setImmediate.bind(...))
   if (typeof g.setImmediate !== 'function') {

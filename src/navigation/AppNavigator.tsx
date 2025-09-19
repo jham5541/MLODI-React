@@ -2,17 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, colors } from '../context/ThemeContext';
+import { lightNavigationTheme, darkNavigationTheme } from './navigationTheme';
 import { usePlay } from '../context/PlayContext';
 import { useAuthStore } from '../store/authStore';
 import SearchModal from '../components/search/SearchModal';
 import PlayBar from '../components/PlayBar';
 import OnboardingFlow from '../components/onboarding/OnboardingFlow';
 import ProfileCompletionScreen from '../pages/ProfileCompletionScreen';
+import AuthModal from '../components/auth/AuthModal';
 
 // Import screens (we'll create these next)
 import HomeScreen from '../pages/Home';
@@ -97,7 +99,9 @@ function TabNavigator() {
 
   return (
     <Tab.Navigator
+      detachInactiveScreens={Platform.OS !== 'web'}
       screenOptions={({ route }) => ({
+        headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
@@ -156,15 +160,13 @@ function AuthFlowManager() {
   const {
     user,
     profile,
-    hasCompletedOnboarding,
-    needsProfileCompletion,
     checkSession,
-    completeOnboarding,
     completeProfileSetup,
   } = useAuthStore();
   
   const [isInitializing, setIsInitializing] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -189,8 +191,15 @@ function AuthFlowManager() {
 
   const handleOnboardingComplete = async () => {
     await AsyncStorage.setItem('onboarding_completed', 'true');
-    completeOnboarding();
     setShowOnboarding(false);
+    // Show auth modal after onboarding completes
+    setShowAuthModal(true);
+  };
+
+  const handleAuthModalClose = () => {
+    setShowAuthModal(false);
+    // Re-check session after auth modal closes
+    checkSession();
   };
 
   const handleProfileCompletion = () => {
@@ -221,8 +230,16 @@ function AuthFlowManager() {
     return <ProfileCompletionScreen />;
   }
 
-  // Show main app
-  return <AppContent />;
+  // Show main app with auth modal overlay if needed
+  return (
+    <>
+      <AppContent />
+      <AuthModal 
+        isVisible={showAuthModal && !user}
+        onClose={handleAuthModalClose} 
+      />
+    </>
+  );
 }
 
 function AppContent() {
@@ -241,19 +258,10 @@ function AppContent() {
 
   return (
     <NavigationContainer
-      theme={{
-        dark: activeTheme === 'dark',
-        colors: {
-          primary: themeColors.primary,
-          background: themeColors.background,
-          card: themeColors.surface,
-          text: themeColors.text,
-          border: themeColors.border,
-          notification: themeColors.primary,
-        },
-      }}
+      theme={activeTheme === 'dark' ? darkNavigationTheme : lightNavigationTheme}
     >
       <Stack.Navigator
+        detachInactiveScreens={Platform.OS !== 'web'}
         screenOptions={{
           headerStyle: {
             backgroundColor: themeColors.surface,

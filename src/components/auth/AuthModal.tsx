@@ -425,11 +425,6 @@ export default function AuthModal({ isVisible, onClose }: AuthModalProps) {
           </TouchableOpacity>
           
           <View style={styles.logoContainer}>
-            <Image 
-              source={require('../../../assets/images/logo.png')} 
-              style={styles.logo} 
-              resizeMode="contain"
-            />
             <Text style={styles.brandName}>MLODI</Text>
           </View>
           

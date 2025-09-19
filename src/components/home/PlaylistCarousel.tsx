@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, colors } from '../../context/ThemeContext';
-import PlaylistCard from '../playlists/PlaylistCard';
+import PlaylistCardCompact from '../playlists/PlaylistCardCompact';
 import { Playlist } from '../../types/music';
 
 interface PlaylistCarouselProps {
@@ -54,11 +54,11 @@ export default function PlaylistCarousel({
 
   const renderPlaylist = ({ item }: { item: Playlist }) => (
     <View style={styles.playlistContainer}>
-      <PlaylistCard
+      <PlaylistCardCompact
         playlist={item}
         onPress={() => onPlaylistPress?.(item)}
         onPlay={() => onPlayPress?.(item)}
-        showCollaborators={false}
+        width={200}
       />
     </View>
   );
